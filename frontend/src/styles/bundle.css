@@ -1,0 +1,109 @@
+/* League App component recipes, copied from design/src/ds/bundle.css. The Google Fonts
+   @import is removed: main.tsx loads Barlow and Barlow Condensed from @fontsource. */
+
+/* League App component recipes. Every value comes from tokens.css. */
+
+.la-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+  min-height: var(--button-height); min-width: var(--tap-min); padding: 0 var(--space-5);
+  border-radius: var(--radius-md); border: 1.5px solid transparent;
+  font-family: var(--font-sans); font-size: 15px; line-height: 20px; font-weight: 600; letter-spacing: .01em;
+  cursor: pointer; text-decoration: none; -webkit-tap-highlight-color: transparent;
+}
+.la-btn svg { width: 20px; height: 20px; flex: none; }
+.la-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.la-btn:active { opacity: .72; }
+.la-btn[disabled] { opacity: .4; cursor: default; }
+.la-btn--block { display: flex; width: 100%; }
+.la-btn--primary { background: var(--accent); color: var(--on-accent); }
+.la-btn--secondary { background: transparent; color: var(--ink); border-color: var(--line-strong); }
+.la-btn--quiet { background: transparent; color: var(--accent-ink); padding: 0 var(--space-3); }
+.la-btn--danger { background: transparent; color: var(--cancelled); border-color: var(--cancelled); }
+.la-btn--sm { min-height: 40px; padding: 0 var(--space-4); border-radius: var(--radius-sm); font-size: 14px; }
+
+.la-chip {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  height: 28px; padding: 0 10px 0 8px; border-radius: var(--radius-pill);
+  font-family: var(--font-sans); font-size: 13px; line-height: 18px; font-weight: 600; white-space: nowrap;
+}
+.la-chip svg { width: 16px; height: 16px; flex: none; }
+.la-chip--confirmed { background: var(--confirmed-soft); color: var(--confirmed); }
+.la-chip--pending { background: var(--pending-soft); color: var(--pending); }
+.la-chip--cancelled { background: var(--cancelled-soft); color: var(--cancelled); }
+.la-chip--info { background: var(--info-soft); color: var(--info); }
+
+.la-card {
+  background: var(--surface); color: var(--ink); border-radius: var(--radius-lg);
+  border: 1px solid var(--line); box-shadow: var(--shadow-card); padding: var(--space-4);
+  font-family: var(--font-sans);
+}
+.la-overline {
+  font-family: var(--font-display); font-size: 13px; line-height: 16px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--ink-muted); margin: 0;
+}
+.la-fixture { font-family: var(--font-display); font-size: 24px; line-height: 28px; font-weight: 700; margin: 0; color: var(--ink); }
+.la-vs { color: var(--ink-muted); font-weight: 600; }
+.la-time {
+  font-family: var(--font-display); font-size: 48px; line-height: 48px; font-weight: 700;
+  letter-spacing: -.01em; font-variant-numeric: tabular-nums; color: var(--ink);
+}
+.la-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); font-size: 13px; line-height: 18px; font-weight: 500; color: var(--ink-muted); }
+.la-meta span { display: inline-flex; align-items: center; gap: var(--space-1); }
+.la-meta svg { width: 16px; height: 16px; }
+.la-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.la-actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.la-divider { height: 1px; background: var(--line); border: 0; margin: var(--space-4) 0; }
+
+.la-progress { display: grid; gap: var(--space-2); font-family: var(--font-sans); }
+.la-progress__track { height: 10px; border-radius: var(--radius-pill); background: var(--surface-sunken); overflow: hidden; position: relative; }
+.la-progress__fill { position: absolute; inset: 0 auto 0 0; border-radius: var(--radius-pill); background: var(--accent); }
+.la-progress__fill--done { background: var(--confirmed); }
+.la-progress__min { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); border-radius: 1px; }
+.la-progress__label { font-size: 15px; line-height: 20px; font-weight: 600; color: var(--ink); }
+.la-progress__label b { font-family: var(--font-display); font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.la-progress__hint { font-size: 13px; line-height: 18px; color: var(--ink-muted); }
+
+.la-ticket {
+  background: var(--ticket); color: var(--ticket-ink); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-ticket); overflow: hidden; font-family: var(--font-sans); position: relative;
+}
+.la-ticket__head { padding: var(--space-5) var(--space-5) var(--space-4); }
+.la-ticket__head .la-overline { color: var(--ticket-ink); opacity: .7; }
+.la-ticket__team { font-family: var(--font-display); font-size: 32px; line-height: 36px; font-weight: 700; margin: var(--space-1) 0 var(--space-2); }
+.la-ticket__cut { position: relative; height: 24px; }
+.la-ticket__cut::before { content: ""; position: absolute; left: 24px; right: 24px; top: 11px; border-top: 2px dashed var(--ticket-ink); opacity: .25; }
+.la-ticket__notch { position: absolute; top: 0; width: 24px; height: 24px; border-radius: 50%; background: var(--ground); }
+.la-ticket__code { padding: var(--space-4) var(--space-5) var(--space-5); text-align: center; }
+.la-ticket__code svg { display: block; width: 100%; height: 96px; }
+.la-ticket__num { font-family: var(--font-display); font-size: 18px; letter-spacing: .24em; font-weight: 600; margin-top: var(--space-2); }
+
+.la-tabbar {
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; height: var(--tabbar-height);
+  background: var(--surface); border-top: 1px solid var(--line); font-family: var(--font-sans);
+}
+.la-tab {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  min-height: var(--tap-min); color: var(--ink-muted); font-size: 12px; line-height: 16px; font-weight: 600;
+  position: relative; background: none; border: 0; cursor: pointer;
+}
+.la-tab svg { width: var(--icon-md); height: var(--icon-md); }
+.la-tab[aria-current="page"] { color: var(--accent-ink); }
+.la-tab[aria-current="page"]::before { content: ""; position: absolute; top: 0; left: 30%; right: 30%; height: 3px; border-radius: 0 0 3px 3px; background: var(--accent); }
+.la-tab__badge { position: absolute; top: 8px; left: calc(50% + 6px); min-width: 18px; height: 18px; padding: 0 5px; border-radius: var(--radius-pill); background: var(--pending); color: var(--ground); font-size: 11px; line-height: 18px; font-weight: 700; }
+
+.la-stats { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.la-stat { background: var(--surface-sunken); border-radius: var(--radius-md); padding: var(--space-3); display: grid; gap: 2px; }
+.la-stat__label { font-size: 13px; line-height: 18px; font-weight: 500; color: var(--ink-muted); }
+.la-stat__value { font-family: var(--font-display); font-size: 28px; line-height: 32px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink); }
+.la-stat__value--owed { color: var(--pending); }
+
+.la-planner { display: grid; gap: var(--space-2); }
+.la-planner__bars { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; align-items: end; height: 112px; }
+.la-planner__week { position: relative; height: 100%; display: flex; align-items: flex-end; }
+.la-planner__exp { position: absolute; left: 0; right: 0; bottom: 0; border: 1px solid var(--line-strong); border-radius: 6px; }
+.la-planner__got { position: relative; width: 100%; background: var(--accent-ink); border-radius: 6px; }
+.la-planner__week--now .la-planner__exp { border: 2px solid var(--ink); }
+.la-planner__axis { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; font-size: 12px; line-height: 16px; font-weight: 600; color: var(--ink-muted); text-align: center; font-variant-numeric: tabular-nums; }
+.la-planner__key { display: flex; flex-wrap: wrap; gap: var(--space-3); font-size: 13px; line-height: 18px; color: var(--ink-muted); }
+.la-planner__key span { display: inline-flex; align-items: center; gap: 6px; }
+.la-planner__key i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }

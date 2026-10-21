@@ -1,0 +1,26 @@
+# Secrets: never commit. Copy .env.example to .env for local development.
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+backend/staticfiles/
+
+# Node / frontend
+node_modules/
+dist/
+
+# Design canvas screenshots (verification only)
+design/shots/
+
+# OS / editors
+.DS_Store
+Thumbs.db

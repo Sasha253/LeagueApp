@@ -1,0 +1,209 @@
+/* League App: proposed components and mock device chrome.
+   Not in the design system yet. Every value reads a token from tokens.css;
+   no new colours, fonts or sizes outside the token scale except where noted
+   as OS chrome (status bar, home indicator, lock-screen clock). */
+
+/* ---------- Utilities ---------- */
+.muted { color: var(--ink-muted); }
+.tnum { font-variant-numeric: tabular-nums; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.stack { display: grid; gap: var(--space-4); }
+.stack-1 { display: grid; gap: var(--space-1); }
+.stack-2 { display: grid; gap: var(--space-2); }
+.stack-3 { display: grid; gap: var(--space-3); }
+.stack-5 { display: grid; gap: var(--space-5); }
+
+/* ---------- Mock device chrome (OS, not app UI) ---------- */
+.ab-screen { position: relative; width: 375px; height: 812px; overflow: hidden; background: var(--ground); color: var(--ink); font-family: var(--font-sans); display: flex; flex-direction: column; isolation: isolate; }
+.ab-screen p, .ab-screen h1, .ab-screen h2, .ab-screen h3, .ab-screen h4 { margin: 0; }
+.ab-status { flex: none; height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 22px 0 30px; font: 600 15px/20px var(--font-sans); font-variant-numeric: tabular-nums; color: var(--ink); }
+.ab-status__icons { display: flex; gap: 6px; align-items: center; }
+.ab-home { flex: none; height: 34px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 8px; box-sizing: border-box; }
+.ab-home--bar { background: var(--surface); }
+.ab-home i { display: block; width: 134px; height: 5px; border-radius: var(--radius-pill); background: var(--ink); }
+
+/* ---------- Screen layout: large-title nav → content → pinned actions → tab bar ---------- */
+.ab-nav { flex: none; padding: 0 var(--gutter) var(--space-4); display: grid; gap: var(--space-1); }
+.ab-nav--top { padding-top: var(--space-3); }
+.ab-nav__bar { display: flex; align-items: center; justify-content: space-between; min-height: var(--tap-min); margin: 0 -12px; }
+.ab-nav__bar .la-btn--quiet { padding: 0 var(--space-3) 0 var(--space-1); gap: 2px; }
+.ab-nav__title { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.ab-nav__title .ab-nav__acts { margin-right: -12px; }
+.ab-nav__acts { display: flex; align-items: center; }
+.ab-nav__mid { position: absolute; left: 0; right: 0; text-align: center; pointer-events: none; }
+.ab-main { flex: 1; min-height: 0; overflow: hidden; padding: 0 var(--gutter); display: flex; flex-direction: column; gap: var(--space-4); }
+.ab-main > * { flex: none; }
+.ab-main--flush { padding: 0; }
+.ab-bottom { flex: none; padding: var(--space-3) var(--gutter) var(--space-4); display: grid; gap: var(--space-3); background: var(--ground); border-top: 1px solid var(--line); }
+.ab-bottom--plain { border-top: 0; }
+
+/* Section header */
+.la-section { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-height: 24px; }
+.la-section .la-btn--quiet { padding: 0; min-height: var(--tap-min); }
+
+/* ---------- IconButton (proposed): 48 × 48 icon-only button, always labelled ---------- */
+.la-iconbtn { display: inline-grid; place-items: center; width: var(--tap-min); height: var(--tap-min); border-radius: var(--radius-pill); background: transparent; border: 0; color: var(--ink); cursor: pointer; padding: 0; flex: none; }
+.la-iconbtn svg { width: var(--icon-md); height: var(--icon-md); }
+.la-iconbtn--filled { background: var(--surface); border: 1px solid var(--line-strong); }
+.la-iconbtn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+/* ---------- ListGroup and ListRow (proposed) ---------- */
+.la-group { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); box-shadow: var(--shadow-card); overflow: hidden; }
+.la-item { display: flex; align-items: center; gap: var(--space-3); min-height: 56px; padding: var(--space-3) var(--space-4); border-top: 1px solid var(--line); box-sizing: border-box; }
+.la-item:first-child { border-top: 0; }
+.la-item__body { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.la-item__body .la-chip { justify-self: start; margin-top: var(--space-1); }
+.la-item__trail { flex: none; display: flex; align-items: center; gap: var(--space-2); }
+.la-item__chev { flex: none; display: flex; color: var(--ink-muted); }
+.la-item__chev svg { width: 20px; height: 20px; }
+.la-item--selected { background: var(--accent-soft); }
+.la-item--compact { min-height: var(--tap-min); padding-top: var(--space-2); padding-bottom: var(--space-2); }
+.la-item__time { flex: none; width: 56px; font-family: var(--font-display); font-size: 24px; line-height: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* Avatar (proposed): initials on surface-sunken */
+.la-avatar { flex: none; width: 40px; height: 40px; border-radius: var(--radius-pill); background: var(--surface-sunken); color: var(--ink); border: 1px solid var(--line-strong); display: grid; place-items: center; font: 600 15px/20px var(--font-sans); box-sizing: border-box; }
+
+/* Icon disc: the 40px status disc from ConfirmationCard, reused as a list lead */
+.la-disc { flex: none; width: 40px; height: 40px; border-radius: var(--radius-pill); display: grid; place-items: center; }
+.la-disc svg { width: var(--icon-md); height: var(--icon-md); }
+.la-disc--pending { background: var(--pending-soft); color: var(--pending); }
+.la-disc--confirmed { background: var(--confirmed-soft); color: var(--confirmed); }
+.la-disc--cancelled { background: var(--cancelled-soft); color: var(--cancelled); }
+.la-disc--info { background: var(--info-soft); color: var(--info); }
+.la-disc--neutral { background: var(--surface-sunken); color: var(--ink); }
+.la-disc--xl { width: 96px; height: 96px; }
+.la-disc--xl svg { width: 48px; height: 48px; }
+
+/* ---------- Banner (proposed): strong colour on its -soft tint ---------- */
+.la-banner { display: flex; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); color: var(--ink); align-items: flex-start; }
+.la-banner > svg { flex: none; width: var(--icon-md); height: var(--icon-md); }
+.la-banner__body { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.la-banner__body .la-btn--quiet { justify-self: start; padding: 0; min-height: var(--tap-min); margin-bottom: calc(-1 * var(--space-3)); }
+.la-banner--pending { background: var(--pending-soft); } .la-banner--pending > svg, .la-banner--pending .la-banner__title { color: var(--pending); }
+.la-banner--confirmed { background: var(--confirmed-soft); } .la-banner--confirmed > svg, .la-banner--confirmed .la-banner__title { color: var(--confirmed); }
+.la-banner--cancelled { background: var(--cancelled-soft); } .la-banner--cancelled > svg, .la-banner--cancelled .la-banner__title { color: var(--cancelled); }
+.la-banner--info { background: var(--info-soft); } .la-banner--info > svg, .la-banner--info .la-banner__title { color: var(--info); }
+
+/* ---------- ChoiceChip (proposed): selectable filter / option chip, 48px ---------- */
+.la-choices { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.la-choice { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--tap-min); min-width: var(--tap-min); padding: 0 var(--space-4); border-radius: var(--radius-pill); border: 1.5px solid var(--line-strong); background: transparent; color: var(--ink); font: 600 15px/20px var(--font-sans); letter-spacing: .01em; cursor: pointer; box-sizing: border-box; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.la-choice svg { width: 18px; height: 18px; flex: none; }
+.la-choice[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent-ink); color: var(--accent-ink); }
+.la-choice[disabled] { opacity: .4; cursor: default; }
+.la-choice__count { font-family: var(--font-display); font-size: 17px; }
+.la-choice--slot { min-width: 0; padding: 0 var(--space-2); border-radius: var(--radius-sm); }
+
+/* ---------- SegmentedControl (proposed) ---------- */
+.la-seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: var(--space-1); padding: var(--space-1); background: var(--surface-sunken); border-radius: var(--radius-md); }
+.la-seg button { min-height: 44px; border-radius: var(--radius-sm); border: 0; background: transparent; color: var(--ink-muted); font: 600 15px/20px var(--font-sans); display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); cursor: pointer; padding: 0 var(--space-2); }
+.la-seg button svg { width: 20px; height: 20px; }
+.la-seg button[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--line-strong); }
+
+/* ---------- Radio and Checkbox marks (proposed) ---------- */
+.la-radio { flex: none; width: 24px; height: 24px; border-radius: var(--radius-pill); border: 2px solid var(--line-strong); box-sizing: border-box; }
+.la-radio--on { border-color: var(--accent-ink); background: radial-gradient(circle, var(--accent-ink) 0 5px, transparent 5.5px); }
+.la-checkbox { flex: none; width: 24px; height: 24px; border-radius: 6px; border: 2px solid var(--line-strong); box-sizing: border-box; display: grid; place-items: center; color: var(--ground); }
+.la-checkbox svg { width: 16px; height: 16px; stroke-width: 3; }
+.la-checkbox--on { background: var(--accent-ink); border-color: var(--accent-ink); }
+
+/* ---------- Stepper (proposed) ---------- */
+.la-stepper { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); background: var(--surface-sunken); border-radius: var(--radius-md); padding: var(--space-2); }
+.la-stepper__btn { width: var(--tap-min); height: var(--tap-min); border-radius: var(--radius-sm); border: 1.5px solid var(--line-strong); background: var(--surface); color: var(--ink); display: grid; place-items: center; cursor: pointer; padding: 0; }
+.la-stepper__btn svg { width: var(--icon-md); height: var(--icon-md); }
+.la-stepper__btn[disabled] { opacity: .4; }
+.la-stepper__val { flex: 1; text-align: center; font-family: var(--font-display); font-size: 32px; line-height: 36px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.la-stepper__unit { display: block; font-family: var(--font-sans); font-size: 13px; line-height: 18px; font-weight: 500; color: var(--ink-muted); }
+
+/* ---------- TextField (proposed) ---------- */
+.la-field { display: grid; gap: var(--space-2); }
+.la-field__label { font: 600 15px/20px var(--font-sans); letter-spacing: .01em; }
+.la-input { min-height: var(--button-height); padding: 0 var(--space-4); border-radius: var(--radius-sm); border: 1.5px solid var(--line-strong); background: var(--surface-sunken); color: var(--ink); font: 400 16px/24px var(--font-sans); display: flex; align-items: center; gap: var(--space-2); box-sizing: border-box; }
+.la-input svg { width: 20px; height: 20px; flex: none; color: var(--ink-muted); }
+.la-input--focus { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.la-input--error { border-color: var(--cancelled); }
+.la-input--code { font-family: var(--font-display); font-size: 24px; letter-spacing: .16em; font-weight: 600; }
+.la-input__caret { display: inline-block; width: 2px; height: 26px; background: var(--focus-ring); margin-left: 1px; }
+.la-input__ph { color: var(--ink-muted); }
+.la-field__help { font: 500 13px/18px var(--font-sans); color: var(--ink-muted); }
+.la-field__error { font: 500 13px/18px var(--font-sans); color: var(--cancelled); display: flex; gap: var(--space-1); align-items: center; }
+.la-field__error svg { width: 16px; height: 16px; }
+.la-textarea { min-height: 96px; align-items: flex-start; padding-top: var(--space-3); }
+
+/* ---------- BottomSheet (proposed) ---------- */
+.la-scrim { position: absolute; inset: 0; background: var(--scrim); z-index: 10; }
+.la-sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 11; background: var(--surface); color: var(--ink); border-radius: var(--radius-lg) var(--radius-lg) 0 0; box-shadow: var(--shadow-sheet); padding: var(--space-2) var(--space-5) 0; display: grid; gap: var(--space-4); }
+.la-sheet__grab { justify-self: center; width: 36px; height: 5px; border-radius: var(--radius-pill); background: var(--line-strong); }
+.la-sheet .ab-home { margin: 0 calc(-1 * var(--space-5)); }
+
+/* ---------- Status hero (proposed): large disc + title for result states ---------- */
+.la-hero { display: grid; justify-items: center; text-align: center; gap: var(--space-3); padding: var(--space-5) 0 var(--space-2); }
+.la-result { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-4); border-radius: var(--radius-md); }
+.la-result svg { width: 40px; height: 40px; flex: none; }
+.la-result__word { font-family: var(--font-display); font-size: 48px; line-height: 48px; font-weight: 700; }
+.la-result--paid { background: var(--confirmed-soft); color: var(--confirmed); }
+.la-result--notpaid { background: var(--cancelled-soft); color: var(--cancelled); }
+
+/* ---------- Skeleton, EmptyState, ErrorState (proposed recipes of README "States") ---------- */
+.la-skel { background: var(--surface-sunken); border-radius: var(--radius-sm); }
+.la-empty { display: grid; justify-items: center; text-align: center; gap: var(--space-3); padding: var(--space-6) var(--space-4); }
+.la-empty > svg { width: 40px; height: 40px; color: var(--ink-muted); }
+
+/* ---------- DayStrip and slot grid (proposed date/time picker) ---------- */
+.la-days { display: flex; gap: var(--space-2); margin-right: calc(-1 * var(--gutter)); overflow: hidden; }
+.la-day { flex: none; width: 60px; min-height: 68px; border-radius: var(--radius-md); border: 1.5px solid var(--line-strong); background: transparent; color: var(--ink); display: grid; align-content: center; justify-items: center; gap: 0; padding: 0; cursor: pointer; font-family: var(--font-sans); }
+.la-day span { font: 500 13px/18px var(--font-sans); color: var(--ink-muted); }
+.la-day b { font: 700 24px/28px var(--font-display); font-variant-numeric: tabular-nums; }
+.la-day[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent-ink); color: var(--accent-ink); }
+.la-day[aria-pressed="true"] span { color: var(--accent-ink); }
+.la-day[disabled] { opacity: .4; }
+.la-slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); }
+
+/* ---------- Scanner viewfinder (proposed) ---------- */
+.la-scan { position: relative; flex: 1; background: var(--surface-sunken); overflow: hidden; display: grid; place-items: center; }
+.la-scan__frame { position: relative; width: 296px; height: 184px; border-radius: var(--radius-md); box-shadow: 0 0 0 999px var(--scrim); display: grid; place-items: center; }
+.la-scan__frame i { position: absolute; width: 36px; height: 36px; border: 4px solid var(--ink); }
+.la-scan__frame .tl { top: -4px; left: -4px; border-right: 0; border-bottom: 0; border-radius: var(--radius-md) 0 0 0; }
+.la-scan__frame .tr { top: -4px; right: -4px; border-left: 0; border-bottom: 0; border-radius: 0 var(--radius-md) 0 0; }
+.la-scan__frame .bl { bottom: -4px; left: -4px; border-right: 0; border-top: 0; border-radius: 0 0 0 var(--radius-md); }
+.la-scan__frame .br { bottom: -4px; right: -4px; border-left: 0; border-top: 0; border-radius: 0 0 var(--radius-md) 0; }
+.la-scan__line { position: absolute; left: 12px; right: 12px; top: 46%; height: 2px; border-radius: 1px; background: var(--accent-ink); }
+.la-scan__subject { width: 244px; padding: 14px 16px 10px; background: var(--ticket); color: var(--ticket-ink); border-radius: var(--radius-sm); transform: rotate(-3deg); }
+.la-scan__subject svg { display: block; width: 100%; height: 72px; }
+.la-scan__subject div { font: 600 13px/16px var(--font-display); letter-spacing: .24em; text-align: center; margin-top: 4px; }
+.la-scan__top { position: absolute; top: var(--space-5); left: var(--gutter); right: var(--gutter); text-align: center; display: grid; gap: var(--space-1); z-index: 1; }
+.la-scan__bottom { position: absolute; bottom: var(--space-5); left: var(--gutter); right: var(--gutter); display: flex; justify-content: space-between; align-items: center; z-index: 1; }
+
+/* ---------- FileDrop and DataTable (proposed) ---------- */
+.la-drop { display: grid; justify-items: center; text-align: center; gap: var(--space-3); padding: var(--space-6) var(--space-4); border: 2px dashed var(--line-strong); border-radius: var(--radius-md); }
+.la-drop > svg { width: 40px; height: 40px; color: var(--ink-muted); }
+.la-table { width: 100%; border-collapse: collapse; font: 500 13px/18px var(--font-sans); font-variant-numeric: tabular-nums; }
+.la-table th { text-align: left; color: var(--ink-muted); font-weight: 600; padding: var(--space-2) var(--space-2); border-bottom: 1px solid var(--line-strong); }
+.la-table td { padding: var(--space-3) var(--space-2); border-bottom: 1px solid var(--line); color: var(--ink); vertical-align: top; }
+.la-table tr:last-child td { border-bottom: 0; }
+.la-table .num { text-align: right; }
+.la-table th:first-child, .la-table td:first-child { padding-left: var(--space-4); }
+.la-table th:last-child, .la-table td:last-child { padding-right: var(--space-4); }
+
+/* ---------- Lock screen and push notification (mock OS surface) ---------- */
+.la-lock__top { display: grid; justify-items: center; gap: var(--space-1); padding-top: var(--space-4); }
+.la-lock__top svg { width: 20px; height: 20px; }
+.la-lock__clock { font-family: var(--font-display); font-size: 96px; line-height: 96px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.la-lock__stack { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: var(--space-2); padding: var(--space-4) var(--space-3) var(--space-5); }
+.la-lock__foot { display: flex; justify-content: space-between; padding: 0 var(--space-6) var(--space-2); }
+.la-push { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); box-shadow: var(--shadow-card); padding: var(--space-3) var(--space-4) var(--space-2); display: grid; gap: 2px; }
+.la-push__head { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-1); }
+.la-push__app { width: 24px; height: 24px; border-radius: 6px; background: var(--accent-soft); color: var(--accent-ink); display: grid; place-items: center; }
+.la-push__app svg { width: 16px; height: 16px; }
+.la-push__actions { display: flex; gap: var(--space-2); margin: var(--space-1) calc(-1 * var(--space-3)) 0; border-top: 1px solid var(--line); padding-top: var(--space-1); }
+.la-push__actions .la-btn { flex: 1; min-height: var(--tap-min); }
+.la-push--dim { opacity: .72; }
+
+/* ---------- Key/value rows inside cards ---------- */
+.la-kv { display: flex; justify-content: space-between; gap: var(--space-3); align-items: baseline; }
+.la-kv > span:first-child { color: var(--ink-muted); }
+.la-kv > span:last-child { text-align: right; font-weight: 600; }
+
+/* ---------- Team readiness line (MatchCard extension for Tonight) ---------- */
+.la-team-line { display: flex; align-items: center; gap: var(--space-2); min-height: 32px; }
+.la-team-line__name { flex: 1; font: 600 16px/24px var(--font-sans); }
+.la-team-line__count { font: 500 13px/18px var(--font-sans); color: var(--ink-muted); font-variant-numeric: tabular-nums; }

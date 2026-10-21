@@ -1,0 +1,86 @@
+/* League App — generated from tokens.json */
+:root, [data-theme="night"] {
+  --ground: #0c1611;
+  --surface: #14211a;
+  --surface-sunken: #08100c;
+  --line: #26392e;
+  --line-strong: #5c7666;
+  --ink: #edf3ec;
+  --ink-muted: #9fb2a5;
+  --accent: #cff25a;
+  --on-accent: #0e1a0b;
+  --accent-ink: #cff25a;
+  --accent-soft: #233414;
+  --confirmed: #3fd3c3;
+  --confirmed-soft: #0f2e2b;
+  --pending: #f4c24f;
+  --pending-soft: #33290f;
+  --cancelled: #ff8259;
+  --cancelled-soft: #3a1c14;
+  --info: #8db4ff;
+  --info-soft: #18233a;
+  --ticket: #ffffff;
+  --ticket-ink: #0b0f0c;
+  --focus-ring: #cff25a;
+  --scrim: rgba(4, 8, 6, 0.72);
+  --shadow-card: none;
+  --shadow-sheet: 0 -12px 40px rgba(0, 0, 0, 0.55);
+  --shadow-ticket: 0 16px 48px rgba(0, 0, 0, 0.6);
+}
+[data-theme="day"] {
+  --ground: #f5f6f0;
+  --surface: #ffffff;
+  --surface-sunken: #e9ede4;
+  --line: #d3dacd;
+  --line-strong: #7d8b80;
+  --ink: #0e1913;
+  --ink-muted: #4c5c52;
+  --accent: #b9dd2a;
+  --on-accent: #0e1a0b;
+  --accent-ink: #3d6600;
+  --accent-soft: #eef8c8;
+  --confirmed: #00766f;
+  --confirmed-soft: #ddf4f1;
+  --pending: #8a5d00;
+  --pending-soft: #fbf0d2;
+  --cancelled: #b83a12;
+  --cancelled-soft: #fce3da;
+  --info: #2b57b8;
+  --info-soft: #e3ebfb;
+  --ticket: #ffffff;
+  --ticket-ink: #0b0f0c;
+  --focus-ring: #3d6600;
+  --scrim: rgba(14, 25, 19, 0.48);
+  --shadow-card: 0 1px 2px rgba(14, 25, 19, 0.06), 0 6px 20px rgba(14, 25, 19, 0.06);
+  --shadow-sheet: 0 -12px 40px rgba(14, 25, 19, 0.14);
+  --shadow-ticket: 0 16px 48px rgba(14, 25, 19, 0.18);
+}
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --radius-pill: 999px;
+  --tap-min: 48px;
+  --button-height: 52px;
+  --tabbar-height: 64px;
+  --icon-md: 24px;
+  --gutter: 16px;
+  --font-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-sans: Barlow, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.scoreboard { font-family: var(--font-display); font-size: 48px; line-height: 48px; font-weight: 700; letter-spacing: -0.01em; }
+.title-1 { font-family: var(--font-display); font-size: 32px; line-height: 36px; font-weight: 700; }
+.title-2 { font-family: var(--font-display); font-size: 24px; line-height: 28px; font-weight: 700; }
+.overline { font-family: var(--font-display); font-size: 13px; line-height: 16px; font-weight: 700; letter-spacing: 0.08em; }
+.headline { font-family: var(--font-sans); font-size: 18px; line-height: 24px; font-weight: 600; }
+.body { font-family: var(--font-sans); font-size: 16px; line-height: 24px; font-weight: 400; }
+.body-strong { font-family: var(--font-sans); font-size: 16px; line-height: 24px; font-weight: 600; }
+.label { font-family: var(--font-sans); font-size: 15px; line-height: 20px; font-weight: 600; letter-spacing: 0.01em; }
+.caption { font-family: var(--font-sans); font-size: 13px; line-height: 18px; font-weight: 500; }

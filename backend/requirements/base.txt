@@ -1,0 +1,7 @@
+Django>=6.1,<6.2
+djangorestframework>=3.18,<3.19
+drf-spectacular>=0.30,<0.31
+django-environ>=0.14,<0.15
+django-cors-headers>=4.9,<4.10
+psycopg[binary]>=3.3,<3.4
+whitenoise>=6.9,<7  # serves the collected static files in production
