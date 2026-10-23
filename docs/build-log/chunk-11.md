@@ -98,3 +98,32 @@ By hand:
 
 Checks: make test (424 passed), make lint (passed), npm test (163 passed), npm run build
 (passed).
+
+## Review (unattended, 2026-10-23)
+
+Plan: compare b16887d with the chunk 11 prompt and the CLAUDE.md rules, run all four checks,
+fix real defects only.
+
+Checked and fine:
+- Redis in docker-compose.yml, `make worker` and `make beat`, CLAUDE.md Commands updated.
+- One periodic task (`fixtures.run_checkpoints`, every 60 s) runs T-36h, the resend and T-6h
+  exactly once per Fixture and kick-off (row lock plus a unique FixtureCheckpoint claim);
+  late runs catch up only while still useful. Hours come from each Club's ClubSettings
+  (data, FR-42); the settings serializer already keeps readiness < confirmation and the
+  resend inside the window.
+- Club isolation: `due()` filters by the settings' club; `notify()` refuses a Fixture of
+  another Club. Targeting reuses chunk 9's rules (Players only for opted-in Nights; Admins
+  and the pitch's Referee for the Reminder).
+- FixtureCheckpoint is append-only (save/delete guarded, read-only admin inline). No money,
+  no ledger, no UI, no API change (`npm run gen:api`: schema unchanged). Nothing from later
+  chunks (readiness, answers, FR-9, booking cutoff) was built.
+- Tests use a frozen clock (time-machine) and cover every checkpoint rule.
+
+Fixed:
+- Resend race: the unanswered Confirmations were read without a lock, so a Player answering
+  between that read and the resend was pushed "Are you playing?" again and their inbox
+  entry marked unread. The resend now locks those Notification rows (`select_for_update`,
+  which `answer()` also takes) and only resends the ones still unanswered.
+
+Checks after the fix: make test (424 passed), make lint (passed), npm test (163 passed),
+npm run build (passed).

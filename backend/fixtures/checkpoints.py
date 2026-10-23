@@ -177,9 +177,12 @@ def resend_confirmations(fixture_id: int, now: datetime | None = None) -> bool:
         answer_by__gt=now,
         recipient__in=targeting.confirmation_recipients(fixture),
     )
-    if not _claim(fixture, Checkpoint.RESEND, now, unanswered.count()):
+    # Locked, so a Player answering at this moment is either seen as answered or answers
+    # after the resend; never pushed again (and shown unread) just after answering.
+    ids = list(unanswered.select_for_update(of=("self",)).values_list("pk", flat=True))
+    if not _claim(fixture, Checkpoint.RESEND, now, len(ids)):
         return False
-    notifications.resend(unanswered)
+    notifications.resend(Notification.objects.filter(pk__in=ids))
     return True
 
 
