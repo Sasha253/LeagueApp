@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "clubs",
     "accounts",
     "teams",
+    "fixtures",
 ]
 
 MIDDLEWARE = [
@@ -123,6 +124,9 @@ SPECTACULAR_SETTINGS = {
         "WeekdayEnum": "clubs.models.WEEKDAYS",
         "TeamStatusEnum": "teams.models.TEAM_STATUSES",
         "JoinRequestStatusEnum": "teams.models.JOIN_REQUEST_STATUSES",
+        "FixtureStatusEnum": "fixtures.models.FIXTURE_STATUSES",
+        "ImportActionEnum": "clubs.imports.Action",
+        "FixtureImportActionEnum": "fixtures.imports.Action",
     },
 }
 

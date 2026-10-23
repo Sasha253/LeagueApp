@@ -11,6 +11,11 @@ import { ImportNightsPage } from "./pages/club/ImportNightsPage";
 import { NightsPage } from "./pages/club/NightsPage";
 import { PeoplePage } from "./pages/club/PeoplePage";
 import { SeasonsPage } from "./pages/club/SeasonsPage";
+import { ClubFixturePage } from "./pages/fixtures/ClubFixturePage";
+import { ClubFixturesPage } from "./pages/fixtures/ClubFixturesPage";
+import { FixturePage } from "./pages/fixtures/FixturePage";
+import { ImportFixturesPage } from "./pages/fixtures/ImportFixturesPage";
+import { MyFixturesPage } from "./pages/fixtures/MyFixturesPage";
 import { ClubTeamPage } from "./pages/teams/ClubTeamPage";
 import { ClubTeamsPage } from "./pages/teams/ClubTeamsPage";
 import { FindTeamPage } from "./pages/teams/FindTeamPage";
@@ -35,6 +40,11 @@ export const routes: RouteObject[] = [
       { path: "/clubs/:clubId/setup/people", element: <PeoplePage /> },
       { path: "/clubs/:clubId/teams", element: <ClubTeamsPage /> },
       { path: "/clubs/:clubId/teams/:teamId", element: <ClubTeamPage /> },
+      { path: "/clubs/:clubId/fixtures", element: <ClubFixturesPage /> },
+      { path: "/clubs/:clubId/fixtures/import", element: <ImportFixturesPage /> },
+      { path: "/clubs/:clubId/fixtures/:fixtureId", element: <ClubFixturePage /> },
+      { path: "/fixtures", element: <MyFixturesPage /> },
+      { path: "/fixtures/:fixtureId", element: <FixturePage /> },
       { path: "/teams", element: <MyTeamsPage /> },
       { path: "/teams/find", element: <FindTeamPage /> },
       { path: "/teams/new", element: <RequestTeamPage /> },

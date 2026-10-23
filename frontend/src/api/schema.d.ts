@@ -201,6 +201,106 @@ export interface paths {
         patch: operations["clubs_fields_partial_update"];
         trace?: never;
     };
+    "/api/v1/clubs/{club_id}/fixtures/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The club's Fixtures, by kick-off. The Admin can mark one friendly-eligible. */
+        get: operations["clubs_fixtures_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/fixtures/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The club's Fixtures, by kick-off. The Admin can mark one friendly-eligible. */
+        get: operations["clubs_fixtures_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Mark a Fixture friendly-eligible, or not
+         * @description Only while the match may still fall through: 409 once it is a friendly, cancelled or played.
+         */
+        patch: operations["clubs_fixtures_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/imports/fixtures/commit/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import a Season's Fixtures
+         * @description Checks the file again and saves every row in one transaction. If any row has an error, nothing is saved and the answer is 400 with the rows and their errors.
+         */
+        post: operations["clubs_imports_fixtures_commit_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/imports/fixtures/preview/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview an import of a Season's Fixtures
+         * @description Checks every row and says what the import would do. Writes nothing.
+         */
+        post: operations["clubs_imports_fixtures_preview_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/imports/fixtures/template/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download the Fixtures import template
+         * @description For views under /clubs/{club_id}/: only that Club's Admins, only its records.
+         *
+         *     `club_field` is the lookup from the model to its Club.
+         */
+        get: operations["clubs_imports_fixtures_template_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clubs/{club_id}/imports/nights-divisions/commit/": {
         parameters: {
             query?: never;
@@ -537,6 +637,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/fixtures/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A Fixture of one of my Teams
+         * @description One Fixture, for a Player in either of its Teams now. Anyone else gets 404.
+         */
+        get: operations["fixtures_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/health/": {
         parameters: {
             query?: never;
@@ -608,6 +728,23 @@ export interface paths {
          * @description The Captain accepts or declines a request; the Player who asked can withdraw it.
          */
         post: operations["join_requests_withdraw_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/fixtures/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Fixtures of the Teams the signed-in Player is in now, cancelled ones too. */
+        get: operations["me_fixtures_list"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -833,14 +970,79 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /**
-         * @description * `create` - New Division
-         *     * `update` - Division changes
-         *     * `unchanged` - No change
-         *     * `error` - Has errors
-         * @enum {string}
-         */
-        ActionEnum: "create" | "update" | "unchanged" | "error";
+        /** @description A Fixture as the club's Admin sees it. FriendlyEligibleSerializer changes it. */
+        AdminFixture: {
+            readonly id: number;
+            readonly club: components["schemas"]["ClubSummary"];
+            readonly season: components["schemas"]["Named"];
+            readonly division: components["schemas"]["Named"];
+            /**
+             * @description The Night: 0 is Monday.
+             *
+             *     * `0` - Monday
+             *     * `1` - Tuesday
+             *     * `2` - Wednesday
+             *     * `3` - Thursday
+             *     * `4` - Friday
+             *     * `5` - Saturday
+             *     * `6` - Sunday
+             */
+            readonly weekday: components["schemas"]["WeekdayEnum"];
+            readonly pitch: components["schemas"]["Named"];
+            /**
+             * Format: date-time
+             * @description Stored in UTC; sent with its offset. Show it in Africa/Johannesburg.
+             */
+            readonly kick_off: string;
+            readonly home_team: components["schemas"]["Named"];
+            readonly away_team: components["schemas"]["Named"];
+            /** @description If the match can't go ahead, it may become a friendly (FR-10, FR-17). */
+            readonly friendly_eligible: boolean;
+            readonly status: components["schemas"]["FixtureStatusEnum"];
+            readonly referee_name: string | null;
+            readonly friendly_eligible_changed_by_name: string | null;
+            /** Format: date-time */
+            readonly friendly_eligible_changed_at: string | null;
+            /** Format: date-time */
+            readonly created_at: string;
+        };
+        /** @description A Fixture as the club's Admin sees it. FriendlyEligibleSerializer changes it. */
+        AdminFixtureDetail: {
+            readonly id: number;
+            readonly club: components["schemas"]["ClubSummary"];
+            readonly season: components["schemas"]["Named"];
+            readonly division: components["schemas"]["Named"];
+            /**
+             * @description The Night: 0 is Monday.
+             *
+             *     * `0` - Monday
+             *     * `1` - Tuesday
+             *     * `2` - Wednesday
+             *     * `3` - Thursday
+             *     * `4` - Friday
+             *     * `5` - Saturday
+             *     * `6` - Sunday
+             */
+            readonly weekday: components["schemas"]["WeekdayEnum"];
+            readonly pitch: components["schemas"]["Named"];
+            /**
+             * Format: date-time
+             * @description Stored in UTC; sent with its offset. Show it in Africa/Johannesburg.
+             */
+            readonly kick_off: string;
+            readonly home_team: components["schemas"]["Named"];
+            readonly away_team: components["schemas"]["Named"];
+            /** @description If the match can't go ahead, it may become a friendly (FR-10, FR-17). */
+            readonly friendly_eligible: boolean;
+            readonly status: components["schemas"]["FixtureStatusEnum"];
+            readonly referee_name: string | null;
+            readonly friendly_eligible_changed_by_name: string | null;
+            /** Format: date-time */
+            readonly friendly_eligible_changed_at: string | null;
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly transitions: components["schemas"]["FixtureTransition"][];
+        };
         /** @description A Team as its Club's Admin sees it, with who asked, who decided and its Players. */
         AdminTeam: {
             readonly id: number;
@@ -867,12 +1069,17 @@ export interface components {
             /** @description The user id of a Player in the Team. */
             player: number;
         };
+        /** @enum {unknown} */
+        BlankEnum: "";
         /**
-         * @description * `min_players` - min_players
-         *     * `league_fee` - league_fee
+         * @description * `import` - Fixture import
+         *     * `admin` - Admin
+         *     * `captain` - Captain
+         *     * `checkpoint` - Timed checkpoint
+         *     * `system` - League App
          * @enum {string}
          */
-        ChangesEnum: "min_players" | "league_fee";
+        CauseEnum: "import" | "admin" | "captain" | "checkpoint" | "system";
         /**
          * @description Invites an email to be an Admin or Referee of the Club in the URL.
          *
@@ -1043,6 +1250,92 @@ export interface components {
             /** @description A user holding the Referee role at this club. */
             referee?: number | null;
         };
+        /**
+         * @description * `create` - New Fixture
+         *     * `update` - Fixture changes
+         *     * `unchanged` - No change
+         *     * `error` - Has errors
+         * @enum {string}
+         */
+        FixtureImportActionEnum: "create" | "update" | "unchanged" | "error";
+        FixtureImportResult: {
+            /** @description True once the import has been saved. */
+            committed: boolean;
+            summary: components["schemas"]["FixtureImportSummary"];
+            rows: components["schemas"]["FixtureImportRow"][];
+        };
+        FixtureImportRow: {
+            /** @description The spreadsheet's row number; the header is 1. */
+            row: number;
+            /** Format: date-time */
+            kick_off: string | null;
+            night: (components["schemas"]["WeekdayEnum"] | components["schemas"]["NullEnum"]) | null;
+            division: string;
+            pitch: string;
+            home: string;
+            away: string;
+            /** @description What the Fixture will have after the import. */
+            friendly_eligible: boolean | null;
+            action: components["schemas"]["FixtureImportActionEnum"];
+            /** @description What an update changes. */
+            changes: components["schemas"]["FixtureImportRowChangesEnum"][];
+            errors: string[];
+        };
+        /**
+         * @description * `friendly_eligible` - friendly_eligible
+         * @enum {string}
+         */
+        FixtureImportRowChangesEnum: "friendly_eligible";
+        FixtureImportSummary: {
+            rows: number;
+            fixtures_created: number;
+            fixtures_updated: number;
+            unchanged: number;
+            errors: number;
+        };
+        FixtureImportUploadRequest: {
+            /** @description The Season every row is for. */
+            season: number;
+            /**
+             * Format: binary
+             * @description An .xlsx or .csv file, up to 5 MB and 500 rows.
+             */
+            file: Blob;
+        };
+        /**
+         * @description * `scheduled` - Scheduled
+         *     * `confirming` - Confirming
+         *     * `ready` - Ready
+         *     * `one_team_out` - One team out
+         *     * `replacement_offered` - Replacement offered
+         *     * `friendly` - Friendly
+         *     * `cancelled` - Cancelled
+         *     * `played` - Played
+         * @enum {string}
+         */
+        FixtureStatusEnum: "scheduled" | "confirming" | "ready" | "one_team_out" | "replacement_offered" | "friendly" | "cancelled" | "played";
+        FixtureTransition: {
+            readonly id: number;
+            /**
+             * @description Empty for the Fixture's creation.
+             *
+             *     * `scheduled` - Scheduled
+             *     * `confirming` - Confirming
+             *     * `ready` - Ready
+             *     * `one_team_out` - One team out
+             *     * `replacement_offered` - Replacement offered
+             *     * `friendly` - Friendly
+             *     * `cancelled` - Cancelled
+             *     * `played` - Played
+             */
+            readonly from_status: components["schemas"]["FixtureStatusEnum"] | components["schemas"]["BlankEnum"];
+            readonly to_status: components["schemas"]["FixtureStatusEnum"];
+            /** Format: date-time */
+            readonly at: string;
+            readonly cause: components["schemas"]["CauseEnum"];
+            readonly actor_name: string | null;
+            readonly note: string;
+        };
         Health: {
             /**
              * @description The API's own health: the database's.
@@ -1059,6 +1352,14 @@ export interface components {
          * @enum {string}
          */
         HealthStateEnum: "ok" | "error";
+        /**
+         * @description * `create` - New Division
+         *     * `update` - Division changes
+         *     * `unchanged` - No change
+         *     * `error` - Has errors
+         * @enum {string}
+         */
+        ImportActionEnum: "create" | "update" | "unchanged" | "error";
         ImportResult: {
             /** @description True once the import has been saved. */
             committed: boolean;
@@ -1077,13 +1378,19 @@ export interface components {
              * @description The Division's own fee after the import. Null: the club's fee applies.
              */
             league_fee: string | null;
-            action: components["schemas"]["ActionEnum"];
+            action: components["schemas"]["ImportActionEnum"];
             /** @description The import adds this Night to the club. */
             new_night: boolean;
             /** @description What an update changes. */
-            changes: components["schemas"]["ChangesEnum"][];
+            changes: components["schemas"]["ImportRowChangesEnum"][];
             errors: string[];
         };
+        /**
+         * @description * `min_players` - min_players
+         *     * `league_fee` - league_fee
+         * @enum {string}
+         */
+        ImportRowChangesEnum: "min_players" | "league_fee";
         ImportSummary: {
             rows: number;
             nights_created: number;
@@ -1141,6 +1448,38 @@ export interface components {
             readonly is_captain: boolean;
             /** Format: date-time */
             joined_at: string;
+        };
+        /** @description A Fixture as a Player in one of its Teams sees it. */
+        MyFixture: {
+            readonly id: number;
+            readonly club: components["schemas"]["ClubSummary"];
+            readonly season: components["schemas"]["Named"];
+            readonly division: components["schemas"]["Named"];
+            /**
+             * @description The Night: 0 is Monday.
+             *
+             *     * `0` - Monday
+             *     * `1` - Tuesday
+             *     * `2` - Wednesday
+             *     * `3` - Thursday
+             *     * `4` - Friday
+             *     * `5` - Saturday
+             *     * `6` - Sunday
+             */
+            readonly weekday: components["schemas"]["WeekdayEnum"];
+            readonly pitch: components["schemas"]["Named"];
+            /**
+             * Format: date-time
+             * @description Stored in UTC; sent with its offset. Show it in Africa/Johannesburg.
+             */
+            readonly kick_off: string;
+            readonly home_team: components["schemas"]["Named"];
+            readonly away_team: components["schemas"]["Named"];
+            /** @description If the match can't go ahead, it may become a friendly (FR-10, FR-17). */
+            readonly friendly_eligible: boolean;
+            readonly status: components["schemas"]["FixtureStatusEnum"];
+            /** @description The signed-in Player's Team in this Fixture. */
+            readonly my_team_id: number | null;
         };
         /** @description One of the signed-in Player's memberships, now or before. */
         MyTeam: {
@@ -1223,6 +1562,9 @@ export interface components {
             name?: string;
             /** @description A user holding the Referee role at this club. */
             referee?: number | null;
+        };
+        PatchedFriendlyEligibleRequest: {
+            friendly_eligible?: boolean;
         };
         /** @description The signed-in user. `player` is null when the user is not a Player. */
         PatchedMeRequest: {
@@ -1765,6 +2107,179 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Field"];
+                };
+            };
+        };
+    };
+    clubs_fixtures_list: {
+        parameters: {
+            query?: {
+                division?: number;
+                night?: number;
+                /** @description Without it, Seasons that haven't ended. */
+                season?: number;
+                status?: "cancelled" | "confirming" | "friendly" | "one_team_out" | "played" | "ready" | "replacement_offered" | "scheduled";
+            };
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminFixture"][];
+                };
+            };
+        };
+    };
+    clubs_fixtures_retrieve: {
+        parameters: {
+            query?: {
+                division?: number;
+                night?: number;
+                /** @description Without it, Seasons that haven't ended. */
+                season?: number;
+                status?: "cancelled" | "confirming" | "friendly" | "one_team_out" | "played" | "ready" | "replacement_offered" | "scheduled";
+            };
+            header?: never;
+            path: {
+                club_id: number;
+                /** @description A unique integer value identifying this fixture. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminFixtureDetail"];
+                };
+            };
+        };
+    };
+    clubs_fixtures_partial_update: {
+        parameters: {
+            query?: {
+                division?: number;
+                night?: number;
+                /** @description Without it, Seasons that haven't ended. */
+                season?: number;
+                status?: "cancelled" | "confirming" | "friendly" | "one_team_out" | "played" | "ready" | "replacement_offered" | "scheduled";
+            };
+            header?: never;
+            path: {
+                club_id: number;
+                /** @description A unique integer value identifying this fixture. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedFriendlyEligibleRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedFriendlyEligibleRequest"];
+                "multipart/form-data": components["schemas"]["PatchedFriendlyEligibleRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminFixtureDetail"];
+                };
+            };
+        };
+    };
+    clubs_imports_fixtures_commit_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["FixtureImportUploadRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FixtureImportResult"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FixtureImportResult"];
+                };
+            };
+        };
+    };
+    clubs_imports_fixtures_preview_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["FixtureImportUploadRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FixtureImportResult"];
+                };
+            };
+        };
+    };
+    clubs_imports_fixtures_template_retrieve: {
+        parameters: {
+            query?: {
+                file_type?: "csv" | "xlsx";
+            };
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": Blob;
+                    "text/csv": Blob;
                 };
             };
         };
@@ -2372,6 +2887,28 @@ export interface operations {
             };
         };
     };
+    fixtures_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this fixture. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyFixture"];
+                };
+            };
+        };
+    };
     health_retrieve: {
         parameters: {
             query?: never;
@@ -2461,6 +2998,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JoinRequest"];
+                };
+            };
+        };
+    };
+    me_fixtures_list: {
+        parameters: {
+            query?: {
+                /** @description Upcoming: kick-off still to come, soonest first. Past: the latest 50, newest first. */
+                when?: "past" | "upcoming";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyFixture"][];
                 };
             };
         };

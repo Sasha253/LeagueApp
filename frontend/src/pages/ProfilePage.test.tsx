@@ -94,6 +94,17 @@ describe("ProfilePage", () => {
     expect(screen.getByRole("link", { name: "Team requests for Club A" })).toHaveAttribute("href", "/clubs/1/teams");
   });
 
+  it("links an Admin to the club's Fixtures", async () => {
+    await openProfile({ ...ME, club_roles: [{ club_id: 1, club_name: "Club A", role: "admin" }] });
+
+    expect(screen.getByRole("link", { name: "Fixtures for Club A" })).toHaveAttribute("href", "/clubs/1/fixtures");
+  });
+
+  it("links a Player to their fixtures", async () => {
+    await openProfile();
+    expect(screen.getByRole("link", { name: /^My fixtures/ })).toHaveAttribute("href", "/fixtures");
+  });
+
   it("links a Player to Teams", async () => {
     await openProfile();
     expect(screen.getByRole("link", { name: /^Teams/ })).toHaveAttribute("href", "/teams");
@@ -102,6 +113,7 @@ describe("ProfilePage", () => {
   it("has no Teams link for someone who only hires fields", async () => {
     await openProfile({ ...ME, player: null, is_booking_user: true });
     expect(screen.queryByRole("link", { name: /^Teams/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /^My fixtures/ })).not.toBeInTheDocument();
   });
 
   it("hides position and Nights for someone who only hires fields", async () => {

@@ -2,6 +2,36 @@
 
 Newest first. Each entry: the date, what was decided, and why.
 
+## 2026-10-23: Fixtures and Admin fixture import (chunk 7) (provisional, unattended run)
+
+Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 7: Fixtures and Admin
+fixture import".
+
+- **Fixture (provisional, unattended run):** belongs to a Club and a Season. It has a
+  Division (its Night is that Division's Night, not stored twice), a pitch (a Field),
+  kick-off (stored in UTC, sent with its offset, shown in South African time), and home
+  and away Teams. It also has friendly-eligible, with who set it and when, and a status.
+- **Status moves (provisional, unattended run):** only the moves in
+  `backend/fixtures/lifecycle.py` `TRANSITIONS`. Cancelled and played are final. A friendly
+  needs friendly-eligible. Every move, and the Fixture's creation, is logged in
+  `FixtureTransition`: from, to, when, the user or none, the cause (import, Admin, Captain,
+  timed checkpoint, League App) and a note. The log is append-only. Fixtures and their logs
+  can't be deleted, and the Django admin shows them read-only.
+- **Import (provisional, unattended run):** same flow as chunk 4, for one Season picked on
+  the screen. The columns are Date, Time, Night (optional, must match the date), Division,
+  Pitch, Home, Away and Friendly eligible (optional). A row is the same Fixture when
+  Division, Home, Away and kick-off match. A re-import can change only Friendly eligible.
+  The import never moves or deletes a Fixture. Kick-offs must still be to come, inside the
+  Season and on the Night's weekday. Both Teams must be confirmed Teams of that Division
+  and Season. A pitch or Team can't have two Fixtures at the same kick-off.
+- **Who sees Fixtures (provisional, unattended run):** a club's Admins see all of its
+  Fixtures. Players and Captains see the Fixtures of the Teams they are in now. No one
+  else sees them.
+- **Friendly-eligible (provisional, unattended run):** the Admin can change it while the
+  match may still fall through (scheduled to replacement offered), not after.
+- **Proposed component:** MatchCard link (`.la-card-link` in
+  `frontend/src/styles/proposed.css`): a whole MatchCard that opens the match.
+
 ## 2026-10-23: Teams screens (chunk 6) (provisional, unattended run)
 
 Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 6: Teams (UI)".

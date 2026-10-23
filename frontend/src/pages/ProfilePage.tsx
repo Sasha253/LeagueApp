@@ -128,6 +128,14 @@ export function ProfilePage() {
               </span>
             </Link>
           </li>
+          <li>
+            <Link className="la-item la-item--link" to="/fixtures">
+              <span className="la-item__body">
+                <span className="body-strong">My fixtures</span>
+                <span className="caption la-muted">Your Teams' matches, coming up and before</span>
+              </span>
+            </Link>
+          </li>
         </ul>
       )}
 
@@ -145,6 +153,13 @@ export function ProfilePage() {
                 </div>
                 {role.role === "admin" && (
                   <span className="la-confirm">
+                    <Link
+                      className="la-btn la-btn--secondary la-btn--sm"
+                      to={`/clubs/${role.club_id}/fixtures`}
+                      aria-label={`Fixtures for ${role.club_name}`}
+                    >
+                      Fixtures
+                    </Link>
                     <Link
                       className="la-btn la-btn--secondary la-btn--sm"
                       to={`/clubs/${role.club_id}/teams`}

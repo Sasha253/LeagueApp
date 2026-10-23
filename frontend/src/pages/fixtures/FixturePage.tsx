@@ -1,0 +1,70 @@
+// A Fixture (design/src/ds/Screens.md, Player 2 "Match detail"), for a Player in one of its
+// Teams: kick-off, the teams, pitch and status. The squad, replies and Pay my share come
+// with the Confirmation and payment chunks.
+
+import { useParams } from "react-router";
+import { api } from "../../api/client";
+import { LoadState, useLoad } from "../club/shared";
+import { ScreenHeader } from "../teams/shared";
+import { FIXTURE_STATUS, MatchCard } from "./shared";
+import { NOT_A_PLAYER } from "./MyFixturesPage";
+
+export function FixturePage() {
+  const id = Number(useParams().fixtureId);
+  const [fixture, reload] = useLoad(
+    () => api.GET("/api/v1/fixtures/{id}/", { params: { path: { id } } }),
+    `fixture-${id}`,
+  );
+
+  return (
+    <main className="la-screen">
+      <ScreenHeader title="Match" back={{ label: "My fixtures", to: "/fixtures" }} />
+      <LoadState result={fixture} retry={reload} what="match" forbidden={NOT_A_PLAYER}>
+        {(match) => {
+          const mine = [match.home_team, match.away_team].find((team) => team.id === match.my_team_id);
+          const opponent = mine && (mine.id === match.home_team.id ? match.away_team : match.home_team);
+          return (
+            <>
+              <MatchCard fixture={match} />
+              <ul className="la-group">
+                {mine && opponent && (
+                  <li className="la-item">
+                    <span className="la-item__body">
+                      <span className="caption la-muted">Your team</span>
+                      <span className="body-strong">
+                        {mine.name}, against {opponent.name}
+                      </span>
+                    </span>
+                  </li>
+                )}
+                <li className="la-item">
+                  <span className="la-item__body">
+                    <span className="caption la-muted">Pitch</span>
+                    <span className="body-strong">{match.pitch.name}</span>
+                  </span>
+                </li>
+                <li className="la-item">
+                  <span className="la-item__body">
+                    <span className="caption la-muted">League</span>
+                    <span className="body-strong">
+                      {match.division.name} · {match.season.name} · {match.club.name}
+                    </span>
+                  </span>
+                </li>
+                <li className="la-item">
+                  <span className="la-item__body">
+                    <span className="caption la-muted">Status</span>
+                    <span className="body-strong">{FIXTURE_STATUS[match.status].label}</span>
+                  </span>
+                </li>
+              </ul>
+              {match.friendly_eligible && (
+                <p className="caption la-muted">If this match can't go ahead, it may be played as a friendly.</p>
+              )}
+            </>
+          );
+        }}
+      </LoadState>
+    </main>
+  );
+}

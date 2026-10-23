@@ -34,3 +34,18 @@ export function localDate(isoDateTime: string): string {
     day: "2-digit",
   }).format(new Date(isoDateTime));
 }
+
+/** The South African time of a moment from the API, 24-hour: "2026-10-27T17:40:00Z" → "19:40". */
+export function formatTime(isoDateTime: string): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Africa/Johannesburg",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(new Date(isoDateTime));
+}
+
+/** A moment from the API as South Africans read it: "Tue 27 Oct · 19:40". */
+export function formatMoment(isoDateTime: string): string {
+  return `${formatDate(localDate(isoDateTime))} · ${formatTime(isoDateTime)}`;
+}

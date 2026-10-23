@@ -81,3 +81,8 @@
 .la-item--choice[aria-pressed="true"] { background: var(--accent-soft); }
 .la-item--choice[aria-pressed="true"] .body-strong { color: var(--accent-ink); }
 .la-item--choice:disabled { opacity: .4; cursor: default; }
+
+/* MatchCard link (chunk 7): a whole MatchCard that opens the match. */
+.la-card-link { display: block; color: var(--ink); text-decoration: none; border-radius: var(--radius-lg); }
+.la-card-link:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.la-card-link:active { opacity: .72; }
