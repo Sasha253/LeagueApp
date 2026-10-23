@@ -87,3 +87,49 @@ By hand: run `make migrate` (one new migration).
 
 Checks: make test (561 passed), make lint (passed), npm test (185 passed), npm run build
 (passed).
+
+## Review (fix: chunk 15 review)
+
+Independent review of f2c873b against the chunk 15 prompt and CLAUDE.md.
+
+Plan: read the commit and the chunk prompt, check each CLAUDE.md rule against it, run the
+four checks, fix real defects only.
+
+Checked, no defect found:
+- Money: credit totals are Decimal end to end (`_net`, `fixture_credit_returned`), the API
+  sends a MONEY decimal string, the screen uses `formatRand`; the notification text uses
+  `_rand` ("R 18,550", "R 12.50").
+- Append-only ledger (FR-50): cancellation writes new credit entries through
+  `return_as_credit`/`issue_credit` with a reason and `source`; nothing is edited or
+  deleted. Running it twice adds nothing (only what is left of each payment), a reversed
+  payment is skipped, and `reverse()` still refuses a payment whose credit was returned.
+- Credit goes back to whoever paid (FR-52): Team-subject payments become Team credit,
+  Player payments (card, cash or spent credit) become that Player's credit;
+  `issue_credit` re-checks the payer under the payment's lock.
+- Club isolation: the only new endpoint field is on the existing club-scoped Admin fixture
+  detail; recipients come from the Fixture's own Night (opted-in) and Club roles;
+  `notify` refuses a Fixture from another Club.
+- Configurable values: none added as constants (friendly-eligible is per Fixture, the
+  invite cutoff is kick-off, logged as a provisional choice).
+- Notification targeting: FR-10/FR-11/FR-12 and FR-17 recipients follow
+  `notifications/targeting.py`; Players only for Nights they opted into; out Team(s)
+  excluded from the invite; officials are the Night's Admins and the pitch's Referee.
+- Lifecycle: BOTH_TEAMS_OUT and REPLACEMENT_OFFERED allow FRIENDLY and CANCELLED;
+  FRIENDLY only allows PLAYED and CANCELLED, so readiness can't move a fallen-back match
+  again. `fall_back` locks the Fixture and runs once per Fixture. Invite answers are in
+  the `answer()` transaction, so a 409 from `invite_answered` doesn't save the answer.
+- Checkpoints: reminders and readiness skip FRIENDLY and CANCELLED Fixtures.
+- UI uses only `la-` classes, type styles and existing components; Vitest covers both
+  outcomes. `npm run gen:api` produces no diff.
+- Nothing from later chunks (fees, friendly Captain, Captain/Admin cancellations) built.
+
+Noted, not changed (not defects):
+- `fall_back` takes its own `timezone.now()` rather than the lapse task's `now`; in
+  production both are the current time.
+- `fixture_credit_returned` counts any payment-sourced credit tagged with the Fixture,
+  including one an Admin returned by hand; that is still credit returned for the match.
+
+Fixes: none needed.
+
+Checks: make test (561 passed), make lint (passed), npm test (185 passed), npm run build
+(passed).
