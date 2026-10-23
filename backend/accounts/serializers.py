@@ -6,7 +6,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from clubs.models import Night
 
-from .models import ClubRole, PlayerProfile, User, normalize_email
+from .models import ClubInvite, ClubRole, PlayerProfile, User, normalize_email
 
 NO_ROLE = "Choose at least one: Player or Booking User."
 
@@ -118,7 +118,60 @@ class RegisterSerializer(MeSerializer):
         password = validated_data.pop("password")
         user = User.objects.create_user(password=password, **validated_data)
         save_player_profile(user, player)
+        ClubInvite.accept_open_invites(user)
         return user
+
+
+class ClubMemberSerializer(serializers.ModelSerializer):
+    """An Admin or Referee of the Club, for its People screen."""
+
+    name = serializers.CharField(source="user.name", read_only=True)
+    email = serializers.EmailField(source="user.email", read_only=True)
+
+    class Meta:
+        model = ClubRole
+        fields = ["id", "user_id", "name", "email", "role"]
+
+
+class ClubInviteSerializer(serializers.ModelSerializer):
+    """Invites an email to be an Admin or Referee of the Club in the URL.
+
+    An account with that email gets the role at once (`accepted` is true). Otherwise the
+    invite stays open until someone signs up with that email.
+    """
+
+    accepted = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ClubInvite
+        fields = ["id", "email", "role", "created_at", "accepted"]
+        read_only_fields = ["created_at"]
+        # The open-invite constraint is checked in validate(), with a clearer message.
+        validators = []
+
+    def get_accepted(self, invite: ClubInvite) -> bool:
+        return invite.accepted_at is not None
+
+    def validate_email(self, value: str) -> str:
+        return normalize_email(value)
+
+    def validate(self, attrs):
+        club = self.context["club"]
+        email, role = attrs["email"], attrs["role"]
+        label = ClubRole.Role(role).label
+        if ClubRole.objects.filter(club=club, role=role, user__email=email).exists():
+            raise serializers.ValidationError({"email": f"Already a {label} at this club."})
+        if club.invites.filter(email=email, role=role, accepted_at__isnull=True).exists():
+            raise serializers.ValidationError({"email": f"Already invited as {label}."})
+        return attrs
+
+    @transaction.atomic
+    def create(self, validated_data):
+        invite = super().create(validated_data)
+        user = User.objects.filter(email=invite.email, is_active=True).first()
+        if user is not None:
+            invite.accept(user)
+        return invite
 
 
 class TokenPairSerializer(serializers.Serializer):

@@ -73,6 +73,21 @@ describe("ProfilePage", () => {
     expect(within(roles).getByText("Club A")).toBeInTheDocument();
   });
 
+  it("links an Admin to club setup, and a Referee not", async () => {
+    const { router } = await openProfile({
+      ...ME,
+      club_roles: [
+        { club_id: 1, club_name: "Club A", role: "admin" },
+        { club_id: 2, club_name: "Club B", role: "referee" },
+      ],
+    });
+
+    expect(screen.queryByRole("link", { name: "Club setup for Club B" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("link", { name: "Club setup for Club A" }));
+
+    expect(router.state.location.pathname).toBe("/clubs/1/setup");
+  });
+
   it("hides position and Nights for someone who only hires fields", async () => {
     await openProfile({ ...ME, player: null, is_booking_user: true });
 

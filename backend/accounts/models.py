@@ -8,6 +8,7 @@
 
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
+from django.utils import timezone
 
 from clubs.models import Club, Night
 
@@ -118,3 +119,49 @@ class ClubRole(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user}: {self.get_role_display()} at {self.club}"
+
+
+class ClubInvite(models.Model):
+    """An Admin's invitation to hold Admin or Referee at their Club, by email.
+
+    An account with that email gets the role at once. Otherwise the invite waits, and the
+    role is given when an account signs up with that email (docs/DECISIONS.md).
+    """
+
+    club = models.ForeignKey(Club, on_delete=models.CASCADE, related_name="invites")
+    email = models.EmailField(max_length=254)
+    role = models.CharField(max_length=10, choices=ClubRole.Role.choices)
+    invited_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    accepted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["club", "email", "role"],
+                condition=models.Q(accepted_at__isnull=True),
+                name="one_open_invite_per_role",
+            ),
+        ]
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.email}: {self.get_role_display()} at {self.club}"
+
+    def save(self, *args, **kwargs) -> None:
+        self.email = normalize_email(self.email)
+        super().save(*args, **kwargs)
+
+    def accept(self, user: User) -> ClubRole:
+        """Gives `user` the role. The invite is then closed."""
+        role, _ = ClubRole.objects.get_or_create(user=user, club=self.club, role=self.role)
+        self.accepted_at = timezone.now()
+        self.save(update_fields=["accepted_at"])
+        return role
+
+    @classmethod
+    def accept_open_invites(cls, user: User) -> None:
+        for invite in cls.objects.filter(email=user.email, accepted_at__isnull=True):
+            invite.accept(user)

@@ -49,3 +49,19 @@
 .la-item { display: flex; align-items: center; gap: var(--space-3); min-height: 56px; padding: var(--space-3) var(--space-4); border-top: 1px solid var(--line); box-sizing: border-box; }
 .la-item:first-child { border-top: 0; }
 .la-item__body { flex: 1; min-width: 0; display: grid; gap: 2px; }
+
+/* A ListRow that is a link: the whole row is the tap target. */
+.la-group > li + li > .la-item { border-top: 1px solid var(--line); }
+.la-item--link { color: var(--ink); text-decoration: none; }
+.la-item--link::after { content: ""; flex: none; width: 8px; height: 8px; border-top: 2px solid var(--ink-muted); border-right: 2px solid var(--ink-muted); transform: rotate(45deg); }
+.la-item--link:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+/* A form inside a ListRow takes the row's full width. */
+.la-item > .la-form { flex: 1; min-width: 0; padding: var(--space-2) 0; }
+.la-section-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-height: var(--tap-min); }
+
+/* Back link above a screen title. */
+.la-back { justify-self: start; padding: 0; min-height: var(--tap-min); text-decoration: none; }
+.la-back::before { content: ""; width: 8px; height: 8px; margin-right: var(--space-2); border-bottom: 2px solid currentColor; border-left: 2px solid currentColor; transform: rotate(45deg); }
+
+/* ConfirmButton: a destructive action asks once more, in place. */
+.la-confirm { display: inline-flex; flex-wrap: wrap; gap: var(--space-2); justify-content: flex-end; }

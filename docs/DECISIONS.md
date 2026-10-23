@@ -2,6 +2,43 @@
 
 Newest first. Each entry: the date, what was decided, and why.
 
+## 2026-10-23: Club setup and configurable values (chunk 3)
+
+Decided by @Sasha while building chunk 3.
+
+- **Defaults are data:** one `SettingsDefaults` record, seeded by a data migration with the
+  PRD values and edited in the Django admin. A new Club's `ClubSettings` is copied from it
+  when the Club is created. A later change to the defaults affects only Clubs created after
+  it. The seeded values: Confirmations at T-36h, resent once 12 hours later; Reminder and
+  readiness at T-6h; at least 5 Players per Division; booking payment taken 24h before;
+  50% credit from then to 6h before, none after that or for a no-show, and 100% when the
+  club cancels; one late reschedule to a slot within 30 days; card and cash through PayFast.
+- **Fees start empty:** the league fee per Team, the friendly fee and the booking hourly
+  fee have no default. The club's Admin must set them; settings report what is `missing`,
+  and Setup shows it. Blocking Team sign-up and bookings until they are set comes with
+  those chunks.
+- **Resend (FR-2):** 12 hours after the first Confirmation, so at T-24h. It must go out
+  before the readiness check.
+- **League fee:** one per Club, and a Division may set its own, which overrides it.
+- **Nights and Divisions carry over across Seasons:** a Division belongs to a Night, not
+  a Season, so Players' Night opt-ins carry over too. One Night per weekday per Club.
+  Teams (chunk 5) will tie a Season to a Division.
+- **Hours, not durations:** cutoffs are whole hours before kick-off, and the reschedule
+  window is whole days. Credit is a whole percentage from 0 to 100.
+- **Inviting Admins and Referees:** a Club's Admin invites by email. An account with that
+  email gets the role at once. Otherwise the invite stays open and the role is given when
+  someone signs up with that email. The app sends no invite email yet: the Admin tells
+  the person. A Club always keeps at least one Admin, and removing a Referee takes them
+  off their Fields. A Field's Referee must hold the Referee role at that Club.
+- **Not yet safe for store release:** sign-up does not verify email addresses, so whoever
+  first signs up with an invited email gets that role. Email verification, or an invite
+  link with a code, must come before store release.
+- **Deleting:** a Night with Divisions can't be deleted (409). Every other setup record can
+  be deleted until later chunks give it Teams, Fixtures or bookings.
+- **Proposed components** (`frontend/src/styles/proposed.css`): a ListRow that is a link,
+  a back link above the screen title, a section header with an action, and ConfirmButton,
+  which asks once more before a delete or removal.
+
 ## 2026-10-23: Accounts, roles and token auth (chunk 2)
 
 Decided by @Sasha while building chunk 2. Closes open questions 3 and 4.
@@ -11,7 +48,7 @@ Decided by @Sasha while building chunk 2. Closes open questions 3 and 4.
   per Club (`ClubRole`).
 - **New clubs are set up by us (Q4):** clubs do not sign up in the app. We create the Club
   and its first Admin in the Django admin. Giving Admin and Referee roles in the app comes
-  with chunk 3.
+  with chunk 3 (see the chunk 3 entry above).
 - **Login:** email and password only, with the email matched in any case. Phone is asked
   at sign-up (optional) for contact, not for login. Phone login can come later.
 - **Roles at sign-up:** the user picks "I play" (a Player, then a position: outfield,

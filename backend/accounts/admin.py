@@ -3,7 +3,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-from .models import ClubRole, PlayerProfile, User
+from .models import ClubInvite, ClubRole, PlayerProfile, User
 
 
 class PlayerProfileInline(admin.StackedInline):
@@ -40,3 +40,11 @@ class ClubRoleAdmin(admin.ModelAdmin):
     list_display = ["user", "club", "role"]
     list_filter = ["role", "club"]
     search_fields = ["user__email", "user__name"]
+
+
+@admin.register(ClubInvite)
+class ClubInviteAdmin(admin.ModelAdmin):
+    list_display = ["email", "club", "role", "created_at", "accepted_at"]
+    list_filter = ["role", "club"]
+    search_fields = ["email"]
+    readonly_fields = ["accepted_at"]

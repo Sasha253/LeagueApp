@@ -3,14 +3,15 @@
 // come with later chunks.
 
 import { useEffect, useState } from "react";
+import { Link } from "react-router";
 import { api, type Me, type Night, type Position } from "../api/client";
 import { formErrors, unreachable, type FormErrors } from "../api/errors";
 import { useAuth } from "../auth/AuthProvider";
 import { Banner } from "../components/Banner";
 import { ChoiceChip } from "../components/ChoiceChip";
+import { WEEKDAYS_SHORT as WEEKDAYS } from "../format";
 import { POSITIONS } from "./positions";
 
-const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const ROLE_LABELS = { admin: "Admin", referee: "Referee" } as const;
 const NO_ERRORS: FormErrors = { fields: {}, general: null };
 
@@ -129,6 +130,15 @@ export function ProfilePage() {
                   <span className="body-strong">{ROLE_LABELS[role.role]}</span>
                   <span className="caption la-muted">{role.club_name}</span>
                 </div>
+                {role.role === "admin" && (
+                  <Link
+                    className="la-btn la-btn--secondary la-btn--sm"
+                    to={`/clubs/${role.club_id}/setup`}
+                    aria-label={`Club setup for ${role.club_name}`}
+                  >
+                    Club setup
+                  </Link>
+                )}
               </li>
             ))}
           </ul>

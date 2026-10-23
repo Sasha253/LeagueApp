@@ -1,0 +1,25 @@
+// How the app shows money and dates (CLAUDE.md): "R 18,550", "Tue 27 Oct".
+
+/** A rand amount from the API (a decimal string, never a float): "350.00" → "R 350". */
+export function formatRand(amount: string): string {
+  const [whole = "0", cents = ""] = amount.split(".");
+  const negative = whole.startsWith("-");
+  const digits = negative ? whole.slice(1) : whole;
+  const grouped = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const tail = /^0*$/.test(cents) ? "" : `.${cents.padEnd(2, "0")}`;
+  return `${negative ? "-" : ""}R ${grouped}${tail}`;
+}
+
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** A calendar date from the API ("2026-10-27") → "Tue 27 Oct". No time zone is involved. */
+export function formatDate(isoDate: string): string {
+  const [year, month, day] = isoDate.split("-").map(Number) as [number, number, number];
+  const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+  return `${DAYS[weekday]} ${day} ${MONTHS[month - 1]}`;
+}
+
+/** Night weekdays as the API numbers them: 0 is Monday. */
+export const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+export const WEEKDAYS_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];

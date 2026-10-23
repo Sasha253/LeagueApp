@@ -47,3 +47,18 @@ def give_role():
         return ClubRole.objects.create(user=user, club=club, role=role)
 
     return give
+
+
+@pytest.fixture
+def admin_of(make_user, give_role):
+    """An Admin of `club`, signed in on a fresh API client."""
+
+    def make(club, email=None):
+        user = make_user(email or f"admin-{club.pk}@example.com", name=f"Admin of {club}")
+        give_role(user, club, ClubRole.Role.ADMIN)
+        client = APIClient()
+        client.force_authenticate(user)
+        client.user = user
+        return client
+
+    return make

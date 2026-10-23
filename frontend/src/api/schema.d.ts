@@ -87,6 +87,300 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clubs/{club_id}/divisions/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description For views under /clubs/{club_id}/: only that Club's Admins, only its records.
+         *
+         *     `club_field` is the lookup from the model to its Club.
+         */
+        get: operations["clubs_divisions_list"];
+        put?: never;
+        /**
+         * @description For views under /clubs/{club_id}/: only that Club's Admins, only its records.
+         *
+         *     `club_field` is the lookup from the model to its Club.
+         */
+        post: operations["clubs_divisions_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/divisions/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description For views under /clubs/{club_id}/: only that Club's Admins, only its records.
+         *
+         *     `club_field` is the lookup from the model to its Club.
+         */
+        get: operations["clubs_divisions_retrieve"];
+        put?: never;
+        post?: never;
+        /**
+         * @description For views under /clubs/{club_id}/: only that Club's Admins, only its records.
+         *
+         *     `club_field` is the lookup from the model to its Club.
+         */
+        delete: operations["clubs_divisions_destroy"];
+        options?: never;
+        head?: never;
+        /**
+         * @description For views under /clubs/{club_id}/: only that Club's Admins, only its records.
+         *
+         *     `club_field` is the lookup from the model to its Club.
+         */
+        patch: operations["clubs_divisions_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/fields/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description For views under /clubs/{club_id}/: only that Club's Admins, only its records.
+         *
+         *     `club_field` is the lookup from the model to its Club.
+         */
+        get: operations["clubs_fields_list"];
+        put?: never;
+        /**
+         * @description For views under /clubs/{club_id}/: only that Club's Admins, only its records.
+         *
+         *     `club_field` is the lookup from the model to its Club.
+         */
+        post: operations["clubs_fields_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/fields/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description For views under /clubs/{club_id}/: only that Club's Admins, only its records.
+         *
+         *     `club_field` is the lookup from the model to its Club.
+         */
+        get: operations["clubs_fields_retrieve"];
+        put?: never;
+        post?: never;
+        /**
+         * @description For views under /clubs/{club_id}/: only that Club's Admins, only its records.
+         *
+         *     `club_field` is the lookup from the model to its Club.
+         */
+        delete: operations["clubs_fields_destroy"];
+        options?: never;
+        head?: never;
+        /**
+         * @description For views under /clubs/{club_id}/: only that Club's Admins, only its records.
+         *
+         *     `club_field` is the lookup from the model to its Club.
+         */
+        patch: operations["clubs_fields_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/invites/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Invites by email to be an Admin or Referee. Lists and cancels the open invites. */
+        get: operations["clubs_invites_list"];
+        put?: never;
+        /** @description Invites by email to be an Admin or Referee. Lists and cancels the open invites. */
+        post: operations["clubs_invites_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/invites/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** @description Invites by email to be an Admin or Referee. Lists and cancels the open invites. */
+        delete: operations["clubs_invites_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/members/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The Club's Admins and Referees. Removing a Referee takes them off their Fields. */
+        get: operations["clubs_members_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/members/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** @description The Club's Admins and Referees. Removing a Referee takes them off their Fields. */
+        delete: operations["clubs_members_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/nights/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The Club's Nights, each with its Divisions. A Night with Divisions can't be deleted. */
+        get: operations["clubs_nights_list"];
+        put?: never;
+        /** @description The Club's Nights, each with its Divisions. A Night with Divisions can't be deleted. */
+        post: operations["clubs_nights_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/nights/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The Club's Nights, each with its Divisions. A Night with Divisions can't be deleted. */
+        get: operations["clubs_nights_retrieve"];
+        put?: never;
+        post?: never;
+        /** @description The Club's Nights, each with its Divisions. A Night with Divisions can't be deleted. */
+        delete: operations["clubs_nights_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/seasons/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description For views under /clubs/{club_id}/: only that Club's Admins, only its records.
+         *
+         *     `club_field` is the lookup from the model to its Club.
+         */
+        get: operations["clubs_seasons_list"];
+        put?: never;
+        /**
+         * @description For views under /clubs/{club_id}/: only that Club's Admins, only its records.
+         *
+         *     `club_field` is the lookup from the model to its Club.
+         */
+        post: operations["clubs_seasons_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/seasons/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description For views under /clubs/{club_id}/: only that Club's Admins, only its records.
+         *
+         *     `club_field` is the lookup from the model to its Club.
+         */
+        get: operations["clubs_seasons_retrieve"];
+        put?: never;
+        post?: never;
+        /**
+         * @description For views under /clubs/{club_id}/: only that Club's Admins, only its records.
+         *
+         *     `club_field` is the lookup from the model to its Club.
+         */
+        delete: operations["clubs_seasons_destroy"];
+        options?: never;
+        head?: never;
+        /**
+         * @description For views under /clubs/{club_id}/: only that Club's Admins, only its records.
+         *
+         *     `club_field` is the lookup from the model to its Club.
+         */
+        patch: operations["clubs_seasons_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/settings/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The Club's configurable values: fees, cutoffs, booking policy and payment mode. */
+        get: operations["clubs_settings_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** @description The Club's configurable values: fees, cutoffs, booking policy and payment mode. */
+        patch: operations["clubs_settings_partial_update"];
+        trace?: never;
+    };
     "/api/v1/health/": {
         parameters: {
             query?: never;
@@ -130,6 +424,51 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * @description Invites an email to be an Admin or Referee of the Club in the URL.
+         *
+         *     An account with that email gets the role at once (`accepted` is true). Otherwise the
+         *     invite stays open until someone signs up with that email.
+         */
+        ClubInvite: {
+            readonly id: number;
+            /** Format: email */
+            email: string;
+            role: components["schemas"]["RoleEnum"];
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly accepted: boolean;
+        };
+        /**
+         * @description Invites an email to be an Admin or Referee of the Club in the URL.
+         *
+         *     An account with that email gets the role at once (`accepted` is true). Otherwise the
+         *     invite stays open until someone signs up with that email.
+         */
+        ClubInviteRequest: {
+            /** Format: email */
+            email: string;
+            role: components["schemas"]["RoleEnum"];
+        };
+        /** @description An Admin or Referee of the Club, for its People screen. */
+        ClubMember: {
+            readonly id: number;
+            readonly user_id: number;
+            readonly name: string;
+            /** Format: email */
+            readonly email: string;
+            role: components["schemas"]["RoleEnum"];
+        };
+        /** @description A Night with its Divisions, for the Admin's setup screens. */
+        ClubNight: {
+            readonly id: number;
+            weekday: components["schemas"]["WeekdayEnum"];
+            readonly divisions: components["schemas"]["Division"][];
+        };
+        /** @description A Night with its Divisions, for the Admin's setup screens. */
+        ClubNightRequest: {
+            weekday: components["schemas"]["WeekdayEnum"];
+        };
         ClubRole: {
             readonly club_id: number;
             readonly club_name: string;
@@ -138,9 +477,99 @@ export interface components {
         ClubRoleRequest: {
             role: components["schemas"]["RoleEnum"];
         };
+        ClubSettings: {
+            /**
+             * Format: decimal
+             * @description League fee per Team for a Season.
+             */
+            league_fee?: string | null;
+            /**
+             * Format: decimal
+             * @description Default fee for a friendly match (FR-24).
+             */
+            friendly_fee?: string | null;
+            /**
+             * Format: decimal
+             * @description Field hire price per hour (FR-33).
+             */
+            booking_hourly_fee?: string | null;
+            /** @description Minimum Players a new Division starts with (FR-5). */
+            division_min_players: number;
+            /** @description Confirmations go out this many hours before kick-off (FR-1). */
+            confirmation_hours_before: number;
+            /** @description Unanswered Confirmations are resent once, this long after the first (FR-2). */
+            confirmation_resend_after_hours: number;
+            /** @description Reminder and readiness check, this many hours before kick-off (FR-4, FR-5). */
+            readiness_hours_before: number;
+            /** @description Booking payment is taken this many hours before kick-off (FR-34). */
+            booking_payment_cutoff_hours: number;
+            /** @description Cancelling closer to kick-off than this gives the no-show credit. */
+            booking_late_cancel_hours: number;
+            /** @description Credit for cancelling between the payment cutoff and the late-cancel time. */
+            booking_late_cancel_credit_percent: number;
+            /** @description Credit for cancelling after the late-cancel time, or not showing up. */
+            booking_no_show_credit_percent: number;
+            /** @description Credit when the club cancels a booking. */
+            booking_club_cancel_credit_percent: number;
+            /** @description A late reschedule must move to a slot within this many days. */
+            booking_reschedule_window_days: number;
+            /** @description How many late reschedules one booking may have. */
+            booking_reschedules_allowed: number;
+            payment_mode: components["schemas"]["PaymentModeEnum"];
+            payment_provider: components["schemas"]["PaymentProviderEnum"];
+            /** @description Values the Admin still has to set. */
+            readonly missing: string[];
+            /** Format: date-time */
+            readonly updated_at: string;
+            readonly updated_by_name: string | null;
+        };
         ClubSummary: {
             readonly id: number;
             name: string;
+        };
+        /** @description For a record of the Club in the URL. The view puts that Club in the context. */
+        Division: {
+            readonly id: number;
+            night: number;
+            name: string;
+            /** @description Leave out to use the club's default. */
+            min_players?: number;
+            /**
+             * Format: decimal
+             * @description Overrides the club's league fee per Team for this Division.
+             */
+            league_fee?: string | null;
+            /**
+             * Format: decimal
+             * @description This Division's fee per Team, else the club's. Null while neither is set.
+             */
+            readonly effective_league_fee: string | null;
+        };
+        /** @description For a record of the Club in the URL. The view puts that Club in the context. */
+        DivisionRequest: {
+            night: number;
+            name: string;
+            /** @description Leave out to use the club's default. */
+            min_players?: number;
+            /**
+             * Format: decimal
+             * @description Overrides the club's league fee per Team for this Division.
+             */
+            league_fee?: string | null;
+        };
+        /** @description For a record of the Club in the URL. The view puts that Club in the context. */
+        Field: {
+            readonly id: number;
+            name: string;
+            /** @description A user holding the Referee role at this club. */
+            referee?: number | null;
+            readonly referee_name: string | null;
+        };
+        /** @description For a record of the Club in the URL. The view puts that Club in the context. */
+        FieldRequest: {
+            name: string;
+            /** @description A user holding the Referee role at this club. */
+            referee?: number | null;
         };
         Health: {
             /**
@@ -175,6 +604,65 @@ export interface components {
             readonly club: components["schemas"]["ClubSummary"];
             weekday: components["schemas"]["WeekdayEnum"];
         };
+        PatchedClubSettingsRequest: {
+            /**
+             * Format: decimal
+             * @description League fee per Team for a Season.
+             */
+            league_fee?: string | null;
+            /**
+             * Format: decimal
+             * @description Default fee for a friendly match (FR-24).
+             */
+            friendly_fee?: string | null;
+            /**
+             * Format: decimal
+             * @description Field hire price per hour (FR-33).
+             */
+            booking_hourly_fee?: string | null;
+            /** @description Minimum Players a new Division starts with (FR-5). */
+            division_min_players?: number;
+            /** @description Confirmations go out this many hours before kick-off (FR-1). */
+            confirmation_hours_before?: number;
+            /** @description Unanswered Confirmations are resent once, this long after the first (FR-2). */
+            confirmation_resend_after_hours?: number;
+            /** @description Reminder and readiness check, this many hours before kick-off (FR-4, FR-5). */
+            readiness_hours_before?: number;
+            /** @description Booking payment is taken this many hours before kick-off (FR-34). */
+            booking_payment_cutoff_hours?: number;
+            /** @description Cancelling closer to kick-off than this gives the no-show credit. */
+            booking_late_cancel_hours?: number;
+            /** @description Credit for cancelling between the payment cutoff and the late-cancel time. */
+            booking_late_cancel_credit_percent?: number;
+            /** @description Credit for cancelling after the late-cancel time, or not showing up. */
+            booking_no_show_credit_percent?: number;
+            /** @description Credit when the club cancels a booking. */
+            booking_club_cancel_credit_percent?: number;
+            /** @description A late reschedule must move to a slot within this many days. */
+            booking_reschedule_window_days?: number;
+            /** @description How many late reschedules one booking may have. */
+            booking_reschedules_allowed?: number;
+            payment_mode?: components["schemas"]["PaymentModeEnum"];
+            payment_provider?: components["schemas"]["PaymentProviderEnum"];
+        };
+        /** @description For a record of the Club in the URL. The view puts that Club in the context. */
+        PatchedDivisionRequest: {
+            night?: number;
+            name?: string;
+            /** @description Leave out to use the club's default. */
+            min_players?: number;
+            /**
+             * Format: decimal
+             * @description Overrides the club's league fee per Team for this Division.
+             */
+            league_fee?: string | null;
+        };
+        /** @description For a record of the Club in the URL. The view puts that Club in the context. */
+        PatchedFieldRequest: {
+            name?: string;
+            /** @description A user holding the Referee role at this club. */
+            referee?: number | null;
+        };
         /** @description The signed-in user. `player` is null when the user is not a Player. */
         PatchedMeRequest: {
             name?: string;
@@ -183,6 +671,25 @@ export interface components {
             is_booking_user?: boolean;
             player?: components["schemas"]["PlayerProfileRequest"] | null;
         };
+        /** @description For a record of the Club in the URL. The view puts that Club in the context. */
+        PatchedSeasonRequest: {
+            name?: string;
+            /** Format: date */
+            starts_on?: string;
+            /** Format: date */
+            ends_on?: string;
+        };
+        /**
+         * @description * `gateway` - Card through the payment gateway, and cash
+         *     * `cash_only` - Cash only, confirmed by an Admin
+         * @enum {string}
+         */
+        PaymentModeEnum: "gateway" | "cash_only";
+        /**
+         * @description * `payfast` - PayFast
+         * @enum {string}
+         */
+        PaymentProviderEnum: "payfast";
         PlayerProfile: {
             position: components["schemas"]["PositionEnum"];
             /** @description The Nights to get notifications for. */
@@ -223,6 +730,23 @@ export interface components {
          * @enum {string}
          */
         RoleEnum: "admin" | "referee";
+        /** @description For a record of the Club in the URL. The view puts that Club in the context. */
+        Season: {
+            readonly id: number;
+            name: string;
+            /** Format: date */
+            starts_on: string;
+            /** Format: date */
+            ends_on: string;
+        };
+        /** @description For a record of the Club in the URL. The view puts that Club in the context. */
+        SeasonRequest: {
+            name: string;
+            /** Format: date */
+            starts_on: string;
+            /** Format: date */
+            ends_on: string;
+        };
         TokenBlacklistRequest: {
             refresh: string;
         };
@@ -400,6 +924,626 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Registered"];
+                };
+            };
+        };
+    };
+    clubs_divisions_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Division"][];
+                };
+            };
+        };
+    };
+    clubs_divisions_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DivisionRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["DivisionRequest"];
+                "multipart/form-data": components["schemas"]["DivisionRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Division"];
+                };
+            };
+        };
+    };
+    clubs_divisions_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+                /** @description A unique integer value identifying this division. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Division"];
+                };
+            };
+        };
+    };
+    clubs_divisions_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+                /** @description A unique integer value identifying this division. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    clubs_divisions_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+                /** @description A unique integer value identifying this division. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedDivisionRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedDivisionRequest"];
+                "multipart/form-data": components["schemas"]["PatchedDivisionRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Division"];
+                };
+            };
+        };
+    };
+    clubs_fields_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Field"][];
+                };
+            };
+        };
+    };
+    clubs_fields_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FieldRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["FieldRequest"];
+                "multipart/form-data": components["schemas"]["FieldRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Field"];
+                };
+            };
+        };
+    };
+    clubs_fields_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+                /** @description A unique integer value identifying this field. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Field"];
+                };
+            };
+        };
+    };
+    clubs_fields_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+                /** @description A unique integer value identifying this field. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    clubs_fields_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+                /** @description A unique integer value identifying this field. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedFieldRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedFieldRequest"];
+                "multipart/form-data": components["schemas"]["PatchedFieldRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Field"];
+                };
+            };
+        };
+    };
+    clubs_invites_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClubInvite"][];
+                };
+            };
+        };
+    };
+    clubs_invites_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClubInviteRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ClubInviteRequest"];
+                "multipart/form-data": components["schemas"]["ClubInviteRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClubInvite"];
+                };
+            };
+        };
+    };
+    clubs_invites_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+                /** @description A unique integer value identifying this club invite. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    clubs_members_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClubMember"][];
+                };
+            };
+        };
+    };
+    clubs_members_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+                /** @description A unique integer value identifying this club role. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    clubs_nights_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClubNight"][];
+                };
+            };
+        };
+    };
+    clubs_nights_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClubNightRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ClubNightRequest"];
+                "multipart/form-data": components["schemas"]["ClubNightRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClubNight"];
+                };
+            };
+        };
+    };
+    clubs_nights_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+                /** @description A unique integer value identifying this night. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClubNight"];
+                };
+            };
+        };
+    };
+    clubs_nights_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+                /** @description A unique integer value identifying this night. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    clubs_seasons_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Season"][];
+                };
+            };
+        };
+    };
+    clubs_seasons_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SeasonRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SeasonRequest"];
+                "multipart/form-data": components["schemas"]["SeasonRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Season"];
+                };
+            };
+        };
+    };
+    clubs_seasons_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+                /** @description A unique integer value identifying this season. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Season"];
+                };
+            };
+        };
+    };
+    clubs_seasons_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+                /** @description A unique integer value identifying this season. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    clubs_seasons_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+                /** @description A unique integer value identifying this season. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedSeasonRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedSeasonRequest"];
+                "multipart/form-data": components["schemas"]["PatchedSeasonRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Season"];
+                };
+            };
+        };
+    };
+    clubs_settings_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClubSettings"];
+                };
+            };
+        };
+    };
+    clubs_settings_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedClubSettingsRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedClubSettingsRequest"];
+                "multipart/form-data": components["schemas"]["PatchedClubSettingsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClubSettings"];
                 };
             };
         };
