@@ -1,7 +1,8 @@
 // My fixtures (design/src/ds/Screens.md, Player 1 "Matches"): the upcoming and past Fixtures
 // of the Teams you're in now, for Players and Captains, and "Games you can join": the
 // Player and Goalkeeper Requests you were sent (FR-36, FR-37). Replies, squads and
-// payments come with later chunks.
+// payments come with later chunks. Friendlies the Admin made you Captain of (FR-24) link
+// to their Payment Barcode.
 
 import { useState } from "react";
 import { Link } from "react-router";
@@ -13,7 +14,38 @@ import { deadline } from "../inbox/shared";
 import { wanted } from "./playerRequests";
 import { ScreenHeader } from "../teams/shared";
 import { FixtureStatusChip, kickOffDate, MatchCard, matchName } from "./shared";
-import { formatTime } from "../../format";
+import { formatMoment, formatRand, formatTime } from "../../format";
+
+/** Friendlies the Admin made you Captain of (FR-24), with their Barcode. Nothing when none. */
+function FriendliesICaptain() {
+  const [loaded] = useLoad(() => api.GET("/api/v1/me/friendlies/"), "my-friendlies");
+  if (loaded.state !== "ok" || loaded.data.length === 0) return null;
+  return (
+    <section className="la-stack-2" aria-labelledby="captain-friendlies">
+      <h2 id="captain-friendlies" className="la-overline">
+        Friendlies you captain
+      </h2>
+      <ul className="la-group" aria-label="Friendlies you captain">
+        {loaded.data.map((row) => (
+          <li key={row.fixture.id} className="la-item">
+            <span className="la-item__body">
+              <span className="body-strong">
+                {row.fixture.home_team.name} vs {row.fixture.away_team.name}
+              </span>
+              <span className="caption la-muted">
+                {formatMoment(row.fixture.kick_off)} · {row.fixture.pitch.name} · {row.club.name}
+              </span>
+              {!row.settled && <span className="caption la-muted">{formatRand(row.outstanding)} still to pay</span>}
+            </span>
+            <Link className="la-btn la-btn--secondary la-btn--sm" to={`/friendlies/${row.fixture.id}/barcode`}>
+              Barcode
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
 
 export const NOT_A_PLAYER = 'Fixtures are for Players. Turn on "I play" in your Profile.';
 
@@ -50,6 +82,7 @@ export function MyFixturesPage() {
           </section>
         )}
       </LoadState>
+      <FriendliesICaptain />
       <GamesToJoin />
       <LoadState result={past} retry={reloadPast} what="your past fixtures" forbidden={NOT_A_PLAYER}>
         {(fixtures) =>

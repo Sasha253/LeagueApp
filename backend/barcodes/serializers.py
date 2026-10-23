@@ -31,7 +31,14 @@ class BarcodeMatchSerializer(serializers.Serializer):
 class BarcodeSerializer(serializers.ModelSerializer):
     """A Payment Barcode, as its Captain shows it at the gate."""
 
-    team = NamedSerializer(read_only=True)
+    team = NamedSerializer(
+        read_only=True, allow_null=True, help_text="Empty for a friendly's Barcode."
+    )
+    holder = serializers.CharField(
+        source="holder_name",
+        read_only=True,
+        help_text='Who it lets in: the Team\'s name, or "Friendly: Red Lions vs Old Boys".',
+    )
     season = BarcodeSeasonSerializer(read_only=True)
     fixture = BarcodeMatchSerializer(
         read_only=True, allow_null=True, help_text="The match a per-match Barcode is for."
@@ -52,6 +59,7 @@ class BarcodeSerializer(serializers.ModelSerializer):
             "display_code",
             "mode",
             "team",
+            "holder",
             "season",
             "fixture",
             "valid_until",
@@ -155,7 +163,14 @@ class ScanResultSerializer(serializers.Serializer):
         allow_null=True,
         help_text='The Barcode\'s code as printed ("RK 2710 4419"); null when none matched.',
     )
-    team = NamedSerializer(read_only=True, allow_null=True)
+    team = NamedSerializer(
+        read_only=True, allow_null=True, help_text="Empty when none matched, or a friendly's."
+    )
+    holder = serializers.CharField(
+        read_only=True,
+        allow_null=True,
+        help_text='Who the Barcode lets in: the Team, or "Friendly: …"; null when none matched.',
+    )
     fixture = BarcodeMatchSerializer(
         read_only=True, allow_null=True, help_text="The match the scan was checked against."
     )
@@ -170,7 +185,7 @@ class ScanResultSerializer(serializers.Serializer):
         decimal_places=2,
         read_only=True,
         allow_null=True,
-        help_text="What the Team has paid, in rand; only on a Paid result.",
+        help_text="What the Team (or the friendly) has paid, in rand; only on a Paid result.",
     )
     paid_methods = serializers.ListField(
         child=serializers.ChoiceField(choices=LEDGER_METHODS.choices),

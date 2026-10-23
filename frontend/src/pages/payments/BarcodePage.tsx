@@ -44,7 +44,7 @@ export function BarcodePage() {
             <div className="la-stack">
               <PaymentTicket
                 {...ticketText(data.barcode)}
-                team={data.barcode.team.name}
+                team={data.barcode.holder}
                 code={data.barcode.code}
                 displayCode={data.barcode.display_code}
               />

@@ -12,6 +12,7 @@ router.register("player-requests", views.PlayerRequestViewSet, basename="player-
 
 urlpatterns = [
     path("me/fixtures/", views.MyFixtureListView.as_view(), name="my-fixtures"),
+    path("me/friendlies/", views.MyFriendlyListView.as_view(), name="my-friendlies"),
     path(
         "me/player-requests/",
         views.MyPlayerRequestListView.as_view(),

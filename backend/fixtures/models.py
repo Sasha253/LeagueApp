@@ -705,3 +705,64 @@ class BorrowedPlayer(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ValueError("A BorrowedPlayer is never deleted.")
+
+
+class FriendlyFee(models.Model):
+    """What a friendly costs, who pays it and its Captain (FR-24), set by an Admin.
+
+    One per friendly (a FixtureFallback with outcome friendly). The fee is the friendly's
+    total; Players in the payer group contribute towards it, recorded in the ledger as
+    `friendly` payments for the Fixture (ledger/services.py `record_friendly_payment`).
+    The club/manager paying, or a fee of R 0, means nothing is collected from Players.
+    The fee and payer are fixed once a payment stands; the Captain can change until
+    kick-off. The friendly's Payment Barcode is issued to the Captain (barcodes app).
+    Only fixtures/friendlies.py writes these; they are never deleted.
+    """
+
+    class Payer(models.TextChoices):
+        BORROWED_PLAYERS = "borrowed_players", "The borrowed Players"
+        TEAM_PLAYERS = "team_players", "The Team's Players"
+        CLUB = "club", "The club/manager"
+
+    fallback = models.OneToOneField(
+        FixtureFallback, on_delete=models.PROTECT, related_name="friendly_fee"
+    )
+    fixture = models.OneToOneField(Fixture, on_delete=models.PROTECT, related_name="friendly_fee")
+    fee = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        help_text="The friendly's fee in rand, for the whole match.",
+    )
+    payer = models.CharField(max_length=16, choices=Payer.choices)
+    captain = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="friendlies_captained",
+        help_text="The Player who receives the friendly's Barcode and has it verified.",
+    )
+    set_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
+    set_at = models.DateTimeField()
+
+    class Meta:
+        ordering = ["pk"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(fee__gte=0), name="friendly_fee_not_negative"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"Friendly fee R {self.fee} for {self.fixture} ({self.get_payer_display()})"
+
+    @property
+    def collects(self) -> bool:
+        """Whether Players pay anything towards it."""
+        return self.payer != self.Payer.CLUB and self.fee > 0
+
+    def delete(self, *args, **kwargs):
+        raise ValueError("A FriendlyFee is never deleted.")
+
+
+FRIENDLY_PAYERS = FriendlyFee.Payer

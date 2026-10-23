@@ -9,6 +9,11 @@ urlpatterns = [
     path("teams/<int:team_id>/barcode/", views.CurrentBarcodeView.as_view(), name="team-barcode"),
     path("teams/<int:team_id>/barcodes/", views.TeamBarcodesView.as_view(), name="team-barcodes"),
     path(
+        "friendlies/<int:fixture_id>/barcode/",
+        views.FriendlyBarcodeView.as_view(),
+        name="friendly-barcode",
+    ),
+    path(
         "barcodes/<int:barcode_id>/revoke/",
         views.RevokeBarcodeView.as_view(),
         name="barcode-revoke",

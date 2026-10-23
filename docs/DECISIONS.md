@@ -2,6 +2,30 @@
 
 Newest first. Each entry: the date, what was decided, and why.
 
+## 2026-10-23: Friendly fees (chunk 22) (provisional, unattended run)
+
+Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 22: Friendly fees".
+
+- **FriendlyFee (provisional, unattended run):** one per friendly, set by an Admin of the
+  Fixture's Club while it is a friendly and before kick-off: the fee for the whole match
+  (Decimal rand, 0 or more, starting at the club's `friendly_fee`), who pays (the borrowed
+  Players, the Team's Players, the club/manager) and the Captain (a Player who joined it,
+  or a current Player of the Team still in it). Fee and payer are fixed once a payment
+  stands.
+- **Payers (provisional, unattended run):** borrowed Players are those who joined from
+  outside the Team still in it; the Team's Players are that Team's current Players (not
+  offered with both Teams out). The club/manager, or a fee of R 0: nothing is collected and
+  the friendly counts as paid.
+- **Friendly income (provisional, unattended run, FR-49):** cash recorded by an Admin from
+  a payer, never more than still owed, as a ledger payment in the `friendly` category for
+  the Fixture, subject the Player, on no Team's account. A cancelled friendly returns it as
+  Player credit. Card payments for friendlies are not built yet.
+- **The friendly's Barcode (provisional, unattended run):** a Barcode's subject is a Team
+  or a friendly (exclusive, signed). Issued to the Captain once the friendly is settled,
+  valid for that match while it is a friendly, once at the gate; a new Captain revokes the
+  old one's. A Team's own Barcode doesn't count at a match that became a friendly. This
+  widens CLAUDE.md's "tied to one Team or Booking" to "one Team, friendly or Booking".
+
 ## 2026-10-23: Gate scanning (chunk 21) (provisional, unattended run)
 
 Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 21: Gate scanning".

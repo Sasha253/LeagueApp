@@ -157,6 +157,7 @@ SPECTACULAR_SETTINGS = {
         "CaptainRequestStatusEnum": "fixtures.models.CAPTAIN_REQUEST_STATUSES",
         "PlayerRequestKindEnum": "fixtures.models.PLAYER_REQUEST_KINDS",
         "PlayerRequestStatusEnum": "fixtures.models.PLAYER_REQUEST_STATUSES",
+        "FriendlyPayerEnum": "fixtures.models.FRIENDLY_PAYERS",
         "PaymentProviderEnum": "clubs.models.PaymentProvider",
         "PaymentStatusEnum": "payments.models.PAYMENT_STATUSES",
         "PaymentCreditEnum": "payments.models.PAYMENT_CREDIT_SOURCES",

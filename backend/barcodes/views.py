@@ -22,6 +22,7 @@ from rest_framework.views import APIView
 from accounts.models import ClubRole
 from accounts.permissions import IsClubAdminOrReferee
 from clubs.models import Club
+from fixtures.models import FriendlyFee
 from ledger import services as ledger
 from teams.models import Team
 
@@ -129,6 +130,7 @@ def _scan_answer(result: services.ScanResult) -> dict:
         "code": result.scan.code,
         "display_code": None,
         "team": None,
+        "holder": None,
         "fixture": result.match,
         "mode": None,
         "valid_until": None,
@@ -138,13 +140,24 @@ def _scan_answer(result: services.ScanResult) -> dict:
     if barcode is not None:
         answer["display_code"] = signing.display(barcode.code)
         answer["team"] = barcode.team
+        answer["holder"] = barcode.holder_name
         answer["mode"] = barcode.mode
         answer["valid_until"] = (
             timezone.localdate(barcode.fixture.kick_off)
             if barcode.fixture is not None
             else barcode.season.ends_on
         )
-    if result.paid:
+    if result.paid and barcode.friendly_id is not None:
+        answer["paid_amount"] = ledger.friendly_paid(barcode.fixture)
+        answer["paid_methods"] = sorted(
+            {
+                entry.method
+                for entry in ledger.friendly_payments(barcode.fixture).filter(
+                    kind="payment", reversed_by__isnull=True
+                )
+            }
+        )
+    elif result.paid:
         balance = ledger.team_balance(barcode.team)
         answer["paid_amount"] = balance.paid
         answer["paid_methods"] = [
@@ -177,3 +190,24 @@ class ScanView(APIView):
         return Response(
             ScanResultSerializer(_scan_answer(result)).data, status=status.HTTP_201_CREATED
         )
+
+
+class FriendlyBarcodeView(APIView):
+    """The friendly's Payment Barcode (FR-24) for its Captain, or why there is none.
+    Admins of the club can see it too; anyone else 404."""
+
+    @extend_schema(responses=CurrentBarcodeSerializer)
+    def get(self, request, fixture_id: int):
+        friendly = get_object_or_404(
+            FriendlyFee.objects.select_related("fixture", "fallback"), fixture_id=fixture_id
+        )
+        is_captain = friendly.captain_id == request.user.pk
+        if not (is_captain or _is_admin(request.user, friendly.fixture.club_id)):
+            raise NotFound()
+        current = services.current_for_friendly(friendly)
+        data = {
+            "state": current.status.state,
+            "reason": current.status.reason,
+            "barcode": current.barcode,
+        }
+        return Response(CurrentBarcodeSerializer(data).data)

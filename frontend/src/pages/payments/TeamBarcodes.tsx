@@ -23,6 +23,7 @@ const STATE_CHIPS: Record<AdminBarcode["state"], { status: Status; label: string
   inactive: { status: "cancelled", label: "Team not active" },
   no_match: { status: "info", label: "No match" },
   not_found: { status: "cancelled", label: "Not found" },
+  no_captain: { status: "pending", label: "No Captain" },
 };
 
 function validFor(barcode: AdminBarcode): string {

@@ -788,3 +788,59 @@ docs/DECISIONS.md under "2026-10-23: Teams (chunk 5)".
 - **Rate limit.** Choice: 60 scans per minute per signed-in Admin or Referee
   (`BARCODE_SCAN_THROTTLE_RATE`). Why: a busy gate stays far below it, guessing codes can't.
   If the answer differs: change the environment value.
+
+## Chunk 22: Friendly fees
+
+- **What "a specified fee" is.** Question: FR-24 says a friendly charges "a specified fee";
+  is it per Player or for the whole match? Choice: one fee for the whole friendly (the
+  `FriendlyFee.fee`), starting at the club's `friendly_fee` setting and changeable per
+  match; the payers' contributions add up to it, as Team contributions do for the league
+  fee (FR-19). Why: "a fee" per match reads as one amount, and it can't be split before
+  anyone knows who will turn up. If the answer differs (a fee per Player): charge each
+  joined payer in `fixtures/friendlies.py` and change `totals`.
+- **Who "the borrowed Players" and "the Team's Players" are.** Choice: borrowed Players are
+  the Players who joined the friendly (confirmed its invite) from outside the Team still in
+  it; the Team's Players are the current Players of the Team still in it (FR-17). With both
+  Teams out (FR-10 to FR-12) there is no Team, so "the Team's Players" isn't offered (409).
+  Why: those are the only Teams and Players the friendly has. If the answer differs: change
+  `friendlies.team_players` / `borrowed_players` and `payer_choices`.
+- **What "the club/manager pays" means.** Question: is it income to record, or the club
+  covering the fee? Choice: the club/manager covers it: nothing is collected from Players,
+  no ledger entry is made, and the friendly counts as paid (its Barcode can be issued). A
+  fee of R 0 works the same way. Why: the club paying itself isn't income, and charging
+  Players nothing is the conservative side. If the answer differs (a manager hands over
+  cash): let `record_cash` take a payment for the club/manager payer.
+- **How a friendly is paid.** Choice: in this chunk an Admin records cash from one of the
+  payers, never more than is still owed; each is a ledger payment in the `friendly`
+  category for the Fixture, subject the paying Player, on no Team's account (so no Team's
+  league balance, Barcode or replacement eligibility changes). Card payments (PayFast) and
+  spending credit on a friendly are not built: chunk 18's `Payment` is tied to a Team and
+  would need a friendly subject. Why: the smallest change that keeps payments and the
+  Team accounts as they are. If the answer differs: add a friendly subject to `Payment`
+  and a `start_friendly_payment` beside `payments.services.start_payment`.
+- **When the terms can change.** Choice: while the match is a friendly for that kick-off
+  and before kick-off. The fee and payer are fixed once a payment stands (409); the Captain
+  can change at any time until then. Why: changing what was owed after money came in
+  would rewrite a settled amount. If the answer differs: allow raising the fee and keep the
+  payments.
+- **Who can be the friendly's Captain.** Choice: a Player who plays in it: one who joined
+  it, or a current Player of the Team still in it. Not set automatically; the Admin picks.
+  Why: FR-24 says the Captain "is assigned", and they must be at the gate. If the answer
+  differs: default it to the remaining Team's Captain.
+- **The friendly's Barcode.** Question: Barcodes are tied to one Team, but a friendly with
+  both Teams out has none. Choice: a Barcode's subject is a Team or a friendly
+  (`Barcode.friendly`, exclusive with `team`, signed over the friendly too). It is issued
+  when the friendly is settled (paid, free or paid by the club) and has a Captain, valid
+  for that match while it is still a friendly; the Captain is told and sees it under My
+  fixtures. A new Captain revokes the old one's. A Team's own league Barcode no longer
+  lets it into a match that became a friendly (and a Team's "current match" skips
+  friendlies). Why: only the assigned Captain has the friendly's Barcode verified (FR-24),
+  and it can't be reused at another match (NFR Barcode integrity). If the answer differs
+  (the Team's Barcode also counts for its friendly): drop the `friendly` check in
+  `barcodes.services._at_the_gate` and `NOT_LEAGUE` in `next_match`.
+- **A cancelled friendly.** Choice: its friendly payments come back as the Player's credit
+  (FR-43, FR-52) through the existing `cancel_match`; its Barcode stops being valid.
+- **Who is told.** Choice: only the Captain, when the Barcode is issued (an Update). The
+  payers aren't sent the fee. Why: the PRD names no notification for it, and the
+  targeting rules say to send only what it names. If the answer differs: an Update to the
+  payers in `friendlies.set_terms`.

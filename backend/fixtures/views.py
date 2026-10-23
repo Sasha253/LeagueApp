@@ -5,6 +5,9 @@ account works at every club (docs/DECISIONS.md), so their views are not under a 
 show only Fixtures of Teams the Player is in now.
 """
 
+import datetime as dt
+from decimal import Decimal
+
 from django.db import IntegrityError, transaction
 from django.db.models import Prefetch, Q, QuerySet
 from django.http import HttpResponse
@@ -24,13 +27,20 @@ from core.exceptions import Conflict
 from core.tables import TableError, read_table
 from teams.models import Team, TeamMembership
 
-from . import borrowing, confirmations, imports, lifecycle, readiness, reschedules
+from . import borrowing, confirmations, friendlies, imports, lifecycle, readiness, reschedules
+from .friendly_serializers import (
+    FriendlyCashSerializer,
+    FriendlySerializer,
+    FriendlyTermsSerializer,
+    MyFriendlySerializer,
+)
 from .models import (
     BorrowedPlayer,
     CaptainRequest,
     Fixture,
     FixtureReschedule,
     FixtureTransition,
+    FriendlyFee,
     PlayerRequest,
     PlayerRequestInvite,
     ReplacementOffer,
@@ -492,6 +502,57 @@ class ClubFixtureViewSet(
         lifecycle.set_friendly_eligible(fixture, eligible, request.user)
         return self.detail_of(fixture)
 
+    @extend_schema(
+        methods=["get"],
+        summary="A friendly's fee, who pays it and its Captain",
+        description="FR-24. 409 when the match never became a friendly.",
+        responses=FriendlySerializer,
+    )
+    @extend_schema(
+        methods=["post"],
+        summary="Set a friendly's fee, who pays it and its Captain",
+        description="FR-24. Only while the match is a friendly for its kick-off and before "
+        "kick-off (409). The Team's Players can pay only when a Team is still in (409). The "
+        "Captain must play in it: joined it, or a current Player of the remaining Team "
+        "(409). The fee and payer are fixed once a payment stands (409). Once the fee is "
+        "settled and a Captain is set, the Captain gets the friendly's Payment Barcode; a "
+        "new Captain revokes the old one's.",
+        request=FriendlyTermsSerializer,
+        responses=FriendlySerializer,
+    )
+    @action(detail=True, methods=["get", "post"])
+    def friendly(self, request, *args, **kwargs):
+        fixture = self.get_object()
+        if request.method == "POST":
+            body = FriendlyTermsSerializer(data=request.data)
+            body.is_valid(raise_exception=True)
+            friendlies.set_terms(fixture, **body.validated_data, by=request.user)
+        return Response(FriendlySerializer(friendly_view(fixture)).data)
+
+    @extend_schema(
+        summary="Record cash for a friendly",
+        description="FR-22, FR-24. Cash paid to the club by one of the friendly's payers "
+        "(409 for anyone else), never more than it still owes (409). Recorded in the ledger "
+        "as friendly income.",
+        request=FriendlyCashSerializer,
+        responses={201: FriendlySerializer},
+    )
+    @action(detail=True, methods=["post"], url_path="friendly/payments")
+    def friendly_payments(self, request, *args, **kwargs):
+        fixture = self.get_object()
+        body = FriendlyCashSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        friendlies.record_cash(
+            fixture,
+            player=body.validated_data["player"],
+            amount=body.validated_data["amount"],
+            by=request.user,
+            reason=body.validated_data["reason"],
+        )
+        return Response(
+            FriendlySerializer(friendly_view(fixture)).data, status=status.HTTP_201_CREATED
+        )
+
     def detail_of(self, fixture: Fixture) -> Response:
         self.action = "retrieve"
         return Response(AdminFixtureDetailSerializer(self.get_queryset().get(pk=fixture.pk)).data)
@@ -734,3 +795,102 @@ class ReadinessDecisionView(ClubAdminMixin, generics.GenericAPIView):
         )
         fixture = fixtures().get(pk=row.fixture_id)
         return Response(TonightFixtureSerializer(readiness.tonight_fixture(fixture)).data)
+
+
+# Friendlies (FR-24)
+
+
+def start_of_today() -> dt.datetime:
+    return timezone.make_aware(dt.datetime.combine(timezone.localdate(), dt.time()))
+
+
+def friendly_view(fixture: Fixture) -> dict:
+    """Everything the Admin's friendly section shows, decided here."""
+    from barcodes import services as barcodes
+    from ledger import services as ledger
+
+    fixture = fixtures().get(pk=fixture.pk)
+    fallback = friendlies.friendly_fallback(fixture)
+    friendly = (
+        FriendlyFee.objects.filter(fixture=fixture)
+        .select_related("captain", "set_by", "fallback__remaining_team", "fixture")
+        .first()
+    )
+    on = friendlies.is_on(fixture, fallback)
+    zero = Decimal("0.00")
+    totals = friendlies.totals(friendly) if friendly else None
+    payer_choices = [
+        value
+        for value in FriendlyFee.Payer.values
+        if value != FriendlyFee.Payer.TEAM_PLAYERS or fallback.remaining_team_id is not None
+    ]
+    if friendly is None:
+        barcode = {"state": "no_captain", "reason": friendlies.NO_TERMS, "barcode": None}
+    else:
+        current = barcodes.current_for_friendly(friendly)
+        barcode = {
+            "state": current.status.state,
+            "reason": current.status.reason,
+            "barcode": current.barcode,
+        }
+    return {
+        "fixture": fixture,
+        "cause": fallback.cause,
+        "remaining_team": fallback.remaining_team,
+        "is_on": on,
+        "can_change": on and timezone.now() < fixture.kick_off,
+        "money_fixed": ledger.friendly_paid(fixture) > 0,
+        "default_fee": fixture.club.settings.friendly_fee,
+        "payer_choices": payer_choices,
+        "terms": friendly,
+        "due": totals.due if totals else zero,
+        "paid": totals.paid if totals else ledger.friendly_paid(fixture),
+        "outstanding": totals.outstanding if totals else zero,
+        "settled": totals.settled if totals else False,
+        "payments": ledger.friendly_payments(fixture).select_related("user", "recorded_by"),
+        "payers": friendlies.payers(friendly) if friendly and on else [],
+        "captain_candidates": friendlies.captain_candidates(fallback) if on else [],
+        "barcode": barcode,
+    }
+
+
+class MyFriendlyListView(generics.ListAPIView):
+    """Friendlies the signed-in Player is the Captain of, today (South African date) or
+    later, soonest first."""
+
+    serializer_class = MyFriendlySerializer
+    permission_classes = [IsPlayer]
+    pagination_class = None
+
+    def get_queryset(self):
+        return (
+            FriendlyFee.objects.filter(
+                captain=self.request.user,
+                fixture__status=Fixture.Status.FRIENDLY,
+                fixture__kick_off__gte=start_of_today(),
+            )
+            .select_related(
+                "fallback",
+                "fixture__club",
+                "fixture__home_team",
+                "fixture__away_team",
+                "fixture__pitch",
+            )
+            .order_by("fixture__kick_off", "pk")
+        )
+
+    def list(self, request, *args, **kwargs):
+        rows = []
+        for friendly in self.get_queryset():
+            if not friendlies.is_on(friendly.fixture, friendly.fallback):
+                continue
+            totals = friendlies.totals(friendly)
+            rows.append(
+                {
+                    "fixture": friendly.fixture,
+                    "club": friendly.fixture.club,
+                    "settled": totals.settled,
+                    "outstanding": totals.outstanding,
+                }
+            )
+        return Response(MyFriendlySerializer(rows, many=True).data)

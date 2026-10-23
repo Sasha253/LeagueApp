@@ -65,6 +65,7 @@ export function barcode(overrides: object = {}) {
     display_code: "RK 2710 4419",
     mode: "match",
     team: TEAM,
+    holder: TEAM.name,
     season: { id: 5, name: "Spring 2026", ends_on: "2026-12-19" },
     fixture: {
       id: 12,

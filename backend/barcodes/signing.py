@@ -2,7 +2,7 @@
 
 A code is 10 characters of Crockford base32: the first 50 bits of an HMAC-SHA256, keyed by
 BARCODE_SIGNING_KEY, over a random nonce and the Barcode's whole subject (club, Team, mode,
-Season, match). So a code
+Season, match, and the friendly for a friendly's Barcode). So a code
 
 - can't be guessed: 50 bits that look random, and only signed-in Referees and Admins of
   the Barcode's club can look one up;
@@ -32,17 +32,18 @@ def new_nonce() -> str:
 
 
 def _message(barcode) -> str:
-    return "|".join(
-        [
-            "v1",
-            barcode.nonce,
-            f"club:{barcode.club_id}",
-            f"team:{barcode.team_id}",
-            f"mode:{barcode.mode}",
-            f"season:{barcode.season_id}",
-            f"fixture:{barcode.fixture_id or '-'}",
-        ]
-    )
+    parts = [
+        "v1",
+        barcode.nonce,
+        f"club:{barcode.club_id}",
+        f"team:{barcode.team_id}",
+        f"mode:{barcode.mode}",
+        f"season:{barcode.season_id}",
+        f"fixture:{barcode.fixture_id or '-'}",
+    ]
+    if barcode.friendly_id is not None:  # Team Barcodes sign as before, so theirs still check.
+        parts.append(f"friendly:{barcode.friendly_id}")
+    return "|".join(parts)
 
 
 def sign(barcode) -> str:

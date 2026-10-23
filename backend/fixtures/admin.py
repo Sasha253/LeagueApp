@@ -9,6 +9,7 @@ from .models import (
     FixtureFallback,
     FixtureReschedule,
     FixtureTransition,
+    FriendlyFee,
     PlayerRequest,
     ReplacementOffer,
     TeamReadiness,
@@ -193,6 +194,19 @@ class BorrowedPlayerInline(admin.TabularInline):
         return False
 
 
+class FriendlyFeeInline(admin.TabularInline):
+    """A friendly's fee, who pays it and its Captain: set by an Admin in the app (FR-24)."""
+
+    model = FriendlyFee
+    extra = 0
+    can_delete = False
+    readonly_fields = ["fee", "payer", "captain", "set_by", "set_at"]
+    exclude = ["fallback"]
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
 @admin.register(Fixture)
 class FixtureAdmin(admin.ModelAdmin):
     """Read-only: Fixtures change through the app, so every status move is logged."""
@@ -210,6 +224,7 @@ class FixtureAdmin(admin.ModelAdmin):
         CaptainRequestInline,
         PlayerRequestInline,
         BorrowedPlayerInline,
+        FriendlyFeeInline,
     ]
 
     def has_add_permission(self, request):

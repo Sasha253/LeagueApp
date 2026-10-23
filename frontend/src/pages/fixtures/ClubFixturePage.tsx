@@ -4,7 +4,8 @@
 // When one Team was out, the search for a new opponent (FR-13 to FR-16): who the slot was
 // offered to, until when, and who took it. Once the match couldn't go ahead (FR-10 to FR-12,
 // FR-17, FR-43): the friendly and who joined it, or the cancellation and the credit returned.
-// The backend decides both; this only shows them. The Admin can reschedule the match
+// The backend decides both; this only shows them. A friendly's fee, who pays it and its
+// Captain (FR-24) are in FriendlyFees.tsx. The Admin can reschedule the match
 // (FR-7 to FR-9) and answer its Captains' requests to cancel or postpone it (FR-18).
 
 import { useState } from "react";
@@ -18,6 +19,7 @@ import { LoadState, send, useClub, useLoad } from "../club/shared";
 import { POSITION_LABELS, ScreenHeader } from "../teams/shared";
 import { FIXTURE_STATUS, MatchCard } from "./shared";
 import { NOT_AN_ADMIN } from "./ClubFixturesPage";
+import { FriendlyFeeSection } from "./FriendlyFees";
 import { CaptainRequestsSection, moveOf, RescheduleSection, type Move } from "./reschedule";
 
 type Transition = Schemas["FixtureTransition"];
@@ -258,6 +260,8 @@ export function ClubFixturePage() {
                 )}
               </section>
             )}
+
+            {match.fallback?.outcome === "friendly" && <FriendlyFeeSection clubId={clubId} fixtureId={match.id} />}
 
             <section className="la-stack-2" aria-labelledby="history">
               <h2 id="history" className="la-overline">

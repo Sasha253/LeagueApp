@@ -15,6 +15,11 @@
   still on, the Team not ruled out of it, and not scanned in already: a Barcode lets its
   Team in once per match. Every scan is logged, whatever the result.
 
+A friendly's Barcode (FR-24) is tied to the friendly, not a Team: issued to the Captain the
+Admin assigned once the friendly's fee is settled (paid, free, or paid by the club), valid
+for that match while it is still a friendly. A new Captain revokes the old one. A Team's
+own Barcode doesn't let it into a match that has become a friendly.
+
 Everything here is decided by the backend; the app only shows it.
 """
 
@@ -29,7 +34,7 @@ from django.utils import timezone
 from accounts.models import User
 from clubs.models import Club, PaymentMode
 from core.exceptions import Conflict
-from fixtures.models import Fixture, ReplacementOffer, TeamReadiness
+from fixtures.models import Fixture, FriendlyFee, ReplacementOffer, TeamReadiness
 from ledger import services as ledger
 from notifications.models import Kind
 from notifications.services import match_day, match_time, notify
@@ -48,6 +53,7 @@ REISSUED = "Reissued by an Admin."
 ATTEMPTS = 5  # New nonces tried if a code is already taken (one in 2^50 each time).
 
 FINISHED = (Fixture.Status.CANCELLED, Fixture.Status.PLAYED)
+NOT_LEAGUE = (*FINISHED, Fixture.Status.FRIENDLY)  # Matches a Team's own Barcode isn't for.
 OFF = (*FINISHED, Fixture.Status.BOTH_TEAMS_OUT)  # Matches nobody is let in for.
 
 
@@ -69,6 +75,9 @@ class State:
     MATCH_OFF = "match_off"
     RULED_OUT = "ruled_out"
     USED = "used"
+    FRIENDLY = "friendly"
+    # A friendly's Barcode only:
+    NO_CAPTAIN = "no_captain"
 
     choices = [
         (VALID, "Valid"),
@@ -79,6 +88,7 @@ class State:
         (INACTIVE, "Team not active"),
         (NO_MATCH, "No match coming up"),
         (NOT_FOUND, "No such Barcode"),
+        (NO_CAPTAIN, "No Captain assigned"),
     ]
     # A scan at the gate answers any of the above, or one of these.
     scan_choices = [
@@ -89,6 +99,7 @@ class State:
         (MATCH_OFF, "Match is off"),
         (RULED_OUT, "Team ruled out"),
         (USED, "Already scanned"),
+        (FRIENDLY, "Match is now a friendly"),
     ]
 
 
@@ -128,12 +139,12 @@ def _lock(team: Team) -> Team:
 
 
 def next_match(team: Team) -> Fixture | None:
-    """The Team's current match: its first match not cancelled or played, on today's date
-    (South African time) or later."""
+    """The Team's current match: its first match not cancelled, played or turned into a
+    friendly, on today's date (South African time) or later."""
     return (
         Fixture.objects.filter(Q(home_team=team) | Q(away_team=team))
         .filter(kick_off__gte=_start_of(_today()))
-        .exclude(status__in=FINISHED)
+        .exclude(status__in=NOT_LEAGUE)
         .select_related("home_team", "away_team", "pitch")
         .order_by("kick_off", "pk")
         .first()
@@ -146,6 +157,8 @@ def status_of(barcode: Barcode) -> Status:
         return Status(State.NOT_GENUINE, "This Barcode isn't genuine.")
     if barcode.revoked_at is not None:
         return Status(State.REVOKED, f"This Barcode was revoked: {barcode.revoke_reason}")
+    if barcode.friendly_id is not None:
+        return _friendly_status(barcode)
     team = barcode.team
     if team.status != Team.Status.ACTIVE:
         return Status(State.INACTIVE, NOT_ACTIVE)
@@ -155,6 +168,12 @@ def status_of(barcode: Barcode) -> Status:
         played_on = timezone.localdate(fixture.kick_off)
         if fixture.status == Fixture.Status.CANCELLED:
             return Status(State.EXPIRED, f"The match on {_day(played_on)} was cancelled.")
+        if fixture.status == Fixture.Status.FRIENDLY:
+            return Status(
+                State.EXPIRED,
+                f"The match on {_day(played_on)} is now a friendly. "
+                "Its Captain has the friendly's Barcode.",
+            )
         if fixture.status == Fixture.Status.PLAYED or played_on < today:
             return Status(
                 State.EXPIRED, f"This Barcode was for {_day(played_on)}. It isn't valid now."
@@ -175,13 +194,20 @@ def status_of(barcode: Barcode) -> Status:
 # Issuing
 
 
-def _create(team: Team, mode: str, fixture: Fixture | None, by: User | None) -> Barcode:
+def _create(
+    team: Team | None,
+    mode: str,
+    fixture: Fixture | None,
+    by: User | None,
+    friendly: FriendlyFee | None = None,
+) -> Barcode:
     for _ in range(ATTEMPTS):
         barcode = Barcode(
-            club=team.club,
+            club=fixture.club if team is None else team.club,
             team=team,
+            friendly=friendly,
             mode=mode,
-            season=team.season,
+            season=fixture.season if team is None else team.season,
             fixture=fixture,
             nonce=signing.new_nonce(),
             issued_by=by,
@@ -343,6 +369,112 @@ def revoke(barcode: Barcode, *, by: User, reason: str) -> Barcode:
     return barcode
 
 
+# Friendlies (FR-24)
+
+FRIENDLY_NOT_ON = "This friendly is no longer on."
+NO_FRIENDLY_CAPTAIN = "No Captain has been assigned to this friendly yet."
+CAPTAIN_CHANGED = "The friendly's Captain changed."
+
+
+def friendly_is_on(friendly: FriendlyFee) -> bool:
+    fixture = friendly.fixture
+    return (
+        fixture.status == Fixture.Status.FRIENDLY and fixture.kick_off == friendly.fallback.kick_off
+    )
+
+
+def friendly_outstanding(friendly: FriendlyFee) -> Decimal:
+    """What is still to be paid towards the friendly's fee; 0 when nothing is collected."""
+    if not friendly.collects:
+        return Decimal("0.00")
+    return friendly.fee - ledger.friendly_paid(friendly.fixture)
+
+
+def friendly_settled(friendly: FriendlyFee) -> bool:
+    """Its fee is paid, free, or paid by the club/manager."""
+    return friendly_outstanding(friendly) <= 0
+
+
+def _friendly_status(barcode: Barcode) -> Status:
+    friendly = barcode.friendly
+    fixture = barcode.fixture
+    played_on = timezone.localdate(fixture.kick_off)
+    if not friendly_is_on(friendly):
+        return Status(State.EXPIRED, FRIENDLY_NOT_ON)
+    if played_on < _today():
+        return Status(State.EXPIRED, f"This Barcode was for {_day(played_on)}. It isn't valid now.")
+    outstanding = friendly_outstanding(friendly)
+    if outstanding > 0:
+        return Status(State.UNPAID, f"The friendly still owes {_rand(outstanding)}.")
+    return Status(State.VALID)
+
+
+def _tell_friendly_captain(barcode: Barcode) -> None:
+    friendly = barcode.friendly
+    kick_off = barcode.fixture.kick_off
+    notify(
+        Kind.UPDATE,
+        [friendly.captain],
+        club=barcode.club,
+        title="Payment Barcode for the friendly",
+        body=(
+            f"You are the Captain of the friendly on {match_day(kick_off)} at "
+            f"{match_time(kick_off)}. Show its Barcode at the gate."
+        ),
+        fixture=barcode.fixture,
+    )
+
+
+def _live_friendly(friendly: FriendlyFee):
+    return Barcode.objects.filter(friendly=friendly, revoked_at__isnull=True)
+
+
+def sync_friendly(friendly: FriendlyFee, *, by: User | None, captain_changed: bool = False):
+    """After the friendly's terms or payments change: a new Captain (or none) revokes the
+    live Barcode; a settled friendly with a Captain and no live Barcode gets one, and the
+    Captain is told. Returns the new Barcode, if one was issued. Call in a transaction
+    with the Fixture locked."""
+    now = timezone.now()
+    if captain_changed:
+        for live in _live_friendly(friendly).select_for_update():
+            live.revoked_at, live.revoked_by, live.revoke_reason = now, by, CAPTAIN_CHANGED
+            live.save(update_fields=["revoked_at", "revoked_by", "revoke_reason"])
+    if friendly.captain_id is None or not friendly_is_on(friendly):
+        return None
+    if not friendly_settled(friendly) or _live_friendly(friendly).exists():
+        return None
+    barcode = _create(None, Mode.MATCH, friendly.fixture, None, friendly=friendly)
+    _tell_friendly_captain(barcode)
+    return barcode
+
+
+@transaction.atomic
+def current_for_friendly(friendly: FriendlyFee) -> Current:
+    """The friendly's Barcode its Captain shows at the gate now, or why there is none.
+    Issued on first look when it is due and has never been issued; never again after an
+    Admin revoked it (an Admin saving the friendly's terms issues a new one)."""
+    Fixture.objects.select_for_update().filter(pk=friendly.fixture_id).values_list("pk").get()
+    live = (
+        _live_friendly(friendly)
+        .select_related("season", "fixture__home_team", "fixture__away_team", "fixture__pitch")
+        .first()
+    )
+    if live is not None:
+        return _shown(live, status_of(live))
+    if not friendly_is_on(friendly):
+        return Current(None, Status(State.EXPIRED, FRIENDLY_NOT_ON))
+    if friendly.captain_id is None:
+        return Current(None, Status(State.NO_CAPTAIN, NO_FRIENDLY_CAPTAIN))
+    outstanding = friendly_outstanding(friendly)
+    if outstanding > 0:
+        return Current(None, Status(State.UNPAID, f"The friendly still owes {_rand(outstanding)}."))
+    latest = Barcode.objects.filter(friendly=friendly).select_related("fixture").first()
+    if latest is not None:
+        return Current(None, status_of(latest))  # Revoked by an Admin.
+    barcode = _create(None, Mode.MATCH, friendly.fixture, None, friendly=friendly)
+    return _shown(barcode, status_of(barcode))
+
+
 # Scanning
 
 
@@ -409,10 +541,11 @@ def _at_the_gate(barcode: Barcode, fixture: Fixture | None) -> tuple[Status, Fix
         match = barcode.fixture
         if fixture is not None and fixture.pk != match.pk:
             played_on = _day(timezone.localdate(match.kick_off))
+            whose = "the friendly" if team is None else f"{team.name}'s match"
             return (
                 Status(
                     State.WRONG_MATCH,
-                    f"This Barcode is for {team.name}'s match on {played_on}, not this one.",
+                    f"This Barcode is for {whose} on {played_on}, not this one.",
                 ),
                 fixture,
             )
@@ -427,6 +560,14 @@ def _at_the_gate(barcode: Barcode, fixture: Fixture | None) -> tuple[Status, Fix
 
     if match.status in OFF:
         return Status(State.MATCH_OFF, _off_reason(match)), match
+    if match.status == Fixture.Status.FRIENDLY and barcode.friendly_id is None:
+        return (
+            Status(
+                State.FRIENDLY,
+                "This match is now a friendly. Scan the Barcode its Captain was given.",
+            ),
+            match,
+        )
     played_on = timezone.localdate(match.kick_off)
     if played_on != _today():
         return (
@@ -435,6 +576,11 @@ def _at_the_gate(barcode: Barcode, fixture: Fixture | None) -> tuple[Status, Fix
             ),
             match,
         )
+    if team is None:  # A friendly's Barcode: no Team to be ruled out.
+        earlier = _admitted(barcode, match)
+        if earlier is not None:
+            return Status(State.USED, _used_reason(earlier)), match
+        return Status(State.VALID), match
     ruled_out = TeamReadiness.objects.filter(
         fixture=match,
         team=team,

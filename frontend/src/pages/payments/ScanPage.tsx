@@ -37,6 +37,8 @@ function nextStep(state: State): string {
       return "Ask the Captain to open tonight's Barcode.";
     case "unpaid":
       return "The Team can pay in the app, or pay cash to an Admin.";
+    case "friendly":
+      return "Ask for the Barcode the friendly's Captain was given.";
     default:
       return "Ask an Admin of the club.";
   }
@@ -95,7 +97,7 @@ function Result({
         <span className="la-result__word">{paid ? "Paid" : "Not paid"}</span>
       </div>
       <div className="la-stack-1">
-        <p className="title-2">{result.team?.name ?? "Unknown Barcode"}</p>
+        <p className="title-2">{result.holder ?? "Unknown Barcode"}</p>
         {line && <p className="body la-muted">{line}</p>}
       </div>
       {!paid && (

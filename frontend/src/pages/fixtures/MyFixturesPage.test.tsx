@@ -48,4 +48,30 @@ describe("MyFixturesPage", () => {
 
     expect(await screen.findAllByText(/Fixtures are for Players/)).not.toHaveLength(0);
   });
+
+  it("lists the friendlies you captain, with their Barcode", async () => {
+    const row = {
+      fixture: {
+        id: 30,
+        kick_off: "2026-10-27T17:40:00Z",
+        home_team: { id: 7, name: "Red Lions" },
+        away_team: { id: 8, name: "Old Boys" },
+        pitch: { id: 3, name: "Pitch 3" },
+      },
+      club: { id: 1, name: "Club A" },
+      settled: false,
+      outstanding: "50.00",
+    };
+    await openAs(
+      "/fixtures",
+      { [LIST]: byWhen([], []), "GET /api/v1/me/friendlies/": { status: 200, body: [row] } },
+      "My fixtures",
+    );
+
+    const list = await screen.findByRole("list", { name: "Friendlies you captain" });
+    expect(within(list).getByText("Red Lions vs Old Boys")).toBeInTheDocument();
+    expect(within(list).getByText("Tue 27 Oct · 19:40 · Pitch 3 · Club A")).toBeInTheDocument();
+    expect(within(list).getByText("R 50 still to pay")).toBeInTheDocument();
+    expect(within(list).getByRole("link", { name: "Barcode" })).toHaveAttribute("href", "/friendlies/30/barcode");
+  });
 });

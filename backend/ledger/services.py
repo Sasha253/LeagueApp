@@ -552,6 +552,59 @@ def reverse(entry: LedgerEntry, *, reason: str, recorded_by: User | None) -> Led
         raise Conflict(ALREADY_REVERSED) from error
 
 
+# Friendlies (FR-24, FR-49)
+
+
+@transaction.atomic
+def record_friendly_payment(
+    *,
+    fixture: Fixture,
+    player: User,
+    amount,
+    method: str,
+    recorded_by: User | None,
+    reason: str = "",
+) -> LedgerEntry:
+    """A Player's payment towards a friendly's fee: its own `friendly` category, for the
+    Fixture, on no Team's account, so no Team's league balance or Barcode changes.
+    Who may pay and how much is checked by fixtures/friendlies.py."""
+    if method not in (Method.CARD, Method.CASH):
+        raise ValueError("Friendly payments are by card or cash.")
+    _lock_user(player)
+    return LedgerEntry.objects.create(
+        club=fixture.club,
+        kind=Kind.PAYMENT,
+        method=method,
+        category=Category.FRIENDLY,
+        amount=_money(amount),
+        subject=_subject_of(None, player, Subject.PLAYER),
+        team=None,
+        user=player,
+        fixture=fixture,
+        reason=(reason or "").strip(),
+        recorded_by=recorded_by,
+    )
+
+
+def friendly_payments(fixture: Fixture) -> QuerySet[LedgerEntry]:
+    """The friendly fee payments for one match, and their reversals, oldest first."""
+    payments = Q(kind=Kind.PAYMENT) | Q(kind=Kind.REVERSAL, reverses__kind=Kind.PAYMENT)
+    return LedgerEntry.objects.filter(
+        payments, fixture=fixture, category=Category.FRIENDLY, team__isnull=True
+    ).order_by("created_at", "pk")
+
+
+def friendly_paid(fixture: Fixture) -> Decimal:
+    """What has been paid towards a friendly's fee, less reversals and less what was
+    returned as credit (a cancelled friendly)."""
+    entries = LedgerEntry.objects.filter(
+        fixture=fixture, category=Category.FRIENDLY, team__isnull=True
+    )
+    paid = _net(entries, Kind.PAYMENT)
+    returned = _net(entries.filter(source__isnull=False), Kind.CREDIT)
+    return paid - returned
+
+
 def fixture_payments(fixture: Fixture) -> QuerySet[LedgerEntry]:
     """The payments recorded for one match (card, cash or credit), oldest first."""
     return LedgerEntry.objects.filter(fixture=fixture, kind=Kind.PAYMENT).order_by(

@@ -333,6 +333,50 @@ export interface paths {
         patch: operations["clubs_fixtures_partial_update"];
         trace?: never;
     };
+    "/api/v1/clubs/{club_id}/fixtures/{id}/friendly/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A friendly's fee, who pays it and its Captain
+         * @description FR-24. 409 when the match never became a friendly.
+         */
+        get: operations["clubs_fixtures_friendly_retrieve"];
+        put?: never;
+        /**
+         * Set a friendly's fee, who pays it and its Captain
+         * @description FR-24. Only while the match is a friendly for its kick-off and before kick-off (409). The Team's Players can pay only when a Team is still in (409). The Captain must play in it: joined it, or a current Player of the remaining Team (409). The fee and payer are fixed once a payment stands (409). Once the fee is settled and a Captain is set, the Captain gets the friendly's Payment Barcode; a new Captain revokes the old one's.
+         */
+        post: operations["clubs_fixtures_friendly_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/fixtures/{id}/friendly/payments/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record cash for a friendly
+         * @description FR-22, FR-24. Cash paid to the club by one of the friendly's payers (409 for anyone else), never more than it still owes (409). Recorded in the ledger as friendly income.
+         */
+        post: operations["clubs_fixtures_friendly_payments_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clubs/{club_id}/fixtures/{id}/reschedule/": {
         parameters: {
             query?: never;
@@ -1011,6 +1055,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/friendlies/{fixture_id}/barcode/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description The friendly's Payment Barcode (FR-24) for its Captain, or why there is none.
+         *     Admins of the club can see it too; anyone else 404.
+         */
+        get: operations["friendlies_barcode_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/health/": {
         parameters: {
             query?: never;
@@ -1196,6 +1260,26 @@ export interface paths {
         };
         /** @description Fixtures of the Teams the signed-in Player is in now, cancelled ones too. */
         get: operations["me_fixtures_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/friendlies/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Friendlies the signed-in Player is the Captain of, today (South African date) or
+         *     later, soonest first.
+         */
+        get: operations["me_friendlies_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1683,7 +1767,10 @@ export interface components {
             /** @description The code as printed under the barcode: "RK 2710 4419". */
             readonly display_code: string;
             readonly mode: components["schemas"]["BarcodeModeEnum"];
-            readonly team: components["schemas"]["Named"];
+            /** @description Empty for a friendly's Barcode. */
+            readonly team: components["schemas"]["Named"] | null;
+            /** @description Who it lets in: the Team's name, or "Friendly: Red Lions vs Old Boys". */
+            readonly holder: string;
             readonly season: components["schemas"]["BarcodeSeason"];
             /** @description The match a per-match Barcode is for. */
             readonly fixture: components["schemas"]["BarcodeMatch"] | null;
@@ -1819,7 +1906,10 @@ export interface components {
             /** @description The code as printed under the barcode: "RK 2710 4419". */
             readonly display_code: string;
             readonly mode: components["schemas"]["BarcodeModeEnum"];
-            readonly team: components["schemas"]["Named"];
+            /** @description Empty for a friendly's Barcode. */
+            readonly team: components["schemas"]["Named"] | null;
+            /** @description Who it lets in: the Team's name, or "Friendly: Red Lions vs Old Boys". */
+            readonly holder: string;
             readonly season: components["schemas"]["BarcodeSeason"];
             /** @description The match a per-match Barcode is for. */
             readonly fixture: components["schemas"]["BarcodeMatch"] | null;
@@ -1860,15 +1950,17 @@ export interface components {
          *     * `inactive` - Team not active
          *     * `no_match` - No match coming up
          *     * `not_found` - No such Barcode
+         *     * `no_captain` - No Captain assigned
          *     * `wrong_match` - Not for this match
          *     * `not_today` - Not for today
          *     * `no_match_today` - No match today
          *     * `match_off` - Match is off
          *     * `ruled_out` - Team ruled out
          *     * `used` - Already scanned
+         *     * `friendly` - Match is now a friendly
          * @enum {string}
          */
-        BarcodeScanStateEnum: "valid" | "not_genuine" | "revoked" | "expired" | "unpaid" | "inactive" | "no_match" | "not_found" | "wrong_match" | "not_today" | "no_match_today" | "match_off" | "ruled_out" | "used";
+        BarcodeScanStateEnum: "valid" | "not_genuine" | "revoked" | "expired" | "unpaid" | "inactive" | "no_match" | "not_found" | "no_captain" | "wrong_match" | "not_today" | "no_match_today" | "match_off" | "ruled_out" | "used" | "friendly";
         BarcodeSeason: {
             readonly id: number;
             readonly name: string;
@@ -1884,9 +1976,10 @@ export interface components {
          *     * `inactive` - Team not active
          *     * `no_match` - No match coming up
          *     * `not_found` - No such Barcode
+         *     * `no_captain` - No Captain assigned
          * @enum {string}
          */
-        BarcodeStateEnum: "valid" | "not_genuine" | "revoked" | "expired" | "unpaid" | "inactive" | "no_match" | "not_found";
+        BarcodeStateEnum: "valid" | "not_genuine" | "revoked" | "expired" | "unpaid" | "inactive" | "no_match" | "not_found" | "no_captain";
         /** @enum {unknown} */
         BlankEnum: "";
         BorrowedPlayer: {
@@ -2403,6 +2496,83 @@ export interface components {
             readonly actor_name: string | null;
             readonly note: string;
         };
+        /**
+         * @description A friendly's fee, who pays it, its Captain and what has been paid (FR-24). All
+         *     amounts and who may do what are decided by the backend.
+         */
+        Friendly: {
+            readonly fixture: components["schemas"]["BarcodeMatch"];
+            readonly cause: components["schemas"]["FallbackCauseEnum"];
+            /** @description The Team still in; empty when both are out. */
+            readonly remaining_team: components["schemas"]["Named"] | null;
+            /** @description Still a friendly for this kick-off. */
+            readonly is_on: boolean;
+            /** @description The Admin can still set the terms (on, before kick-off). */
+            readonly can_change: boolean;
+            /** @description A payment stands, so the fee and payer can't change. */
+            readonly money_fixed: boolean;
+            /**
+             * Format: decimal
+             * @description The club's friendly fee setting, where the form starts.
+             */
+            readonly default_fee: string | null;
+            /** @description Who can pay for this friendly (no Team's Players with both Teams out). */
+            readonly payer_choices: components["schemas"]["FriendlyPayerEnum"][];
+            /** @description Empty until set. */
+            readonly terms: components["schemas"]["FriendlyFee"] | null;
+            /** Format: decimal */
+            readonly due: string;
+            /** Format: decimal */
+            readonly paid: string;
+            /** Format: decimal */
+            readonly outstanding: string;
+            /** @description Paid, free or paid by the club: its Barcode can be issued. */
+            readonly settled: boolean;
+            readonly payments: components["schemas"]["FriendlyPayment"][];
+            /** @description Who can pay towards the fee now. */
+            readonly payers: components["schemas"]["Named"][];
+            /** @description Who can be the Captain: anyone playing in it. */
+            readonly captain_candidates: components["schemas"]["Named"][];
+            readonly barcode: components["schemas"]["CurrentBarcode"];
+        };
+        /** @description Cash paid to the club towards the friendly's fee (FR-22, FR-24). */
+        FriendlyCashRequest: {
+            /** @description The payer who paid it. */
+            player: number;
+            /** Format: decimal */
+            amount: string;
+            /** @default  */
+            reason: string;
+        };
+        FriendlyFee: {
+            /** Format: decimal */
+            readonly fee: string;
+            readonly payer: components["schemas"]["FriendlyPayerEnum"];
+            readonly captain: components["schemas"]["Named"] | null;
+            readonly set_by: components["schemas"]["Named"];
+            /** Format: date-time */
+            readonly set_at: string;
+        };
+        /**
+         * @description * `borrowed_players` - The borrowed Players
+         *     * `team_players` - The Team's Players
+         *     * `club` - The club/manager
+         * @enum {string}
+         */
+        FriendlyPayerEnum: "borrowed_players" | "team_players" | "club";
+        /** @description A payment towards the friendly's fee, or its reversal (ledger, never changed). */
+        FriendlyPayment: {
+            readonly id: number;
+            readonly kind: components["schemas"]["LedgerKindEnum"];
+            readonly method: components["schemas"]["LedgerMethodEnum"];
+            /** Format: decimal */
+            readonly amount: string;
+            readonly player: components["schemas"]["Named"];
+            readonly recorded_by: components["schemas"]["Named"] | null;
+            readonly reason: string;
+            /** Format: date-time */
+            readonly created_at: string;
+        };
         FriendlyPlayer: {
             readonly id: number;
             readonly name: string;
@@ -2410,6 +2580,17 @@ export interface components {
             readonly position: components["schemas"]["PositionEnum"] | components["schemas"]["BlankEnum"];
             /** Format: date-time */
             readonly joined_at: string;
+        };
+        /** @description The fee, who pays it and the Captain, as the Admin sets them. */
+        FriendlyTermsRequest: {
+            /**
+             * Format: decimal
+             * @description The friendly's fee for the whole match, in rand. 0 is free.
+             */
+            fee: string;
+            payer: components["schemas"]["FriendlyPayerEnum"];
+            /** @description The Player who receives the friendly's Barcode. Empty: none yet. */
+            captain?: number | null;
         };
         /** @description The gateway's form fields (PayFast ITN), as it sends them. */
         GatewayNotificationFieldsRequest: {
@@ -2652,6 +2833,14 @@ export interface components {
             readonly status: components["schemas"]["FixtureStatusEnum"];
             /** @description The signed-in Player's Team in this Fixture. */
             readonly my_team_id: number | null;
+        };
+        /** @description A friendly the signed-in Player captains. */
+        MyFriendly: {
+            readonly fixture: components["schemas"]["BarcodeMatch"];
+            readonly club: components["schemas"]["Named"];
+            readonly settled: boolean;
+            /** Format: decimal */
+            readonly outstanding: string;
         };
         /** @description A request I was sent: a game I can join, or one I joined (Screens.md Player 1). */
         MyPlayerRequest: {
@@ -3165,7 +3354,10 @@ export interface components {
             readonly code: string;
             /** @description The Barcode's code as printed ("RK 2710 4419"); null when none matched. */
             readonly display_code: string | null;
+            /** @description Empty when none matched, or a friendly's. */
             readonly team: components["schemas"]["Named"] | null;
+            /** @description Who the Barcode lets in: the Team, or "Friendly: …"; null when none matched. */
+            readonly holder: string | null;
             /** @description The match the scan was checked against. */
             readonly fixture: components["schemas"]["BarcodeMatch"] | null;
             readonly mode: (components["schemas"]["BarcodeModeEnum"] | components["schemas"]["NullEnum"]) | null;
@@ -3176,7 +3368,7 @@ export interface components {
             readonly valid_until: string | null;
             /**
              * Format: decimal
-             * @description What the Team has paid, in rand; only on a Paid result.
+             * @description What the Team (or the friendly) has paid, in rand; only on a Paid result.
              */
             readonly paid_amount: string | null;
             /** @description How the Team paid (card, cash, credit); only on a Paid result. */
@@ -4083,6 +4275,105 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AdminFixtureDetail"];
+                };
+            };
+        };
+    };
+    clubs_fixtures_friendly_retrieve: {
+        parameters: {
+            query?: {
+                division?: number;
+                night?: number;
+                /** @description Without it, Seasons that haven't ended. */
+                season?: number;
+                status?: "both_teams_out" | "cancelled" | "confirming" | "friendly" | "one_team_out" | "played" | "ready" | "replacement_offered" | "scheduled";
+            };
+            header?: never;
+            path: {
+                club_id: number;
+                /** @description A unique integer value identifying this fixture. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Friendly"];
+                };
+            };
+        };
+    };
+    clubs_fixtures_friendly_create: {
+        parameters: {
+            query?: {
+                division?: number;
+                night?: number;
+                /** @description Without it, Seasons that haven't ended. */
+                season?: number;
+                status?: "both_teams_out" | "cancelled" | "confirming" | "friendly" | "one_team_out" | "played" | "ready" | "replacement_offered" | "scheduled";
+            };
+            header?: never;
+            path: {
+                club_id: number;
+                /** @description A unique integer value identifying this fixture. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FriendlyTermsRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["FriendlyTermsRequest"];
+                "multipart/form-data": components["schemas"]["FriendlyTermsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Friendly"];
+                };
+            };
+        };
+    };
+    clubs_fixtures_friendly_payments_create: {
+        parameters: {
+            query?: {
+                division?: number;
+                night?: number;
+                /** @description Without it, Seasons that haven't ended. */
+                season?: number;
+                status?: "both_teams_out" | "cancelled" | "confirming" | "friendly" | "one_team_out" | "played" | "ready" | "replacement_offered" | "scheduled";
+            };
+            header?: never;
+            path: {
+                club_id: number;
+                /** @description A unique integer value identifying this fixture. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FriendlyCashRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["FriendlyCashRequest"];
+                "multipart/form-data": components["schemas"]["FriendlyCashRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Friendly"];
                 };
             };
         };
@@ -5187,6 +5478,27 @@ export interface operations {
             };
         };
     };
+    friendlies_barcode_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                fixture_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentBarcode"];
+                };
+            };
+        };
+    };
     health_retrieve: {
         parameters: {
             query?: never;
@@ -5427,6 +5739,25 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MyFixture"][];
+                };
+            };
+        };
+    };
+    me_friendlies_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyFriendly"][];
                 };
             };
         };

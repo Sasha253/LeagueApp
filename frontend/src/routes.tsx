@@ -29,6 +29,7 @@ import { TeamPage } from "./pages/teams/TeamPage";
 import { BarcodePage } from "./pages/payments/BarcodePage";
 import { ClubPaymentsPage } from "./pages/payments/ClubPaymentsPage";
 import { ClubTeamPaymentPage } from "./pages/payments/ClubTeamPaymentPage";
+import { FriendlyBarcodePage } from "./pages/payments/FriendlyBarcodePage";
 import { PaymentResultPage } from "./pages/payments/PaymentResultPage";
 import { PayPage } from "./pages/payments/PayPage";
 import { ScanPage } from "./pages/payments/ScanPage";
@@ -75,6 +76,7 @@ const screens: RouteObject[] = [
       { path: "/fixtures/:fixtureId", element: <FixturePage /> },
       { path: "/fixtures/:fixtureId/request", element: <FixtureRequestPage /> },
       { path: "/fixtures/:fixtureId/players", element: <RequestPlayerPage /> },
+      { path: "/friendlies/:fixtureId/barcode", element: <FriendlyBarcodePage /> },
       { path: "/teams", element: <MyTeamsPage /> },
       { path: "/teams/find", element: <FindTeamPage /> },
       { path: "/teams/new", element: <RequestTeamPage /> },

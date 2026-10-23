@@ -25,6 +25,7 @@ function result(overrides: object = {}) {
     code: "RK27104419",
     display_code: "RK 2710 4419",
     team: { id: 7, name: "Red Lions" },
+    holder: "Red Lions",
     fixture: {
       id: 3,
       kick_off: today("19:40"),
@@ -96,6 +97,7 @@ describe("ScanPage in a browser", () => {
       code: "AB12345678",
       display_code: null,
       team: null,
+      holder: null,
       fixture: null,
       mode: null,
       valid_until: null,
@@ -111,6 +113,17 @@ describe("ScanPage in a browser", () => {
     expect(within(card).getByText("Unknown Barcode")).toBeInTheDocument();
     expect(within(card).getByText("No Barcode has this code.")).toBeInTheDocument();
     expect(within(card).getByText("AB12345678")).toBeInTheDocument();
+  });
+
+  it("names a friendly's Barcode by its match", async () => {
+    const friendly = result({ team: null, holder: "Friendly: Red Lions vs Old Boys" });
+    await openAs("/clubs/1/scan", { [SCANS]: { status: 201, body: friendly } }, "Scan", REFEREE);
+
+    await userEvent.type(screen.getByLabelText("Barcode code"), "RK27104419");
+    await userEvent.click(screen.getByRole("button", { name: "Check code" }));
+    const card = await screen.findByRole("region", { name: "Scan result" });
+    expect(within(card).getByText("Friendly: Red Lions vs Old Boys")).toBeInTheDocument();
+    expect(within(card).getByText("Red Lions vs Old Boys · 19:40 · Pitch 3")).toBeInTheDocument();
   });
 
   it("explains a 403 to someone who isn't the club's Admin or Referee", async () => {
