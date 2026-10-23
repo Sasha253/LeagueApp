@@ -468,6 +468,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clubs/{club_id}/readiness/{id}/decide/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rule a Team waiting at T-6h in or out
+         * @description Only a Team waiting for the Admin (unpaid, or no Confirmations went out), once, while the match is still confirming: 409 otherwise. Once both Teams are decided the Fixture moves to ready, one team out or both teams out. Answers with the Fixture as Tonight shows it.
+         */
+        post: operations["clubs_readiness_decide_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clubs/{club_id}/seasons/": {
         parameters: {
             query?: never;
@@ -631,6 +651,26 @@ export interface paths {
          * @description Its Players leave it, so they can join or request another Team.
          */
         post: operations["clubs_teams_decline_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/tonight/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tonight: today's Fixtures and the T-6h queue
+         * @description The club's Fixtures kicking off today (South African date), and any Fixture with a Team still waiting for the Admin's ruling, by kick-off. Each Team's confirmed Players against the Division minimum, what it owes, and what the T-6h check decided (FR-5, FR-6).
+         */
+        get: operations["clubs_tonight_list"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1570,13 +1610,14 @@ export interface components {
          *     * `confirming` - Confirming
          *     * `ready` - Ready
          *     * `one_team_out` - One team out
+         *     * `both_teams_out` - Both teams out
          *     * `replacement_offered` - Replacement offered
          *     * `friendly` - Friendly
          *     * `cancelled` - Cancelled
          *     * `played` - Played
          * @enum {string}
          */
-        FixtureStatusEnum: "scheduled" | "confirming" | "ready" | "one_team_out" | "replacement_offered" | "friendly" | "cancelled" | "played";
+        FixtureStatusEnum: "scheduled" | "confirming" | "ready" | "one_team_out" | "both_teams_out" | "replacement_offered" | "friendly" | "cancelled" | "played";
         FixtureTransition: {
             readonly id: number;
             /**
@@ -1586,6 +1627,7 @@ export interface components {
              *     * `confirming` - Confirming
              *     * `ready` - Ready
              *     * `one_team_out` - One team out
+             *     * `both_teams_out` - Both teams out
              *     * `replacement_offered` - Replacement offered
              *     * `friendly` - Friendly
              *     * `cancelled` - Cancelled
@@ -1998,6 +2040,31 @@ export interface components {
          * @enum {string}
          */
         PositionEnum: "outfield" | "goalkeeper" | "both";
+        /**
+         * @description * `play` - Let them play
+         *     * `out` - Rule out
+         * @enum {string}
+         */
+        ReadinessDecisionEnum: "play" | "out";
+        ReadinessDecisionRequest: {
+            decision: components["schemas"]["ReadinessDecisionEnum"];
+            note?: string;
+        };
+        /**
+         * @description * `pending` - Waiting for the Admin
+         *     * `playing` - Playing
+         *     * `out` - Out
+         * @enum {string}
+         */
+        ReadinessOutcomeEnum: "pending" | "playing" | "out";
+        /**
+         * @description * `` - None
+         *     * `short` - Below the Division minimum
+         *     * `unpaid` - Not paid
+         *     * `no_replies` - Confirmations didn't go out
+         * @enum {string}
+         */
+        ReadinessReasonEnum: "short" | "unpaid" | "no_replies";
         /** @description A new account: a Player, a Booking User or both. */
         RegisterRequest: {
             /** Format: email */
@@ -2127,6 +2194,35 @@ export interface components {
             readonly entries: components["schemas"]["LedgerEntry"][];
             readonly team: components["schemas"]["Named"];
         };
+        /** @description What the T-6h check decided for a Team, and the Admin's ruling if it waited for one. */
+        TeamReadiness: {
+            readonly id: number;
+            readonly outcome: components["schemas"]["ReadinessOutcomeEnum"];
+            /**
+             * @description Why the Team is out or waits for the Admin.
+             *
+             *     * `` - None
+             *     * `short` - Below the Division minimum
+             *     * `unpaid` - Not paid
+             *     * `no_replies` - Confirmations didn't go out
+             */
+            readonly reason: components["schemas"]["ReadinessReasonEnum"] | components["schemas"]["BlankEnum"];
+            /** Format: date-time */
+            readonly checked_at: string;
+            /** @description Players confirmed at the check. */
+            readonly confirmed: number;
+            /** @description The Division minimum at the check. */
+            readonly min_players: number;
+            /**
+             * Format: decimal
+             * @description What the Team still owed at the check, in rand.
+             */
+            readonly outstanding: string;
+            readonly decided_by_name: string | null;
+            /** Format: date-time */
+            readonly decided_at: string | null;
+            readonly note: string;
+        };
         /** @description A Captain's request for a new Team. */
         TeamRequestRequest: {
             season: number;
@@ -2157,6 +2253,40 @@ export interface components {
         };
         TokenRefreshRequest: {
             refresh: string;
+        };
+        TonightFixture: {
+            readonly fixture: components["schemas"]["AdminFixture"];
+            /** @description The T-6h check has run for this kick-off. */
+            readonly checked: boolean;
+            /** @description A Team waits for the Admin's ruling. */
+            readonly waiting: boolean;
+            /** @description Needs the Admin: a Team waits for a ruling, or the check is still to come and a Team is below the minimum or owes money. */
+            readonly at_risk: boolean;
+            /** @description Home first. */
+            readonly teams: components["schemas"]["TonightTeam"][];
+        };
+        TonightTeam: {
+            readonly team: components["schemas"]["Named"];
+            /** @description Players confirmed now. */
+            readonly confirmed: number;
+            /** @description The Division's minimum. */
+            readonly min_players: number;
+            readonly below_minimum: boolean;
+            /**
+             * Format: decimal
+             * @description What the Team has been charged.
+             */
+            readonly due: string;
+            /** Format: decimal */
+            readonly paid: string;
+            /**
+             * Format: decimal
+             * @description Due less paid, now. Above zero: the Team owes money.
+             */
+            readonly outstanding: string;
+            readonly unpaid: boolean;
+            /** @description Empty until the T-6h check has run. */
+            readonly readiness: components["schemas"]["TeamReadiness"] | null;
         };
         /**
          * @description * `0` - Monday
@@ -2572,7 +2702,7 @@ export interface operations {
                 night?: number;
                 /** @description Without it, Seasons that haven't ended. */
                 season?: number;
-                status?: "cancelled" | "confirming" | "friendly" | "one_team_out" | "played" | "ready" | "replacement_offered" | "scheduled";
+                status?: "both_teams_out" | "cancelled" | "confirming" | "friendly" | "one_team_out" | "played" | "ready" | "replacement_offered" | "scheduled";
             };
             header?: never;
             path: {
@@ -2599,7 +2729,7 @@ export interface operations {
                 night?: number;
                 /** @description Without it, Seasons that haven't ended. */
                 season?: number;
-                status?: "cancelled" | "confirming" | "friendly" | "one_team_out" | "played" | "ready" | "replacement_offered" | "scheduled";
+                status?: "both_teams_out" | "cancelled" | "confirming" | "friendly" | "one_team_out" | "played" | "ready" | "replacement_offered" | "scheduled";
             };
             header?: never;
             path: {
@@ -2628,7 +2758,7 @@ export interface operations {
                 night?: number;
                 /** @description Without it, Seasons that haven't ended. */
                 season?: number;
-                status?: "cancelled" | "confirming" | "friendly" | "one_team_out" | "played" | "ready" | "replacement_offered" | "scheduled";
+                status?: "both_teams_out" | "cancelled" | "confirming" | "friendly" | "one_team_out" | "played" | "ready" | "replacement_offered" | "scheduled";
             };
             header?: never;
             path: {
@@ -3026,6 +3156,34 @@ export interface operations {
             };
         };
     };
+    clubs_readiness_decide_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReadinessDecisionRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ReadinessDecisionRequest"];
+                "multipart/form-data": components["schemas"]["ReadinessDecisionRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TonightFixture"];
+                };
+            };
+        };
+    };
     clubs_seasons_list: {
         parameters: {
             query?: never;
@@ -3337,6 +3495,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AdminTeam"];
+                };
+            };
+        };
+    };
+    clubs_tonight_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TonightFixture"][];
                 };
             };
         };

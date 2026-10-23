@@ -106,6 +106,7 @@ describe("ProfilePage", () => {
   it("links an Admin to the club's Fixtures", async () => {
     await openProfile({ ...ME, club_roles: [{ club_id: 1, club_name: "Club A", role: "admin" }] });
 
+    expect(screen.getByRole("link", { name: "Tonight at Club A" })).toHaveAttribute("href", "/clubs/1/tonight");
     expect(screen.getByRole("link", { name: "Fixtures for Club A" })).toHaveAttribute("href", "/clubs/1/fixtures");
   });
 

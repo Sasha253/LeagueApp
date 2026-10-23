@@ -8,6 +8,8 @@ append-only: a FixtureTransition is never changed or deleted.
 Kick-off is stored in UTC and shown in South African time (CLAUDE.md).
 """
 
+from decimal import Decimal
+
 from django.conf import settings
 from django.db import models
 
@@ -21,6 +23,7 @@ class Fixture(models.Model):
         CONFIRMING = "confirming", "Confirming"
         READY = "ready", "Ready"
         ONE_TEAM_OUT = "one_team_out", "One team out"
+        BOTH_TEAMS_OUT = "both_teams_out", "Both teams out"
         REPLACEMENT_OFFERED = "replacement_offered", "Replacement offered"
         FRIENDLY = "friendly", "Friendly"
         CANCELLED = "cancelled", "Cancelled"
@@ -130,6 +133,7 @@ class FixtureCheckpoint(models.Model):
     class Kind(models.TextChoices):
         CONFIRMATION = "confirmation", "Confirmations sent (T-36h)"
         RESEND = "resend", "Unanswered Confirmations resent"
+        READINESS = "readiness", "Readiness checked (T-6h)"
         REMINDER = "reminder", "Reminders sent (T-6h)"
 
     fixture = models.ForeignKey(Fixture, on_delete=models.PROTECT, related_name="checkpoints")
@@ -200,3 +204,78 @@ class ConfirmationAnswer(models.Model):
 
 
 CONFIRMATION_ANSWERS = ConfirmationAnswer.Value
+
+
+class TeamReadiness(models.Model):
+    """What the T-6h readiness check decided for one Team of a Fixture (FR-5, FR-6).
+
+    One per Fixture, Team and kick-off. A Team below its Division's minimum is out at once
+    (FR-5). A Team that still owes money waits for the Admin, who rules it in or out (FR-6);
+    so does every Team of a match whose Confirmations never went out. Nothing else rules a
+    Team out. The counts are what the check saw then. Only fixtures/readiness.py writes
+    these; an Admin's ruling is made once and never changed.
+    """
+
+    class Outcome(models.TextChoices):
+        PENDING = "pending", "Waiting for the Admin"
+        PLAYING = "playing", "Playing"
+        OUT = "out", "Out"
+
+    class Reason(models.TextChoices):
+        NONE = "", "None"
+        SHORT = "short", "Below the Division minimum"
+        UNPAID = "unpaid", "Not paid"
+        NO_REPLIES = "no_replies", "Confirmations didn't go out"
+
+    fixture = models.ForeignKey(Fixture, on_delete=models.PROTECT, related_name="readiness")
+    team = models.ForeignKey(Team, on_delete=models.PROTECT, related_name="+")
+    kick_off = models.DateTimeField(help_text="The kick-off this check was for.")
+    checked_at = models.DateTimeField()
+    confirmed = models.PositiveIntegerField(help_text="Players confirmed at the check.")
+    min_players = models.PositiveIntegerField(help_text="The Division minimum at the check.")
+    outstanding = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="What the Team still owed at the check, in rand (below 0 when overpaid).",
+    )
+    outcome = models.CharField(max_length=10, choices=Outcome.choices)
+    reason = models.CharField(
+        max_length=12,
+        choices=Reason.choices,
+        blank=True,
+        help_text="Why the Team is out or waits for the Admin.",
+    )
+    decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        help_text="The Admin who ruled; empty when the check decided.",
+    )
+    decided_at = models.DateTimeField(null=True, blank=True)
+    note = models.CharField(max_length=300, blank=True)
+
+    class Meta:
+        ordering = ["checked_at", "pk"]
+        verbose_name_plural = "team readiness"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["fixture", "team", "kick_off"], name="one_readiness_per_team_and_kick_off"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.team} for {self.fixture}: {self.get_outcome_display()}"
+
+    def get_club_id(self) -> int:
+        """For the permission classes: the Club is the Fixture's."""
+        return self.fixture.club_id
+
+    def delete(self, *args, **kwargs):
+        raise ValueError("A TeamReadiness is never deleted.")
+
+
+READINESS_OUTCOMES = TeamReadiness.Outcome
+READINESS_REASONS = TeamReadiness.Reason

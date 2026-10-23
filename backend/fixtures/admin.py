@@ -1,6 +1,12 @@
 from django.contrib import admin
 
-from .models import ConfirmationAnswer, Fixture, FixtureCheckpoint, FixtureTransition
+from .models import (
+    ConfirmationAnswer,
+    Fixture,
+    FixtureCheckpoint,
+    FixtureTransition,
+    TeamReadiness,
+)
 
 
 class FixtureTransitionInline(admin.TabularInline):
@@ -39,13 +45,42 @@ class ConfirmationAnswerInline(admin.TabularInline):
         return False
 
 
+class TeamReadinessInline(admin.TabularInline):
+    """The T-6h check and the Admin's rulings: made in the app (FR-5, FR-6), only shown here."""
+
+    model = TeamReadiness
+    extra = 0
+    can_delete = False
+    readonly_fields = [
+        "team",
+        "kick_off",
+        "checked_at",
+        "confirmed",
+        "min_players",
+        "outstanding",
+        "outcome",
+        "reason",
+        "decided_by",
+        "decided_at",
+        "note",
+    ]
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
 @admin.register(Fixture)
 class FixtureAdmin(admin.ModelAdmin):
     """Read-only: Fixtures change through the app, so every status move is logged."""
 
     list_display = ["kick_off", "club", "division", "pitch", "home_team", "away_team", "status"]
     list_filter = ["status", "club"]
-    inlines = [FixtureTransitionInline, FixtureCheckpointInline, ConfirmationAnswerInline]
+    inlines = [
+        FixtureTransitionInline,
+        FixtureCheckpointInline,
+        ConfirmationAnswerInline,
+        TeamReadinessInline,
+    ]
 
     def has_add_permission(self, request):
         return False

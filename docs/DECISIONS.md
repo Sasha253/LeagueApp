@@ -2,6 +2,30 @@
 
 Newest first. Each entry: the date, what was decided, and why.
 
+## 2026-10-23: T-6h readiness (chunk 13) (provisional, unattended run)
+
+Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 13: T-6h readiness".
+
+- **The check (provisional, unattended run):** at the T-6h cutoff (`readiness_hours_before`)
+  a timed checkpoint, once per Fixture and kick-off and before the Reminder, looks at each
+  Team of a `confirming` match: fewer confirmed than the Division minimum is out (FR-5);
+  otherwise anything still owed on the ledger waits for the Admin (FR-6); otherwise it
+  plays. A match still `scheduled` (no Confirmations went out): both Teams wait for the
+  Admin. Recorded in `TeamReadiness` (counts and amount as seen, outcome, reason, the
+  Admin's ruling); a ruling is made once.
+- **The Admin's ruling (provisional, unattended run):** "Let them play" or "Rule out", on
+  Tonight, while the match is still `scheduled` or `confirming`; no deadline and nothing
+  automatic. No money moves with it.
+- **Status (provisional, unattended run):** once every Team is decided the Fixture moves
+  once: to `ready`, `one_team_out` or the new `both_teams_out` (which can only become a
+  friendly or be cancelled, chunk 15). New move `scheduled` to `ready` for a match the
+  Admin lets go ahead without Confirmations. The `readiness_settled` signal hands off to
+  chunks 14 and 15.
+- **Tonight (provisional, unattended run):** today's Fixtures (South African date) and any
+  still waiting for a ruling; at-risk matches on top (f11 design), the rest by kick-off.
+  Opened from Profile. Proposed components copied from design/src/proposed.css: the team
+  readiness line (`.la-team-line`) and a ListRow led by a time (`.la-item__time`).
+
 ## 2026-10-23: Answering Confirmations (chunk 12) (provisional, unattended run)
 
 Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 12: Answering

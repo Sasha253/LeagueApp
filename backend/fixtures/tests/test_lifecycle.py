@@ -39,6 +39,11 @@ def test_cancelled_and_played_are_final():
         (S.FRIENDLY, S.PLAYED),
         (S.ONE_TEAM_OUT, S.CANCELLED),
         (S.READY, S.SCHEDULED),
+        (S.SCHEDULED, S.READY),
+        (S.CONFIRMING, S.BOTH_TEAMS_OUT),
+        (S.SCHEDULED, S.BOTH_TEAMS_OUT),
+        (S.BOTH_TEAMS_OUT, S.FRIENDLY),
+        (S.BOTH_TEAMS_OUT, S.CANCELLED),
     ],
 )
 def test_the_lifecycle_moves_are_allowed(from_status, to_status):
@@ -48,7 +53,9 @@ def test_the_lifecycle_moves_are_allowed(from_status, to_status):
 @pytest.mark.parametrize(
     ("from_status", "to_status"),
     [
-        (S.SCHEDULED, S.READY),
+        (S.BOTH_TEAMS_OUT, S.READY),
+        (S.BOTH_TEAMS_OUT, S.REPLACEMENT_OFFERED),
+        (S.READY, S.BOTH_TEAMS_OUT),
         (S.SCHEDULED, S.PLAYED),
         (S.SCHEDULED, S.REPLACEMENT_OFFERED),
         (S.CANCELLED, S.SCHEDULED),

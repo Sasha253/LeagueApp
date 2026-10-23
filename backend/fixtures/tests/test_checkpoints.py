@@ -8,7 +8,9 @@ from django.conf import settings
 from django.utils import timezone
 
 from accounts.models import ClubRole
+from clubs.models import Division
 from fixtures import checkpoints, lifecycle
+from fixtures.confirmations import answer as answer_confirmation
 from fixtures.models import Fixture, FixtureCheckpoint, FixtureTransition
 from fixtures.tasks import run_checkpoints
 from notifications import services, targeting
@@ -21,7 +23,7 @@ match = notification_fixtures.match
 
 S = Fixture.Status
 Checkpoint = FixtureCheckpoint.Kind
-NOTHING = {Checkpoint.CONFIRMATION: 0, Checkpoint.RESEND: 0, Checkpoint.REMINDER: 0}
+NOTHING = {kind: 0 for kind in Checkpoint.values}
 
 pytestmark = pytest.mark.django_db
 
@@ -156,10 +158,10 @@ def test_too_late_for_confirmations_after_the_cutoff_but_the_reminder_goes(match
     fixture, _ = match
     clock(fixture, hours=5)
 
-    assert checkpoints.run_due() == ran(reminder=1)
+    assert checkpoints.run_due() == ran(readiness=1, reminder=1)
     assert not confirmations(fixture).exists()
     fixture.refresh_from_db()
-    assert fixture.status == S.SCHEDULED  # left for the T-6h readiness check
+    assert fixture.status == S.SCHEDULED  # both Teams wait for the Admin (chunk 13)
 
 
 @pytest.mark.parametrize("status", [S.CANCELLED, S.ONE_TEAM_OUT, S.FRIENDLY])
@@ -295,7 +297,8 @@ def test_no_resend_once_the_cutoff_has_passed(match, clock):
     clock(fixture, hours=6, minutes=1)
     assert checkpoints.run_due() == NOTHING
     clock(fixture, hours=6)
-    assert checkpoints.run_due() == ran(reminder=1)
+    # No one confirmed, so both Teams are out at T-6h and no Reminder goes (chunk 13).
+    assert checkpoints.run_due() == ran(readiness=1)
     assert not FixtureCheckpoint.objects.filter(kind=Checkpoint.RESEND).exists()
 
 
@@ -313,8 +316,11 @@ def test_t6h_reminds_players_captains_admins_and_the_referee(
 
     clock(fixture, hours=6, minutes=1)
     assert checkpoints.run_due() == ran(resend=1)  # missed at T-24h, caught up before T-6h
+    Division.objects.filter(pk=fixture.division_id).update(min_players=2)
+    for person in people.values():
+        answer_confirmation(fixture, person, "confirm", via="fixture")
     clock(fixture, hours=6)
-    assert checkpoints.run_due() == ran(reminder=1)
+    assert checkpoints.run_due() == ran(readiness=1, reminder=1)
 
     reminders = Notification.objects.filter(fixture=fixture, kind=Kind.REMINDER)
     assert {n.recipient for n in reminders} == {*people.values(), admin, pitch.referee}
@@ -323,7 +329,7 @@ def test_t6h_reminds_players_captains_admins_and_the_referee(
     assert "Pitch 3" in body
     assert all(n.answer_by is None for n in reminders)
     fixture.refresh_from_db()
-    assert fixture.status == S.CONFIRMING  # readiness is chunk 13
+    assert fixture.status == S.READY  # both Teams have their minimum and owe nothing
 
     assert checkpoints.run_due() == NOTHING
     assert reminders.count() == 6

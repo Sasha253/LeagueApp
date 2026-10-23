@@ -1,10 +1,16 @@
 """The Fixture status state machine (PRD "Match lifecycle").
 
     scheduled -> confirming           T-36h: Confirmations go out (FR-1)
-    confirming -> ready               T-6h: both Teams have their minimum and have paid
+    confirming -> ready               T-6h: both Teams have their minimum and have paid,
+                                      or the Admin let an unpaid Team play (FR-5, FR-6)
+    scheduled -> ready                T-6h: the Confirmations never went out and the Admin
+                                      let both Teams play
     scheduled | confirming | ready -> one_team_out
                                       one Team is out (FR-5, FR-6) or its Captain's
                                       cancellation is accepted (FR-18)
+    scheduled | confirming -> both_teams_out
+                                      T-6h: both Teams are out (FR-5, FR-6)
+    both_teams_out -> friendly | cancelled   (FR-10, FR-17, FR-43)
     one_team_out -> replacement_offered   the slot is offered to other Teams (FR-15)
     replacement_offered -> confirming | ready   a Team accepted (FR-15)
     any but friendly, cancelled and played -> friendly
@@ -28,12 +34,17 @@ from .models import Fixture, FixtureTransition
 S = Fixture.Status
 
 TRANSITIONS: dict[str, frozenset[str]] = {
-    S.SCHEDULED: frozenset({S.CONFIRMING, S.ONE_TEAM_OUT, S.FRIENDLY, S.CANCELLED}),
-    S.CONFIRMING: frozenset({S.SCHEDULED, S.READY, S.ONE_TEAM_OUT, S.FRIENDLY, S.CANCELLED}),
+    S.SCHEDULED: frozenset(
+        {S.CONFIRMING, S.READY, S.ONE_TEAM_OUT, S.BOTH_TEAMS_OUT, S.FRIENDLY, S.CANCELLED}
+    ),
+    S.CONFIRMING: frozenset(
+        {S.SCHEDULED, S.READY, S.ONE_TEAM_OUT, S.BOTH_TEAMS_OUT, S.FRIENDLY, S.CANCELLED}
+    ),
     S.READY: frozenset(
         {S.SCHEDULED, S.CONFIRMING, S.ONE_TEAM_OUT, S.FRIENDLY, S.CANCELLED, S.PLAYED}
     ),
     S.ONE_TEAM_OUT: frozenset({S.REPLACEMENT_OFFERED, S.FRIENDLY, S.CANCELLED}),
+    S.BOTH_TEAMS_OUT: frozenset({S.FRIENDLY, S.CANCELLED}),
     S.REPLACEMENT_OFFERED: frozenset({S.CONFIRMING, S.READY, S.FRIENDLY, S.CANCELLED}),
     S.FRIENDLY: frozenset({S.PLAYED, S.CANCELLED}),
     S.CANCELLED: frozenset(),
@@ -41,7 +52,16 @@ TRANSITIONS: dict[str, frozenset[str]] = {
 }
 
 # The friendly-eligible flag can change only while the match may still fall through.
-FLAG_OPEN = frozenset({S.SCHEDULED, S.CONFIRMING, S.READY, S.ONE_TEAM_OUT, S.REPLACEMENT_OFFERED})
+FLAG_OPEN = frozenset(
+    {
+        S.SCHEDULED,
+        S.CONFIRMING,
+        S.READY,
+        S.ONE_TEAM_OUT,
+        S.BOTH_TEAMS_OUT,
+        S.REPLACEMENT_OFFERED,
+    }
+)
 
 NOT_ALLOWED = "A {from_} Fixture can't become {to}."
 NOT_FRIENDLY_ELIGIBLE = "This Fixture isn't friendly-eligible, so it can't become a friendly."

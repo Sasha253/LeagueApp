@@ -24,8 +24,8 @@ from core.exceptions import Conflict
 from core.tables import TableError, read_table
 from teams.models import Team, TeamMembership
 
-from . import confirmations, imports, lifecycle
-from .models import Fixture, FixtureTransition
+from . import confirmations, imports, lifecycle, readiness
+from .models import Fixture, FixtureTransition, TeamReadiness
 from .serializers import (
     AdminFixtureDetailSerializer,
     AdminFixtureSerializer,
@@ -34,7 +34,9 @@ from .serializers import (
     FixtureImportUploadSerializer,
     FriendlyEligibleSerializer,
     MyFixtureSerializer,
+    ReadinessDecisionSerializer,
     SquadSerializer,
+    TonightFixtureSerializer,
 )
 
 PAST_LIMIT = 50
@@ -306,3 +308,48 @@ class FixtureImportTemplateView(ClubAdminMixin, generics.GenericAPIView):
         response = HttpResponse(body, content_type=content_type)
         response["Content-Disposition"] = f'attachment; filename="fixtures.{name}"'
         return response
+
+
+# The T-6h readiness check (FR-5, FR-6): the Admin's Tonight queue
+
+
+class TonightView(ClubAdminMixin, generics.GenericAPIView):
+    serializer_class = TonightFixtureSerializer
+
+    @extend_schema(
+        summary="Tonight: today's Fixtures and the T-6h queue",
+        description="The club's Fixtures kicking off today (South African date), and any "
+        "Fixture with a Team still waiting for the Admin's ruling, by kick-off. Each Team's "
+        "confirmed Players against the Division minimum, what it owes, and what the T-6h "
+        "check decided (FR-5, FR-6).",
+        responses=TonightFixtureSerializer(many=True),
+    )
+    def get(self, request, *args, **kwargs):
+        return Response(TonightFixtureSerializer(readiness.tonight(self.club), many=True).data)
+
+
+class ReadinessDecisionView(ClubAdminMixin, generics.GenericAPIView):
+    """The Admin rules a Team waiting at T-6h in (for example cash at the gate) or out."""
+
+    queryset = TeamReadiness.objects.all()
+    club_field = "fixture__club"
+    serializer_class = ReadinessDecisionSerializer
+
+    @extend_schema(
+        summary="Rule a Team waiting at T-6h in or out",
+        description="Only a Team waiting for the Admin (unpaid, or no Confirmations went "
+        "out), once, while the match is still confirming: 409 otherwise. Once both Teams "
+        "are decided the Fixture moves to ready, one team out or both teams out. Answers "
+        "with the Fixture as Tonight shows it.",
+        request=ReadinessDecisionSerializer,
+        responses=TonightFixtureSerializer,
+    )
+    def post(self, request, *args, **kwargs):
+        row = self.get_object()
+        body = self.get_serializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        readiness.decide(
+            row, request.user, body.validated_data["decision"], body.validated_data.get("note", "")
+        )
+        fixture = fixtures().get(pk=row.fixture_id)
+        return Response(TonightFixtureSerializer(readiness.tonight_fixture(fixture)).data)

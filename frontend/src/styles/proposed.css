@@ -112,3 +112,10 @@
 
 /* Unread mark on an inbox row: a dot beside a bold title; screen readers hear "Unread". */
 .la-unread { flex: none; width: 10px; height: 10px; border-radius: var(--radius-pill); background: var(--accent-ink); }
+
+/* Tonight (chunk 13), copied from design/src/proposed.css: the team readiness line inside an
+   at-risk MatchCard, and a ListRow led by a kick-off time. */
+.la-team-line { display: flex; align-items: center; gap: var(--space-2); min-height: 32px; }
+.la-team-line__name { flex: 1; font: 600 16px/24px var(--font-sans); }
+.la-team-line__count { font: 500 13px/18px var(--font-sans); color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+.la-item__time { flex: none; width: 56px; font-family: var(--font-display); font-size: 24px; line-height: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }

@@ -138,6 +138,9 @@ SPECTACULAR_SETTINGS = {
         "NotificationActionEnum": "notifications.models.NOTIFICATION_ACTIONS",
         "DevicePlatformEnum": "notifications.models.DEVICE_PLATFORMS",
         "ConfirmationAnswerEnum": "fixtures.models.CONFIRMATION_ANSWERS",
+        "ReadinessOutcomeEnum": "fixtures.models.READINESS_OUTCOMES",
+        "ReadinessReasonEnum": "fixtures.models.READINESS_REASONS",
+        "ReadinessDecisionEnum": "fixtures.readiness.Decision",
     },
 }
 

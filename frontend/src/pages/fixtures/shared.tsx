@@ -17,6 +17,7 @@ export const FIXTURE_STATUS: Record<FixtureStatus, { status: Status; label: stri
   confirming: { status: "pending", label: "Confirming" },
   ready: { status: "confirmed", label: "Ready" },
   one_team_out: { status: "cancelled", label: "One team out" },
+  both_teams_out: { status: "cancelled", label: "Both teams out" },
   replacement_offered: { status: "pending", label: "Finding an opponent" },
   friendly: { status: "info", label: "Friendly" },
   cancelled: { status: "cancelled", label: "Cancelled" },

@@ -312,3 +312,47 @@ docs/DECISIONS.md under "2026-10-23: Teams (chunk 5)".
   Waiting in the new Team and answers again on the match screen. Why: a "playing" given
   for one side must not lift the other side over its minimum at T-6h (FR-5). If the answer
   differs: carry the answer over to the new Team on the move.
+
+## Chunk 13: T-6h readiness
+
+- **What "paid" means before Payment Barcodes exist.** Question: FR-6 says a Team plays
+  only with a valid Payment Barcode; Barcodes come in chunk 20. Choice: at T-6h a Team is
+  unpaid when its ledger balance (chunk 8 `team_balance`, every category) shows anything
+  still owed. Why: the prompt says "from the chunk 8 ledger", and an unpaid Team is never
+  ruled out automatically, so counting too much as unpaid only adds a ruling for the
+  Admin. If the answer differs: count only the league fee, or check the Barcode once
+  chunk 20 exists (`fixtures/readiness.py` `_assess_team`).
+- **Short and unpaid.** Choice: a Team below the minimum is out at T-6h whether or not it
+  has paid; it is not queued for the Admin. Why: FR-5 is automatic; FR-6 only covers
+  whether an unpaid Team may play. If the answer differs: queue it instead.
+- **A match whose Confirmations never went out** (Beat was down, or the match was added
+  less than 6 hours before kick-off). Question: FR-5 would rule both Teams out with 0
+  confirmed, though no one could answer. Choice: both Teams wait for the Admin (reason
+  "Confirmations didn't go out"), and a match the Admin lets go ahead moves straight from
+  `scheduled` to `ready` (a new allowed move). Why: never punish Teams for the app's
+  failure; nothing decided without the Admin. If the answer differs: apply FR-5 as written
+  (0 confirmed is out) in `_assess_team`.
+- **When the match status moves.** Question: with one Team out by the minimum and the other
+  waiting for the Admin, does the Fixture move to `one_team_out` at once? Choice: no; it
+  stays `confirming` until every Team is decided, then moves once to `ready`,
+  `one_team_out` or the new `both_teams_out`. Why: one status move, one hand-off to chunks
+  14 and 15, and no move from `one_team_out` to `both_teams_out` to undo a replacement
+  search already started. The Admin decides within the 6 hours before kick-off. If the
+  answer differs: move at once and add `one_team_out` to `both_teams_out`.
+- **No deadline for the Admin's ruling.** Choice: a waiting Team waits until the Admin
+  rules, even past kick-off, while the match is still `scheduled` or `confirming`. Nothing
+  rules it automatically (prompt: "Nothing is decided automatically"). Tonight keeps
+  showing it until then.
+- **"Mark paid (cash)" in the f11 design.** Choice: the button is "Let {Team} play"; it
+  records the ruling only and moves no money. Why: recording a cash payment is a ledger
+  action of the payments chunks, and the prompt's choice is "play (for example cash at
+  the gate) or out". If the answer differs: record the cash payment in the same step once
+  the Admin cash flow exists.
+- **Late check.** Choice: the readiness check runs at the T-6h cutoff, or late while
+  kick-off is still to come; never after kick-off. It runs before the Reminder in the same
+  pass, so a match that is out is not reminded (its Teams hear from chunks 14 and 15). A
+  match still waiting for the Admin is reminded, since it may go ahead.
+- **Tonight.** Choice: the Club's Fixtures kicking off on today's South African date, plus
+  any Fixture with a Team still waiting for a ruling. "At risk" (decided by the backend):
+  a Team waits for a ruling, or the check is still to come and a Team is below the
+  minimum or owes money. The money summary row and the Referee's Tonight come later.

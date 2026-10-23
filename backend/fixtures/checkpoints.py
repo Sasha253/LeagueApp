@@ -8,6 +8,10 @@ Club's own hours (ClubSettings, FR-42) and runs whatever is due:
   until the cutoff, `readiness_hours_before` kick-off (T-6h, FR-3).
 - Resend, `confirmation_resend_after_hours` after the Confirmation went out: the same
   Confirmation is pushed again to the Players of both Teams who haven't answered. Once.
+- Readiness, `readiness_hours_before` kick-off (T-6h): each Team below its Division's
+  minimum is out, and each unpaid Team waits for the Admin (FR-5, FR-6). See
+  fixtures/readiness.py. Runs before the Reminder in the same pass, so a match that is out
+  isn't reminded.
 - Reminder, `readiness_hours_before` kick-off (T-6h): Players and Captains of both Teams,
   the Night's Admins and the pitch's Referee.
 
@@ -18,8 +22,9 @@ notifies no one, and the next pass tries again.
 
 Late: a checkpoint missed while Beat or the worker was down runs on the next pass, while it
 still makes sense: a Confirmation or resend only before the T-6h cutoff (it couldn't be
-answered after), a Reminder only before kick-off. A Fixture that missed its Confirmation
-altogether stays `scheduled` for the T-6h readiness check (chunk 13).
+answered after), the readiness check and a Reminder only before kick-off. A Fixture that
+missed its Confirmation altogether stays `scheduled`, and at T-6h both its Teams wait for
+the Admin.
 """
 
 import logging
@@ -47,6 +52,9 @@ Checkpoint = FixtureCheckpoint.Kind
 # that is out, offered to a replacement, a friendly, cancelled or played is told by the
 # chunk that moved it there.
 REMINDER_STATUSES = (S.SCHEDULED, S.CONFIRMING, S.READY)
+
+# The readiness check runs on a match still on its way to being played (fixtures/readiness.py).
+READINESS_STATUSES = (S.SCHEDULED, S.CONFIRMING)
 
 
 def _hours(value: int) -> timedelta:
@@ -92,6 +100,12 @@ def due(club_settings: ClubSettings, now: datetime) -> dict[str, list[int]]:
             fixtures.filter(status=S.CONFIRMING, kick_off__gt=cutoff)
             .filter(Exists(first_sent))
             .exclude(_done(Checkpoint.RESEND))
+        ),
+        # Before the Reminder: run_due() runs the kinds in this order.
+        Checkpoint.READINESS: ids(
+            fixtures.filter(
+                status__in=READINESS_STATUSES, kick_off__gt=now, kick_off__lte=cutoff
+            ).exclude(_done(Checkpoint.READINESS))
         ),
         Checkpoint.REMINDER: ids(
             fixtures.filter(
@@ -187,6 +201,24 @@ def resend_confirmations(fixture_id: int, now: datetime | None = None) -> bool:
 
 
 @transaction.atomic
+def check_readiness(fixture_id: int, now: datetime | None = None) -> bool:
+    """T-6h (FR-5, FR-6): who is out, and who waits for the Admin. fixtures/readiness.py."""
+    # Imported here: readiness counts answers with fixtures.confirmations, which imports this.
+    from . import readiness
+
+    now = now or timezone.now()
+    fixture, club_settings = _locked(fixture_id)
+    if fixture.status not in READINESS_STATUSES or not (
+        confirmation_cutoff(fixture, club_settings) <= now < fixture.kick_off
+    ):
+        return False
+    if not _claim(fixture, Checkpoint.READINESS, now, 0):
+        return False
+    readiness.assess(fixture, now)
+    return True
+
+
+@transaction.atomic
 def send_reminders(fixture_id: int, now: datetime | None = None) -> bool:
     """T-6h (FR-4): date, time and field."""
     now = now or timezone.now()
@@ -208,6 +240,7 @@ def send_reminders(fixture_id: int, now: datetime | None = None) -> bool:
 RUNNERS = {
     Checkpoint.CONFIRMATION: send_confirmations,
     Checkpoint.RESEND: resend_confirmations,
+    Checkpoint.READINESS: check_readiness,
     Checkpoint.REMINDER: send_reminders,
 }
 

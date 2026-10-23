@@ -32,5 +32,11 @@ club_urlpatterns = [
         views.FixtureImportTemplateView.as_view(),
         name="club-import-fixtures-template",
     ),
+    path("tonight/", views.TonightView.as_view(), name="club-tonight"),
+    path(
+        "readiness/<int:pk>/decide/",
+        views.ReadinessDecisionView.as_view(),
+        name="club-readiness-decide",
+    ),
     *club_router.urls,
 ]

@@ -5,10 +5,12 @@ from rest_framework import serializers
 from accounts.models import PlayerProfile
 from clubs.models import Night, Season
 from clubs.serializers import ClubSummarySerializer
+from ledger.serializers import MONEY
 from teams.serializers import NamedSerializer
 
 from .imports import Action
-from .models import ConfirmationAnswer, Fixture, FixtureTransition
+from .models import ConfirmationAnswer, Fixture, FixtureTransition, TeamReadiness
+from .readiness import Decision
 
 
 class FixtureSerializer(serializers.ModelSerializer):
@@ -216,3 +218,70 @@ class SquadSerializer(serializers.Serializer):
     def get_my_answer(self, squad) -> str:
         me = self.context["me"].pk
         return next((p.answer for p in squad.players if p.id == me), "")
+
+
+# The T-6h readiness check (FR-5, FR-6)
+
+
+class TeamReadinessSerializer(serializers.ModelSerializer):
+    """What the T-6h check decided for a Team, and the Admin's ruling if it waited for one."""
+
+    decided_by_name = serializers.CharField(
+        source="decided_by.name", read_only=True, allow_null=True, default=None
+    )
+    outstanding = serializers.DecimalField(
+        **MONEY, help_text="What the Team still owed at the check, in rand."
+    )
+
+    class Meta:
+        model = TeamReadiness
+        fields = [
+            "id",
+            "outcome",
+            "reason",
+            "checked_at",
+            "confirmed",
+            "min_players",
+            "outstanding",
+            "decided_by_name",
+            "decided_at",
+            "note",
+        ]
+        read_only_fields = fields
+
+
+class TonightTeamSerializer(serializers.Serializer):
+    team = NamedSerializer(read_only=True)
+    confirmed = serializers.IntegerField(read_only=True, help_text="Players confirmed now.")
+    min_players = serializers.IntegerField(read_only=True, help_text="The Division's minimum.")
+    below_minimum = serializers.BooleanField(read_only=True)
+    due = serializers.DecimalField(**MONEY, help_text="What the Team has been charged.")
+    paid = serializers.DecimalField(**MONEY)
+    outstanding = serializers.DecimalField(
+        **MONEY, help_text="Due less paid, now. Above zero: the Team owes money."
+    )
+    unpaid = serializers.BooleanField(read_only=True)
+    readiness = TeamReadinessSerializer(
+        read_only=True, allow_null=True, help_text="Empty until the T-6h check has run."
+    )
+
+
+class TonightFixtureSerializer(serializers.Serializer):
+    fixture = AdminFixtureSerializer(read_only=True)
+    checked = serializers.BooleanField(
+        read_only=True, help_text="The T-6h check has run for this kick-off."
+    )
+    waiting = serializers.BooleanField(
+        read_only=True, help_text="A Team waits for the Admin's ruling."
+    )
+    at_risk = serializers.BooleanField(
+        read_only=True,
+        help_text="Needs the Admin: a Team waits for a ruling, or the check is still to "
+        "come and a Team is below the minimum or owes money.",
+    )
+    teams = TonightTeamSerializer(many=True, read_only=True, help_text="Home first.")
+
+
+class ReadinessDecisionSerializer(serializers.Serializer):
+    decision = serializers.ChoiceField(choices=Decision.choices)
+    note = serializers.CharField(max_length=300, allow_blank=True, required=False)
