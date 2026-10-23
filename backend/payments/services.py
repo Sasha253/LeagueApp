@@ -151,10 +151,14 @@ def start_payment(*, team: Team, player: User, amount: Decimal, credit: str) -> 
 
 
 def checkout_for(payment: Payment):
-    """The gateway page for a pending Payment's card part; None once it isn't pending."""
+    """The gateway page for a pending Payment's card part; None once it isn't pending, or
+    if its merchant account is no longer configured (it can't be paid then)."""
     if payment.status != Status.PENDING or payment.card_amount <= 0:
         return None
-    return gateway_for(payment.provider).checkout(payment)
+    try:
+        return gateway_for(payment.provider).checkout(payment)
+    except ValueError:
+        return None
 
 
 # Gateway notifications

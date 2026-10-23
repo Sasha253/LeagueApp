@@ -585,3 +585,33 @@ def test_other_clubs_and_players_cannot_see_which_teams_have_paid(
 
     assert admin_of(club_b).get(path).status_code == 403
     assert signed_in(people["thandi"]).get(path).status_code == 403
+
+
+# Review fixes (chunk 18 review)
+
+
+@pytest.mark.django_db
+def test_a_non_ascii_signature_is_rejected_not_a_server_error(api, owing, people):
+    payment = start(owing, people["sipho"], "100")
+    fields = [(n, "é" * 32 if n == "signature" else v) for n, v in itn_fields(payment)]
+
+    answer = post_itn(api, fields)
+
+    assert answer.status_code == 400
+    assert card_entries(owing).count() == 0
+    assert GatewayNotification.objects.get().outcome == "rejected"
+
+
+@pytest.mark.django_db
+def test_a_pending_payment_whose_merchant_is_gone_lists_without_checkout(
+    owing, people, signed_in, settings
+):
+    payment = start(owing, people["sipho"], "100")
+    settings.PAYFAST_MERCHANT_ID = "99999999"  # The account it was made with is removed.
+
+    answer = signed_in(people["sipho"]).get(MY_PAYMENTS)
+
+    assert answer.status_code == 200
+    [listed] = answer.json()
+    assert listed["reference"] == str(payment.reference)
+    assert listed["checkout"] is None

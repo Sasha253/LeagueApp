@@ -114,3 +114,39 @@ By hand:
 
 Checks: make test (694 passed), make lint (passed), npm test (215 passed), npm run build
 (passed).
+
+## Review (independent, unattended run)
+
+Plan: compare 3c509e9 with the chunk 18 prompt and the CLAUDE.md rules, run the four
+checks, fix real defects with a failing test first, commit as "fix: chunk 18 review".
+
+Checked and fine:
+- Money is Decimal throughout (models, serializers, ITN amount compared as Decimal to the
+  cent); `_rand` formats "R 18,550".
+- Club isolation: options/start/detail are limited to a Player in the Team or the payer
+  (404 otherwise); cash needs an Admin role in the Team's Club; club team-payments uses
+  `IsClubAdmin` on `club_id`; Player credit is read per Club.
+- Ledger stays append-only: card, cash and credit are new entries; Payment and
+  GatewayNotification refuse delete (and change, for notifications).
+- ITN: source networks, signature over all fields in order with the passphrase, merchant,
+  amount, server-side validation; applied once under a row lock; a duplicate
+  pf_payment_id is rejected; credentials and sandbox only from env.
+- Card data never reaches the app (hosted page only). No later-chunk work (no screens,
+  no Barcodes; `team_paid` has no receiver yet). schema.d.ts is current (`npm run gen:api`
+  gives no diff).
+- Configurable values: the R 5 card minimum is PayFast's own limit on the gateway class,
+  not a club value; logged by the builder in OPEN_QUESTIONS.
+
+Defects fixed:
+1. `GET /api/v1/me/payments/` (and the payment detail) answered 500 when a pending
+   Payment's merchant account was no longer in the environment: `checkout_for` let the
+   gateway's ValueError escape. Now such a Payment lists with `checkout: null` (it can't
+   be paid). Test: `test_a_pending_payment_whose_merchant_is_gone_lists_without_checkout`.
+2. The ITN webhook answered 500, and logged no GatewayNotification, when the posted
+   `signature` had non-ASCII characters (`hmac.compare_digest` raises TypeError on non-ASCII
+   str). Now compared as bytes: rejected with 400 and logged. Test:
+   `test_a_non_ascii_signature_is_rejected_not_a_server_error`.
+
+No new PRD questions. No blockers.
+
+Checks after review: make test (696 passed), make lint (passed), npm test (215 passed), npm run build (passed).

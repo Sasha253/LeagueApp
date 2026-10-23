@@ -171,7 +171,8 @@ class PayFastGateway(PaymentGateway):
         if account is None:
             raise NotificationRejected("The payment's merchant account isn't configured.")
         expected = signature(signed, account.passphrase, skip_blank=False)
-        if not hmac.compare_digest(expected, values.get("signature", "")):
+        received = values.get("signature", "").encode()
+        if not hmac.compare_digest(expected.encode(), received):
             raise NotificationRejected("The signature doesn't match.")
         if values.get("merchant_id") != payment.merchant_id:
             raise NotificationRejected("The ITN names another merchant.")
