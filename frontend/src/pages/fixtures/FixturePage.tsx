@@ -1,16 +1,19 @@
 // A Fixture (design/src/ds/Screens.md, Player 2 "Match detail"), for a Player in one of its
 // Teams: kick-off, the teams, pitch and status; then your Team's SquadProgress, your reply
 // (changeable until T-6h, FR-3) and the squad's replies (FR-38). Pay my share comes with
-// the payment chunks.
+// the payment chunks. The Team's requests to cancel or postpone (FR-18): its Captain can
+// send one, and withdraw it while it waits for the Admin.
 
 import { useEffect, useState } from "react";
-import { useParams } from "react-router";
+import { Link, useParams } from "react-router";
 import { api } from "../../api/client";
-import { LoadState, useLoad } from "../club/shared";
+import { Banner } from "../../components/Banner";
+import { LoadState, send, useLoad } from "../club/shared";
 import { ScreenHeader } from "../teams/shared";
 import { FIXTURE_STATUS, MatchCard } from "./shared";
 import { NOT_A_PLAYER } from "./MyFixturesPage";
 import { SquadProgress, SquadReplies, YourReply, type Squad } from "./squad";
+import { RequestStatus, requestDetail, requestTitle } from "./requests";
 
 export function FixturePage() {
   const id = Number(useParams().fixtureId);
@@ -65,6 +68,7 @@ export function FixturePage() {
                 <p className="caption la-muted">If this match can't go ahead, it may be played as a friendly.</p>
               )}
               <MatchSquad fixtureId={match.id} notOpenYet={match.status === "scheduled"} />
+              <MatchRequests fixtureId={match.id} />
             </>
           );
         }}
@@ -98,5 +102,58 @@ function MatchSquad({ fixtureId, notOpenYet }: { fixtureId: number; notOpenYet: 
         );
       }}
     </LoadState>
+  );
+}
+
+/** The Team's requests to cancel or postpone the match; its Captain sends and withdraws. */
+function MatchRequests({ fixtureId }: { fixtureId: number }) {
+  const [loaded, reload] = useLoad(
+    () => api.GET("/api/v1/fixtures/{id}/requests/", { params: { path: { id: fixtureId } } }),
+    `match-requests-${fixtureId}`,
+  );
+  const [error, setError] = useState<string | null>(null);
+
+  async function withdraw(id: number) {
+    const failed = await send(() =>
+      api.POST("/api/v1/captain-requests/{id}/withdraw/", { params: { path: { id } } }),
+    );
+    setError(failed?.general ?? null);
+    if (!failed) reload();
+  }
+
+  if (loaded.state !== "ok") return null;
+  const { is_captain, can_request, requests } = loaded.data;
+  if (!is_captain && requests.length === 0) return null;
+  return (
+    <section className="la-stack-2" aria-labelledby="match-requests">
+      <h2 id="match-requests" className="la-overline">
+        Cancel or postpone
+      </h2>
+      {requests.length > 0 && (
+        <ul className="la-group" aria-label="Requests">
+          {requests.map((r) => (
+            <li key={r.id} className="la-item">
+              <span className="la-item__body">
+                <span className="body-strong">{requestTitle(r)}</span>
+                <span className="caption">{r.reason}</span>
+                <span className="caption la-muted">{requestDetail(r)}</span>
+                {is_captain && r.status === "pending" && (
+                  <button type="button" className="la-btn la-btn--quiet la-btn--sm" onClick={() => void withdraw(r.id)}>
+                    Withdraw
+                  </button>
+                )}
+              </span>
+              <RequestStatus request={r} />
+            </li>
+          ))}
+        </ul>
+      )}
+      {can_request && (
+        <Link className="la-btn la-btn--secondary" to={`/fixtures/${fixtureId}/request`}>
+          Ask the Admin to cancel or postpone
+        </Link>
+      )}
+      {error && <Banner status="cancelled" title={error} />}
+    </section>
   );
 }

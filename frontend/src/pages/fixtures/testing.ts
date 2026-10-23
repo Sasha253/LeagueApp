@@ -41,6 +41,8 @@ export function adminFixture(overrides: object = {}) {
     ],
     replacements: [],
     fallback: null,
+    reschedules: [],
+    captain_requests: [],
     ...overrides,
   };
 }
@@ -108,6 +110,43 @@ export function squad(overrides: object = {}) {
       { id: 1, name: "Sipho Dlamini", position: "outfield", is_captain: false, is_me: true, answer: "", answered_at: null },
       { id: 5, name: "Zaid Adams", position: "outfield", is_captain: false, is_me: false, answer: "", answered_at: null },
     ],
+    ...overrides,
+  };
+}
+
+/** A Captain's request to cancel or postpone Fixture 30 (FR-18). */
+export function captainRequest(overrides: object = {}) {
+  return {
+    id: 50,
+    fixture_id: 30,
+    team: { id: 7, name: "Red Lions" },
+    kind: "cancel" as const,
+    reason: "Half the team is at a wedding",
+    kick_off: "2026-10-27T17:40:00Z",
+    requested_by_name: "Thandi Mokoena",
+    // Mon 26 Oct 10:00 in South Africa.
+    requested_at: "2026-10-26T08:00:00Z",
+    status: "pending" as const,
+    decided_by_name: null,
+    decided_at: null,
+    note: "",
+    ...overrides,
+  };
+}
+
+/** What a reschedule will do, as the preview endpoint sends it. */
+export function reschedulePreview(overrides: object = {}) {
+  return {
+    // Tue 3 Nov 19:40 in South Africa.
+    kick_off: "2026-11-03T17:40:00Z",
+    pitch: { id: 9, name: "Pitch 3" },
+    kick_off_changed: true,
+    pitch_changed: false,
+    status_after: "scheduled" as const,
+    confirmations_now: false,
+    answer_by: "2026-11-03T11:40:00Z",
+    players: 8,
+    officials: 2,
     ...overrides,
   };
 }

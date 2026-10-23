@@ -146,6 +146,8 @@ SPECTACULAR_SETTINGS = {
         "CauseEnum": "fixtures.models.TRANSITION_CAUSES",
         "FallbackCauseEnum": "fixtures.models.FALLBACK_CAUSES",
         "FallbackOutcomeEnum": "fixtures.models.FALLBACK_OUTCOMES",
+        "CaptainRequestKindEnum": "fixtures.models.CAPTAIN_REQUEST_KINDS",
+        "CaptainRequestStatusEnum": "fixtures.models.CAPTAIN_REQUEST_STATUSES",
     },
 }
 

@@ -49,3 +49,9 @@ export function formatTime(isoDateTime: string): string {
 export function formatMoment(isoDateTime: string): string {
   return `${formatDate(localDate(isoDateTime))} · ${formatTime(isoDateTime)}`;
 }
+
+/** The moment of a South African date and 24-hour time, for the API: ("2026-10-27", "19:40")
+ * → "2026-10-27T19:40:00+02:00". South Africa has no daylight saving, so it is always +02:00. */
+export function southAfricanMoment(isoDate: string, time: string): string {
+  return `${isoDate}T${time}:00+02:00`;
+}

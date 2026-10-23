@@ -18,8 +18,11 @@
     any but friendly, cancelled and played -> friendly
                                       only when friendly-eligible (FR-10, FR-17)
     any but cancelled and played -> cancelled   (FR-17, FR-43)
-    confirming | ready -> scheduled   an Admin reschedule restarts the process (FR-9)
-    ready -> confirming               rescheduled to within the Confirmation window (FR-9)
+    confirming | ready -> scheduled   an Admin reschedule to a new kick-off restarts the
+                                      process (FR-9; fixtures/reschedules.py); within the
+                                      Confirmation window it then moves on to confirming
+                                      at once, as the T-36h checkpoint
+    ready -> confirming               allowed by the table; reschedules go through scheduled
     ready | friendly -> played
 
 cancelled and played are final. The table below is the whole rule: the checkpoints and the

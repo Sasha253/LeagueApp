@@ -2,6 +2,31 @@
 
 Newest first. Each entry: the date, what was decided, and why.
 
+## 2026-10-23: Reschedules and Captain requests (chunk 16) (provisional, unattended run)
+
+Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 16: Reschedules and
+Captain requests".
+
+- **Reschedule (provisional, unattended run):** only a scheduled, confirming or ready match,
+  before kick-off. A new kick-off must be after the T-6h cutoff counted from now, inside the
+  Season, on the Division's Night, with the pitch free and neither Team playing another match
+  that day. Every reschedule is logged in `FixtureReschedule` (never changed or deleted).
+- **Lifecycle restart (provisional, unattended run):** a new kick-off moves the match back to
+  `scheduled`, closes its open Notifications and runs every checkpoint again for the new
+  kick-off; within the Confirmation window the Confirmations go out at once (FR-9). A new
+  pitch at the same kick-off restarts nothing.
+- **Who is told (provisional, unattended run):** one Update to both Teams' Players (opted
+  into the Night) and only the Night's Admins and the Referees of the old and new pitch
+  (FR-7, FR-8).
+- **Captain requests (provisional, unattended run):** a Captain asks to cancel or postpone
+  with a reason; the Night's Admins are told; nothing changes until an Admin accepts
+  (FR-18). An accepted cancellation takes that Team out (`one_team_out`) and starts the
+  replacement search, then friendly or cancellation (FR-13 to FR-17). An accepted
+  postponement is a reschedule to the time the Admin picks. One pending request per Team
+  and match; a reschedule closes the others. The Captain is told of the decision.
+- **Not built (provisional, unattended run):** an Admin cancelling a match outright without
+  a Captain request.
+
 ## 2026-10-23: Friendly fallback or cancellation (chunk 15) (provisional, unattended run)
 
 Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 15: Friendly fallback

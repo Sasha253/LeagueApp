@@ -3,7 +3,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from accounts.models import PlayerProfile
-from clubs.models import Night, Season
+from clubs.models import Field, Night, Season
 from clubs.serializers import ClubSummarySerializer
 from ledger.serializers import MONEY
 from ledger.services import fixture_credit_returned
@@ -12,9 +12,11 @@ from teams.serializers import NamedSerializer
 from . import fallbacks
 from .imports import Action
 from .models import (
+    CaptainRequest,
     ConfirmationAnswer,
     Fixture,
     FixtureFallback,
+    FixtureReschedule,
     FixtureTransition,
     ReplacementOffer,
     TeamReadiness,
@@ -211,6 +213,148 @@ class FixtureFallbackSerializer(serializers.ModelSerializer):
         return count
 
 
+# Reschedules (FR-7 to FR-9) and Captain requests (FR-18)
+
+
+class FixtureRescheduleSerializer(serializers.ModelSerializer):
+    """An Admin's reschedule of the match, as the Admin sees it."""
+
+    from_pitch = NamedSerializer(read_only=True)
+    to_pitch = NamedSerializer(read_only=True)
+    by_name = serializers.CharField(source="by.name", read_only=True, allow_null=True, default=None)
+    request_id = serializers.IntegerField(
+        read_only=True, allow_null=True, help_text="The Captain's postponement it answered."
+    )
+
+    class Meta:
+        model = FixtureReschedule
+        fields = [
+            "id",
+            "from_kick_off",
+            "to_kick_off",
+            "from_pitch",
+            "to_pitch",
+            "at",
+            "by_name",
+            "note",
+            "request_id",
+            "confirmations_sent",
+            "notified",
+        ]
+        read_only_fields = fields
+
+
+class CaptainRequestSerializer(serializers.ModelSerializer):
+    """A Captain's request to cancel or postpone a match (FR-18)."""
+
+    team = NamedSerializer(read_only=True)
+    requested_by_name = serializers.CharField(source="requested_by.name", read_only=True)
+    decided_by_name = serializers.CharField(
+        source="decided_by.name", read_only=True, allow_null=True, default=None
+    )
+
+    class Meta:
+        model = CaptainRequest
+        fields = [
+            "id",
+            "fixture_id",
+            "team",
+            "kind",
+            "reason",
+            "kick_off",
+            "requested_by_name",
+            "requested_at",
+            "status",
+            "decided_by_name",
+            "decided_at",
+            "note",
+        ]
+        read_only_fields = fields
+
+
+class ClubCaptainRequestSerializer(CaptainRequestSerializer):
+    """A Captain's request as the club's Admin sees it in the requests list."""
+
+    fixture = FixtureSerializer(read_only=True)
+
+    class Meta(CaptainRequestSerializer.Meta):
+        fields = [*CaptainRequestSerializer.Meta.fields, "fixture"]
+        read_only_fields = fields
+
+
+class CaptainRequestCreateSerializer(serializers.Serializer):
+    kind = serializers.ChoiceField(choices=CaptainRequest.Kind.choices)
+    reason = serializers.CharField(max_length=300, help_text="Why; the Admin reads it.")
+
+
+class MatchRequestsSerializer(serializers.Serializer):
+    """My Team's requests to cancel or postpone a match, and whether I can send one."""
+
+    is_captain = serializers.BooleanField(help_text="I'm the Captain of my Team in this match.")
+    can_request = serializers.BooleanField(
+        help_text="I'm the Captain, the match can still change and nothing is waiting."
+    )
+    requests = CaptainRequestSerializer(many=True, help_text="Newest first.")
+
+
+class RescheduleSerializer(serializers.Serializer):
+    kick_off = serializers.DateTimeField(
+        help_text="The new kick-off, with its offset (South African time is +02:00)."
+    )
+    pitch = serializers.PrimaryKeyRelatedField(
+        queryset=Field.objects.all(),
+        required=False,
+        allow_null=True,
+        help_text="The new pitch; the same pitch when left out.",
+    )
+    note = serializers.CharField(max_length=300, allow_blank=True, required=False)
+
+    def validate_pitch(self, pitch):
+        if pitch is not None and pitch.club_id != self.context["club"].pk:
+            raise serializers.ValidationError("The club has no such pitch.")
+        return pitch
+
+
+class CaptainRequestAcceptSerializer(RescheduleSerializer):
+    kick_off = serializers.DateTimeField(
+        required=False,
+        allow_null=True,
+        help_text="A postponement's new kick-off (required for one), with its offset.",
+    )
+
+
+class CaptainRequestDeclineSerializer(serializers.Serializer):
+    note = serializers.CharField(max_length=300, allow_blank=True, required=False)
+
+
+class ReschedulePreviewSerializer(serializers.Serializer):
+    """What a reschedule will do, before the Admin confirms it."""
+
+    kick_off = serializers.DateTimeField()
+    pitch = NamedSerializer()
+    kick_off_changed = serializers.BooleanField()
+    pitch_changed = serializers.BooleanField()
+    status_after = serializers.ChoiceField(choices=Fixture.Status.choices)
+    confirmations_now = serializers.BooleanField(
+        help_text="Within the Confirmation window: they go out at once (FR-9)."
+    )
+    answer_by = serializers.DateTimeField(
+        allow_null=True, help_text="Replies for the new kick-off close then (T-6h)."
+    )
+    players = serializers.SerializerMethodField(
+        help_text="Players of both Teams told (opted into the Night)."
+    )
+    officials = serializers.SerializerMethodField(
+        help_text="The Night's Admins and the affected pitch's Referee told."
+    )
+
+    def get_players(self, planned) -> int:
+        return len(planned.players)
+
+    def get_officials(self, planned) -> int:
+        return len(planned.officials)
+
+
 class AdminFixtureDetailSerializer(AdminFixtureSerializer):
     transitions = FixtureTransitionSerializer(many=True, read_only=True)
     replacements = ReplacementOfferSerializer(
@@ -219,9 +363,24 @@ class AdminFixtureDetailSerializer(AdminFixtureSerializer):
     fallback = serializers.SerializerMethodField(
         help_text="A friendly or a cancellation once the match couldn't go ahead; else empty."
     )
+    reschedules = FixtureRescheduleSerializer(
+        many=True, read_only=True, help_text="The Admin's reschedules, oldest first."
+    )
+    captain_requests = CaptainRequestSerializer(
+        many=True,
+        read_only=True,
+        help_text="Captains' requests to cancel or postpone, oldest first.",
+    )
 
     class Meta(AdminFixtureSerializer.Meta):
-        fields = [*AdminFixtureSerializer.Meta.fields, "transitions", "replacements", "fallback"]
+        fields = [
+            *AdminFixtureSerializer.Meta.fields,
+            "transitions",
+            "replacements",
+            "fallback",
+            "reschedules",
+            "captain_requests",
+        ]
 
     @extend_schema_field(FixtureFallbackSerializer(allow_null=True))
     def get_fallback(self, fixture: Fixture) -> dict | None:

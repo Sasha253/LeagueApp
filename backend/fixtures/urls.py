@@ -7,6 +7,7 @@ from . import views
 
 router = SimpleRouter()
 router.register("fixtures", views.FixtureViewSet, basename="fixtures")
+router.register("captain-requests", views.CaptainRequestViewSet, basename="captain-requests")
 
 urlpatterns = [
     path("me/fixtures/", views.MyFixtureListView.as_view(), name="my-fixtures"),
@@ -15,6 +16,9 @@ urlpatterns = [
 
 club_router = SimpleRouter()
 club_router.register("fixtures", views.ClubFixtureViewSet, basename="club-fixtures")
+club_router.register(
+    "captain-requests", views.ClubCaptainRequestViewSet, basename="club-captain-requests"
+)
 
 club_urlpatterns = [
     path(

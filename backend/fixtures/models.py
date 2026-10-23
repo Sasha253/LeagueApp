@@ -468,3 +468,118 @@ class FriendlyInvite(models.Model):
 
 FALLBACK_CAUSES = FixtureFallback.Cause
 FALLBACK_OUTCOMES = FixtureFallback.Outcome
+
+
+class CaptainRequest(models.Model):
+    """A Captain asks the Admin to cancel or postpone a match for their Team (FR-18).
+
+    Nothing changes until an Admin accepts it. Accepting a cancellation takes the Team out
+    of the match and the replacement search starts (FR-13 to FR-17); accepting a
+    postponement is an Admin reschedule to the kick-off the Admin picks (FR-7 to FR-9). One
+    pending request per Fixture and Team. Only fixtures/reschedules.py writes these; they
+    are never deleted.
+    """
+
+    class Kind(models.TextChoices):
+        CANCEL = "cancel", "Cancel"
+        POSTPONE = "postpone", "Postpone"
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Waiting for the Admin"
+        ACCEPTED = "accepted", "Accepted"
+        DECLINED = "declined", "Declined"
+        WITHDRAWN = "withdrawn", "Withdrawn"
+        CLOSED = "closed", "No longer applies"
+
+    fixture = models.ForeignKey(Fixture, on_delete=models.PROTECT, related_name="captain_requests")
+    team = models.ForeignKey(Team, on_delete=models.PROTECT, related_name="+")
+    kind = models.CharField(max_length=10, choices=Kind.choices)
+    reason = models.CharField(max_length=300)
+    kick_off = models.DateTimeField(help_text="The kick-off the request was made for.")
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+    requested_at = models.DateTimeField()
+    status = models.CharField(max_length=10, choices=Status.choices)
+    decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        help_text="The Admin who accepted or declined it.",
+    )
+    decided_at = models.DateTimeField(
+        null=True, blank=True, help_text="When it was accepted, declined, withdrawn or closed."
+    )
+    note = models.CharField(max_length=300, blank=True, help_text="The Admin's note, or why.")
+
+    class Meta:
+        ordering = ["requested_at", "pk"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["fixture", "team"],
+                condition=models.Q(status="pending"),
+                name="one_pending_captain_request_per_team",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return (
+            f"{self.team}: {self.get_kind_display()} {self.fixture} ({self.get_status_display()})"
+        )
+
+    def get_club_id(self) -> int:
+        return self.fixture.club_id
+
+    def delete(self, *args, **kwargs):
+        raise ValueError("A CaptainRequest is never deleted.")
+
+
+CAPTAIN_REQUEST_KINDS = CaptainRequest.Kind
+CAPTAIN_REQUEST_STATUSES = CaptainRequest.Status
+
+
+class FixtureReschedule(models.Model):
+    """An Admin moved a Fixture to a new kick-off or pitch (FR-7 to FR-9). Never changed.
+
+    The lifecycle restarts at the new kick-off: Confirmations, answers, the T-6h check and
+    Reminders are per kick-off. See fixtures/reschedules.py.
+    """
+
+    fixture = models.ForeignKey(Fixture, on_delete=models.PROTECT, related_name="reschedules")
+    from_kick_off = models.DateTimeField()
+    to_kick_off = models.DateTimeField()
+    from_pitch = models.ForeignKey(Field, on_delete=models.PROTECT, related_name="+")
+    to_pitch = models.ForeignKey(Field, on_delete=models.PROTECT, related_name="+")
+    at = models.DateTimeField()
+    by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="+"
+    )
+    note = models.CharField(max_length=300, blank=True)
+    request = models.OneToOneField(
+        CaptainRequest,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="reschedule",
+        help_text="The Captain's postponement request it answered, if any.",
+    )
+    confirmations_sent = models.BooleanField(
+        help_text="The new kick-off was within the Confirmation window, so they went out (FR-9)."
+    )
+    notified = models.PositiveIntegerField(help_text="How many were sent the Update.")
+
+    class Meta:
+        ordering = ["at", "pk"]
+
+    def __str__(self) -> str:
+        return f"{self.fixture}: moved from {self.from_kick_off:%Y-%m-%d %H:%M}"
+
+    def save(self, *args, **kwargs):
+        if self.pk is not None:
+            raise ValueError("A FixtureReschedule is never changed.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValueError("A FixtureReschedule is never deleted.")

@@ -24,17 +24,32 @@ from core.exceptions import Conflict
 from core.tables import TableError, read_table
 from teams.models import Team, TeamMembership
 
-from . import confirmations, imports, lifecycle, readiness
-from .models import Fixture, FixtureTransition, ReplacementOffer, TeamReadiness
+from . import confirmations, imports, lifecycle, readiness, reschedules
+from .models import (
+    CaptainRequest,
+    Fixture,
+    FixtureReschedule,
+    FixtureTransition,
+    ReplacementOffer,
+    TeamReadiness,
+)
 from .serializers import (
     AdminFixtureDetailSerializer,
     AdminFixtureSerializer,
+    CaptainRequestAcceptSerializer,
+    CaptainRequestCreateSerializer,
+    CaptainRequestDeclineSerializer,
+    CaptainRequestSerializer,
+    ClubCaptainRequestSerializer,
     FixtureAnswerSerializer,
     FixtureImportResultSerializer,
     FixtureImportUploadSerializer,
     FriendlyEligibleSerializer,
+    MatchRequestsSerializer,
     MyFixtureSerializer,
     ReadinessDecisionSerializer,
+    ReschedulePreviewSerializer,
+    RescheduleSerializer,
     SquadSerializer,
     TonightFixtureSerializer,
 )
@@ -165,6 +180,77 @@ class FixtureViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
         )
         return self.my_squad(self.get_object())
 
+    def my_requests(self, fixture: Fixture) -> Response:
+        mine = [t for t in (fixture.home_team, fixture.away_team) if t.pk in self.team_ids]
+        is_captain = reschedules.captain_team(fixture, self.request.user) is not None
+        requests = list(
+            CaptainRequest.objects.filter(fixture=fixture, team__in=mine)
+            .select_related("team", "requested_by", "decided_by")
+            .order_by("-requested_at", "-pk")
+        )
+        waiting = any(r.status == CaptainRequest.Status.PENDING for r in requests)
+        body = {
+            "is_captain": is_captain,
+            "can_request": is_captain and not waiting and reschedules.can_request(fixture),
+            "requests": requests,
+        }
+        return Response(MatchRequestsSerializer(body).data)
+
+    @extend_schema(
+        methods=["GET"],
+        summary="My Team's requests to cancel or postpone a Fixture",
+        description="Every Player in the Team sees them; only its Captain can send one (FR-18).",
+        responses=MatchRequestsSerializer,
+    )
+    @extend_schema(
+        methods=["POST"],
+        summary="Ask the Admin to cancel or postpone a Fixture (Captain)",
+        description="Only the Captain of a Team in the match (403 otherwise), while the match "
+        "is scheduled, confirming or ready and before kick-off, with nothing else waiting "
+        "for the Admin from the Team (409 otherwise). Nothing changes until an Admin "
+        "accepts it. Answers with the Team's requests.",
+        request=CaptainRequestCreateSerializer,
+        responses={201: MatchRequestsSerializer},
+    )
+    @action(detail=True, methods=["get", "post"])
+    def requests(self, request, *args, **kwargs):
+        fixture = self.get_object()
+        if request.method == "POST":
+            body = CaptainRequestCreateSerializer(data=request.data)
+            body.is_valid(raise_exception=True)
+            reschedules.request(
+                fixture, request.user, body.validated_data["kind"], body.validated_data["reason"]
+            )
+            answer = self.my_requests(self.get_object())
+            answer.status_code = status.HTTP_201_CREATED
+            return answer
+        return self.my_requests(fixture)
+
+
+class CaptainRequestViewSet(viewsets.GenericViewSet):
+    """A Captain's own requests to cancel or postpone (FR-18). Anyone else gets 404."""
+
+    serializer_class = CaptainRequestSerializer
+    permission_classes = [IsPlayer]
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return CaptainRequest.objects.none()
+        return CaptainRequest.objects.filter(team__captain=self.request.user).select_related(
+            "team", "requested_by", "decided_by"
+        )
+
+    @extend_schema(
+        summary="Withdraw my request to cancel or postpone",
+        description="Only while it waits for the Admin: 409 once decided.",
+        request=None,
+        responses=CaptainRequestSerializer,
+    )
+    @action(detail=True, methods=["post"])
+    def withdraw(self, request, *args, **kwargs):
+        withdrawn = reschedules.withdraw(self.get_object(), request.user)
+        return Response(CaptainRequestSerializer(self.get_queryset().get(pk=withdrawn.pk)).data)
+
 
 # The club's Admin
 
@@ -187,7 +273,7 @@ class ClubFixtureViewSet(
     """The club's Fixtures, by kick-off. The Admin can mark one friendly-eligible."""
 
     queryset = fixtures().select_related("friendly_eligible_changed_by")
-    http_method_names = ["get", "patch", "options"]
+    http_method_names = ["get", "post", "patch", "options"]
 
     def get_serializer_class(self):
         return AdminFixtureDetailSerializer if self.action == "retrieve" else AdminFixtureSerializer
@@ -202,6 +288,18 @@ class ClubFixtureViewSet(
                     queryset=ReplacementOffer.objects.select_related(
                         "out_team", "remaining_team", "accepted_team", "accepted_by"
                     ).prefetch_related("candidates__team"),
+                ),
+                Prefetch(
+                    "reschedules",
+                    queryset=FixtureReschedule.objects.select_related(
+                        "from_pitch", "to_pitch", "by"
+                    ),
+                ),
+                Prefetch(
+                    "captain_requests",
+                    queryset=CaptainRequest.objects.select_related(
+                        "team", "requested_by", "decided_by"
+                    ),
                 ),
             )
         if self.action != "list":
@@ -234,8 +332,127 @@ class ClubFixtureViewSet(
         body.is_valid(raise_exception=True)
         eligible = body.validated_data["friendly_eligible"]
         lifecycle.set_friendly_eligible(fixture, eligible, request.user)
+        return self.detail_of(fixture)
+
+    def detail_of(self, fixture: Fixture) -> Response:
         self.action = "retrieve"
         return Response(AdminFixtureDetailSerializer(self.get_queryset().get(pk=fixture.pk)).data)
+
+    def reschedule_body(self, request) -> dict:
+        body = RescheduleSerializer(data=request.data, context={"club": self.club})
+        body.is_valid(raise_exception=True)
+        return body.validated_data
+
+    @extend_schema(
+        summary="Preview a reschedule",
+        description="Checks the new kick-off and pitch and says what the reschedule will do: "
+        "the status after, whether Confirmations go out now (FR-9) and how many Players and "
+        "officials are told (FR-7, FR-8). Writes nothing. 400 or 409 as the reschedule.",
+        request=RescheduleSerializer,
+        responses=ReschedulePreviewSerializer,
+    )
+    @action(detail=True, methods=["post"], url_path="reschedule/preview")
+    def reschedule_preview(self, request, *args, **kwargs):
+        fixture = self.get_object()
+        given = self.reschedule_body(request)
+        planned = reschedules.plan(fixture, given["kick_off"], given.get("pitch"))
+        return Response(ReschedulePreviewSerializer(planned).data)
+
+    @extend_schema(
+        summary="Reschedule a Fixture",
+        description="Only a scheduled, confirming or ready match before kick-off (409 "
+        "otherwise). A new kick-off must be after the T-6h cutoff counted from now, inside "
+        "the Season and on the Division's Night (400); the pitch must be free then and "
+        "neither Team may have another match that day (409). A new kick-off restarts the "
+        "lifecycle and sends Confirmations now when it is within the Confirmation window "
+        "(FR-9). Both Teams' Players and only the Night's Admins and the affected pitch's "
+        "Referee get an Update (FR-7, FR-8). Answers with the Fixture.",
+        request=RescheduleSerializer,
+        responses=AdminFixtureDetailSerializer,
+    )
+    @action(detail=True, methods=["post"])
+    def reschedule(self, request, *args, **kwargs):
+        fixture = self.get_object()
+        given = self.reschedule_body(request)
+        reschedules.reschedule(
+            fixture,
+            given["kick_off"],
+            given.get("pitch"),
+            admin=request.user,
+            note=given.get("note", ""),
+        )
+        return self.detail_of(fixture)
+
+
+@extend_schema(
+    parameters=[
+        OpenApiParameter("status", enum=CaptainRequest.Status.values),
+        OpenApiParameter("fixture", int),
+    ]
+)
+class ClubCaptainRequestViewSet(ClubAdminMixin, mixins.ListModelMixin, viewsets.GenericViewSet):
+    """Captains' requests to cancel or postpone the club's matches (FR-18), oldest first."""
+
+    queryset = CaptainRequest.objects.select_related(
+        "team", "requested_by", "decided_by", "fixture__club", "fixture__season"
+    ).select_related(
+        "fixture__division__night", "fixture__pitch", "fixture__home_team", "fixture__away_team"
+    )
+    club_field = "fixture__club"
+    serializer_class = ClubCaptainRequestSerializer
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        if self.action == "list":
+            wanted = self.request.query_params.get("status")
+            if wanted:
+                queryset = queryset.filter(status=wanted)
+            fixture = int_param(self.request, "fixture")
+            if fixture is not None:
+                queryset = queryset.filter(fixture_id=fixture)
+        return queryset.order_by("requested_at", "pk")
+
+    def answer(self, captain_request: CaptainRequest) -> Response:
+        return Response(self.get_serializer(self.get_queryset().get(pk=captain_request.pk)).data)
+
+    @extend_schema(
+        summary="Accept a Captain's request",
+        description="A cancellation takes the Captain's Team out of the match and starts the "
+        "search for a new opponent (FR-13 to FR-17). A postponement reschedules the match to "
+        "`kick_off` (required) and `pitch`, as the reschedule endpoint. Only a pending "
+        "request whose match can still change, for its kick-off: 409 otherwise.",
+        request=CaptainRequestAcceptSerializer,
+        responses=ClubCaptainRequestSerializer,
+    )
+    @action(detail=True, methods=["post"])
+    def accept(self, request, *args, **kwargs):
+        captain_request = self.get_object()
+        body = CaptainRequestAcceptSerializer(data=request.data, context={"club": self.club})
+        body.is_valid(raise_exception=True)
+        given = body.validated_data
+        reschedules.accept(
+            captain_request,
+            request.user,
+            kick_off=given.get("kick_off"),
+            pitch=given.get("pitch"),
+            note=given.get("note", ""),
+        )
+        return self.answer(captain_request)
+
+    @extend_schema(
+        summary="Decline a Captain's request",
+        description="The match goes ahead as planned; the Captain is told. Only a pending "
+        "request: 409 otherwise.",
+        request=CaptainRequestDeclineSerializer,
+        responses=ClubCaptainRequestSerializer,
+    )
+    @action(detail=True, methods=["post"])
+    def decline(self, request, *args, **kwargs):
+        captain_request = self.get_object()
+        body = CaptainRequestDeclineSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        reschedules.decline(captain_request, request.user, body.validated_data.get("note", ""))
+        return self.answer(captain_request)
 
 
 class FixtureImportView(ClubAdminMixin, generics.GenericAPIView):

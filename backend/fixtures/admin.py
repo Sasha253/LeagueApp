@@ -1,10 +1,12 @@
 from django.contrib import admin
 
 from .models import (
+    CaptainRequest,
     ConfirmationAnswer,
     Fixture,
     FixtureCheckpoint,
     FixtureFallback,
+    FixtureReschedule,
     FixtureTransition,
     ReplacementOffer,
     TeamReadiness,
@@ -107,6 +109,53 @@ class FixtureFallbackInline(admin.TabularInline):
         return False
 
 
+class FixtureRescheduleInline(admin.TabularInline):
+    """The Admin's reschedules: made in the app (FR-7 to FR-9), only shown here."""
+
+    model = FixtureReschedule
+    extra = 0
+    can_delete = False
+    fk_name = "fixture"
+    readonly_fields = [
+        "from_kick_off",
+        "to_kick_off",
+        "from_pitch",
+        "to_pitch",
+        "at",
+        "by",
+        "note",
+        "request",
+        "confirmations_sent",
+        "notified",
+    ]
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+class CaptainRequestInline(admin.TabularInline):
+    """Captains' requests to cancel or postpone: made and decided in the app (FR-18)."""
+
+    model = CaptainRequest
+    extra = 0
+    can_delete = False
+    readonly_fields = [
+        "team",
+        "kind",
+        "reason",
+        "kick_off",
+        "requested_by",
+        "requested_at",
+        "status",
+        "decided_by",
+        "decided_at",
+        "note",
+    ]
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
 @admin.register(Fixture)
 class FixtureAdmin(admin.ModelAdmin):
     """Read-only: Fixtures change through the app, so every status move is logged."""
@@ -120,6 +169,8 @@ class FixtureAdmin(admin.ModelAdmin):
         TeamReadinessInline,
         ReplacementOfferInline,
         FixtureFallbackInline,
+        FixtureRescheduleInline,
+        CaptainRequestInline,
     ]
 
     def has_add_permission(self, request):

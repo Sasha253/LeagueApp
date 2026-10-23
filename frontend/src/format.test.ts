@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDate, formatMoment, formatRand, formatTime, localDate } from "./format";
+import { formatDate, formatMoment, formatRand, formatTime, localDate, southAfricanMoment } from "./format";
 
 describe("formatRand", () => {
   it.each([
@@ -37,5 +37,12 @@ describe("formatTime", () => {
 describe("formatMoment", () => {
   it("gives the South African date and time", () => {
     expect(formatMoment("2026-10-26T22:05:00Z")).toBe("Tue 27 Oct · 00:05");
+  });
+});
+
+describe("southAfricanMoment", () => {
+  it("is the South African date and time with its offset", () => {
+    expect(southAfricanMoment("2026-10-27", "19:40")).toBe("2026-10-27T19:40:00+02:00");
+    expect(formatTime(southAfricanMoment("2026-10-27", "19:40"))).toBe("19:40");
   });
 });

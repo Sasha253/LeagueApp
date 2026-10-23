@@ -454,3 +454,68 @@ docs/DECISIONS.md under "2026-10-23: Teams (chunk 5)".
 - **Who decides friendly or cancelled.** Choice: the backend, at once, from the
   friendly-eligible flag the Admin set beforehand (PRD Decisions: "Only when the Admin
   lists the match as friendly-eligible"); the Admin isn't asked again.
+
+## Chunk 16: Reschedules and Captain requests
+
+- **Which matches can be rescheduled.** Question: the PRD says only "Admin reschedule".
+  Choice: a match that is scheduled, confirming or ready, before kick-off. One that is out,
+  offered to a replacement, a friendly, cancelled or played is refused (409). Why: those
+  have their own flows (chunks 13 to 15), and moving a match mid-replacement would strand
+  the offers. If the answer differs: widen `reschedules.OPEN_STATUSES` and withdraw open
+  offers on a move.
+- **How late a new kick-off can be set.** Question: FR-9 says Confirmations go out at once
+  within 36 hours, but not what happens inside the T-6h cutoff. Choice: a new kick-off must
+  be after the T-6h cutoff counted from now (`readiness_hours_before`), so Players can still
+  reply before the readiness check. Why: a kick-off inside the cutoff would be checked at
+  once with no replies and rule both Teams out. If the answer differs: allow it and let the
+  Admin rule both Teams in at T-6h (chunk 13 already queues a match with no replies).
+- **Where a new kick-off can go.** Choice: inside the Season and on the Division's Night
+  (the same weekday), as the fixture import checks; the pitch must be the Club's and free at
+  that kick-off; neither Team may have another match that South African day. Why: the same
+  checks as the import, and a Team playing twice in a night is the conservative thing to
+  refuse. If the answer differs (another weekday, two matches a night): relax
+  `reschedules._check`.
+- **A new pitch at the same kick-off.** Question: is a pitch-only move a reschedule that
+  restarts the lifecycle? Choice: no. The answers, Confirmations and status stand (they are
+  per kick-off); it can be made any time before kick-off, even after the T-6h check (a
+  flooded pitch on the night). Both Teams' Players, the Night's Admins and the Referees of
+  the old and the new pitch get an Update (FR-7, FR-8). Why: nothing about the time changed,
+  and wiping replies at T-3h would rule the Teams out for nothing. If the answer differs:
+  restart in `reschedules.reschedule` whenever anything changes.
+- **What "the lifecycle restarts" does.** Choice: a new kick-off moves the match back to
+  `scheduled`, closes its open Notifications (old Confirmations stop taking answers),
+  and the Confirmations, resend, T-6h check and Reminder run again for the new kick-off.
+  Within the Confirmation window they go out at once through the T-36h checkpoint (FR-9),
+  logged as the Admin's move. Why: everything is already per kick-off (chunks 11 to 13),
+  and the decision that a changed kick-off starts with no answers. If the answer differs
+  (keep answers): see the chunk 12 entry.
+- **One Update or two.** Choice: one Update to both Teams' Players (opted into the Night)
+  and the officials together, so someone who is both gets it once. "The affected pitch" is
+  the old and the new pitch when the pitch changes. If the answer differs: split the call
+  in `reschedules.reschedule`.
+- **What an accepted Captain cancellation does (FR-18).** Question: the PRD only says it
+  takes effect once an Admin accepts. Choice: the Captain's Team is out of the match: it
+  moves to `one_team_out` and the chunk 14 replacement search starts (FR-13 to FR-16),
+  falling back to a friendly or a cancellation (FR-17, FR-43) when no Team takes the slot.
+  This is the PRD's "One Team cancels" flow and what the chunk 7 lifecycle already
+  describes. The withdrawing Team gets no credit while the match still goes ahead (as for a
+  Team out at T-6h); everyone gets credit if the match is cancelled. If the answer differs
+  (an accepted cancellation cancels the whole match): call `fallbacks.cancel_match` in
+  `reschedules.accept` instead.
+- **What an accepted postponement does.** Choice: the Captain gives only a reason; the
+  Admin accepts by picking the new kick-off (and pitch), which is a reschedule with all its
+  checks and notifications. Why: the Admin owns the schedule; Screens.md's Captain screen
+  has no date picker. If the answer differs: add a proposed time to `CaptainRequest`.
+- **Requests that no longer apply.** Choice: one pending request per Team and match. A
+  reschedule to a new kick-off, or the other Team's cancellation being accepted, closes the
+  other pending requests ("No longer applies") and tells their Captains. A request whose
+  match moved on otherwise (cancelled, out at T-6h) can't be accepted (409) but can be
+  declined. Requests can be made until kick-off. The Captain can withdraw a pending one.
+- **Who is told about requests.** Choice: the Night's Admins get an Update when a request
+  comes in; the Captain gets an Update on accept, decline or close (only if opted into the
+  Night, as every Player). The PRD names no notification for these. If the answer differs:
+  change `reschedules.request` and `_tell_captain`.
+- **Admin cancels a match outright.** Not built: the chunk prompt covers reschedules and
+  Captain requests only, although the PRD Admin role lists "cancel or reschedule fixtures"
+  and Screens.md Admin 2 shows "cancel". `fallbacks.cancel_match` is ready for it. If
+  wanted: an Admin cancel endpoint calling it, with FR-43 credit and notifications.

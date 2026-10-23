@@ -87,6 +87,83 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/captain-requests/{id}/withdraw/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Withdraw my request to cancel or postpone
+         * @description Only while it waits for the Admin: 409 once decided.
+         */
+        post: operations["captain_requests_withdraw_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/captain-requests/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Captains' requests to cancel or postpone the club's matches (FR-18), oldest first. */
+        get: operations["clubs_captain_requests_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/captain-requests/{id}/accept/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept a Captain's request
+         * @description A cancellation takes the Captain's Team out of the match and starts the search for a new opponent (FR-13 to FR-17). A postponement reschedules the match to `kick_off` (required) and `pitch`, as the reschedule endpoint. Only a pending request whose match can still change, for its kick-off: 409 otherwise.
+         */
+        post: operations["clubs_captain_requests_accept_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/captain-requests/{id}/decline/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decline a Captain's request
+         * @description The match goes ahead as planned; the Captain is told. Only a pending request: 409 otherwise.
+         */
+        post: operations["clubs_captain_requests_decline_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clubs/{club_id}/divisions/": {
         parameters: {
             query?: never;
@@ -237,6 +314,46 @@ export interface paths {
          * @description Only while the match may still fall through: 409 once it is a friendly, cancelled or played.
          */
         patch: operations["clubs_fixtures_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/fixtures/{id}/reschedule/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reschedule a Fixture
+         * @description Only a scheduled, confirming or ready match before kick-off (409 otherwise). A new kick-off must be after the T-6h cutoff counted from now, inside the Season and on the Division's Night (400); the pitch must be free then and neither Team may have another match that day (409). A new kick-off restarts the lifecycle and sends Confirmations now when it is within the Confirmation window (FR-9). Both Teams' Players and only the Night's Admins and the affected pitch's Referee get an Update (FR-7, FR-8). Answers with the Fixture.
+         */
+        post: operations["clubs_fixtures_reschedule_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/fixtures/{id}/reschedule/preview/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview a reschedule
+         * @description Checks the new kick-off and pitch and says what the reschedule will do: the status after, whether Confirmations go out now (FR-9) and how many Players and officials are told (FR-7, FR-8). Writes nothing. 400 or 409 as the reschedule.
+         */
+        post: operations["clubs_fixtures_reschedule_preview_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/clubs/{club_id}/imports/fixtures/commit/": {
@@ -745,6 +862,30 @@ export interface paths {
          * @description Until the cutoff (T-6h), while the match is confirming (FR-3). 409 before the Confirmations go out or after the cutoff. Answers with my Team's replies.
          */
         post: operations["fixtures_answer_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/fixtures/{id}/requests/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * My Team's requests to cancel or postpone a Fixture
+         * @description Every Player in the Team sees them; only its Captain can send one (FR-18).
+         */
+        get: operations["fixtures_requests_retrieve"];
+        put?: never;
+        /**
+         * Ask the Admin to cancel or postpone a Fixture (Captain)
+         * @description Only the Captain of a Team in the match (403 otherwise), while the match is scheduled, confirming or ready and before kick-off, with nothing else waiting for the Admin from the Team (409 otherwise). Nothing changes until an Admin accepts it. Answers with the Team's requests.
+         */
+        post: operations["fixtures_requests_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1305,6 +1446,10 @@ export interface components {
             readonly replacements: components["schemas"]["ReplacementOffer"][];
             /** @description A friendly or a cancellation once the match couldn't go ahead; else empty. */
             readonly fallback: components["schemas"]["FixtureFallback"] | null;
+            /** @description The Admin's reschedules, oldest first. */
+            readonly reschedules: components["schemas"]["FixtureReschedule"][];
+            /** @description Captains' requests to cancel or postpone, oldest first. */
+            readonly captain_requests: components["schemas"]["CaptainRequest"][];
         };
         /** @description A Team as its Club's Admin sees it, with who asked, who decided and its Players. */
         AdminTeam: {
@@ -1337,6 +1482,64 @@ export interface components {
         };
         /** @enum {unknown} */
         BlankEnum: "";
+        /** @description A Captain's request to cancel or postpone a match (FR-18). */
+        CaptainRequest: {
+            readonly id: number;
+            readonly fixture_id: number;
+            readonly team: components["schemas"]["Named"];
+            readonly kind: components["schemas"]["CaptainRequestKindEnum"];
+            readonly reason: string;
+            /**
+             * Format: date-time
+             * @description The kick-off the request was made for.
+             */
+            readonly kick_off: string;
+            readonly requested_by_name: string;
+            /** Format: date-time */
+            readonly requested_at: string;
+            readonly status: components["schemas"]["CaptainRequestStatusEnum"];
+            readonly decided_by_name: string | null;
+            /**
+             * Format: date-time
+             * @description When it was accepted, declined, withdrawn or closed.
+             */
+            readonly decided_at: string | null;
+            /** @description The Admin's note, or why. */
+            readonly note: string;
+        };
+        CaptainRequestAcceptRequest: {
+            /**
+             * Format: date-time
+             * @description A postponement's new kick-off (required for one), with its offset.
+             */
+            kick_off?: string | null;
+            /** @description The new pitch; the same pitch when left out. */
+            pitch?: number | null;
+            note?: string;
+        };
+        CaptainRequestCreateRequest: {
+            kind: components["schemas"]["CaptainRequestKindEnum"];
+            /** @description Why; the Admin reads it. */
+            reason: string;
+        };
+        CaptainRequestDeclineRequest: {
+            note?: string;
+        };
+        /**
+         * @description * `cancel` - Cancel
+         *     * `postpone` - Postpone
+         * @enum {string}
+         */
+        CaptainRequestKindEnum: "cancel" | "postpone";
+        /**
+         * @description * `pending` - Waiting for the Admin
+         *     * `accepted` - Accepted
+         *     * `declined` - Declined
+         *     * `withdrawn` - Withdrawn
+         *     * `closed` - No longer applies
+         * @enum {string}
+         */
+        CaptainRequestStatusEnum: "pending" | "accepted" | "declined" | "withdrawn" | "closed";
         /**
          * @description * `import` - Fixture import
          *     * `admin` - Admin
@@ -1346,6 +1549,32 @@ export interface components {
          * @enum {string}
          */
         CauseEnum: "import" | "admin" | "captain" | "checkpoint" | "system";
+        /** @description A Captain's request as the club's Admin sees it in the requests list. */
+        ClubCaptainRequest: {
+            readonly id: number;
+            readonly fixture_id: number;
+            readonly team: components["schemas"]["Named"];
+            readonly kind: components["schemas"]["CaptainRequestKindEnum"];
+            readonly reason: string;
+            /**
+             * Format: date-time
+             * @description The kick-off the request was made for.
+             */
+            readonly kick_off: string;
+            readonly requested_by_name: string;
+            /** Format: date-time */
+            readonly requested_at: string;
+            readonly status: components["schemas"]["CaptainRequestStatusEnum"];
+            readonly decided_by_name: string | null;
+            /**
+             * Format: date-time
+             * @description When it was accepted, declined, withdrawn or closed.
+             */
+            readonly decided_at: string | null;
+            /** @description The Admin's note, or why. */
+            readonly note: string;
+            readonly fixture: components["schemas"]["Fixture"];
+        };
         ClubCredit: {
             /** Format: decimal */
             readonly balance: string;
@@ -1562,6 +1791,36 @@ export interface components {
             /** @description A user holding the Referee role at this club. */
             referee?: number | null;
         };
+        /** @description A Fixture as a Player in one of its Teams sees it. */
+        Fixture: {
+            readonly id: number;
+            readonly club: components["schemas"]["ClubSummary"];
+            readonly season: components["schemas"]["Named"];
+            readonly division: components["schemas"]["Named"];
+            /**
+             * @description The Night: 0 is Monday.
+             *
+             *     * `0` - Monday
+             *     * `1` - Tuesday
+             *     * `2` - Wednesday
+             *     * `3` - Thursday
+             *     * `4` - Friday
+             *     * `5` - Saturday
+             *     * `6` - Sunday
+             */
+            readonly weekday: components["schemas"]["WeekdayEnum"];
+            readonly pitch: components["schemas"]["Named"];
+            /**
+             * Format: date-time
+             * @description Stored in UTC; sent with its offset. Show it in Africa/Johannesburg.
+             */
+            readonly kick_off: string;
+            readonly home_team: components["schemas"]["Named"];
+            readonly away_team: components["schemas"]["Named"];
+            /** @description If the match can't go ahead, it may become a friendly (FR-10, FR-17). */
+            readonly friendly_eligible: boolean;
+            readonly status: components["schemas"]["FixtureStatusEnum"];
+        };
         FixtureAnswerRequest: {
             /**
              * @description confirm: playing; decline: not.
@@ -1648,6 +1907,26 @@ export interface components {
              * @description An .xlsx or .csv file, up to 5 MB and 500 rows.
              */
             file: Blob;
+        };
+        /** @description An Admin's reschedule of the match, as the Admin sees it. */
+        FixtureReschedule: {
+            readonly id: number;
+            /** Format: date-time */
+            readonly from_kick_off: string;
+            /** Format: date-time */
+            readonly to_kick_off: string;
+            readonly from_pitch: components["schemas"]["Named"];
+            readonly to_pitch: components["schemas"]["Named"];
+            /** Format: date-time */
+            readonly at: string;
+            readonly by_name: string | null;
+            readonly note: string;
+            /** @description The Captain's postponement it answered. */
+            readonly request_id: number | null;
+            /** @description The new kick-off was within the Confirmation window, so they went out (FR-9). */
+            readonly confirmations_sent: boolean;
+            /** @description How many were sent the Update. */
+            readonly notified: number;
         };
         /**
          * @description * `scheduled` - Scheduled
@@ -1851,6 +2130,15 @@ export interface components {
          * @enum {string}
          */
         LedgerSubjectEnum: "team" | "player" | "booking_user";
+        /** @description My Team's requests to cancel or postpone a match, and whether I can send one. */
+        MatchRequests: {
+            /** @description I'm the Captain of my Team in this match. */
+            is_captain: boolean;
+            /** @description I'm the Captain, the match can still change and nothing is waiting. */
+            can_request: boolean;
+            /** @description Newest first. */
+            requests: components["schemas"]["CaptainRequest"][];
+        };
         /** @description The signed-in user. `player` is null when the user is not a Player. */
         Me: {
             readonly id: number;
@@ -2187,6 +2475,36 @@ export interface components {
          * @enum {string}
          */
         ReplacementStatusEnum: "open" | "accepted" | "lapsed" | "withdrawn";
+        /** @description What a reschedule will do, before the Admin confirms it. */
+        ReschedulePreview: {
+            /** Format: date-time */
+            kick_off: string;
+            pitch: components["schemas"]["Named"];
+            kick_off_changed: boolean;
+            pitch_changed: boolean;
+            status_after: components["schemas"]["FixtureStatusEnum"];
+            /** @description Within the Confirmation window: they go out at once (FR-9). */
+            confirmations_now: boolean;
+            /**
+             * Format: date-time
+             * @description Replies for the new kick-off close then (T-6h).
+             */
+            answer_by: string | null;
+            /** @description Players of both Teams told (opted into the Night). */
+            readonly players: number;
+            /** @description The Night's Admins and the affected pitch's Referee told. */
+            readonly officials: number;
+        };
+        RescheduleRequest: {
+            /**
+             * Format: date-time
+             * @description The new kick-off, with its offset (South African time is +02:00).
+             */
+            kick_off: string;
+            /** @description The new pitch; the same pitch when left out. */
+            pitch?: number | null;
+            note?: string;
+        };
         /**
          * @description * `admin` - Admin
          *     * `referee` - Referee
@@ -2556,6 +2874,116 @@ export interface operations {
             };
         };
     };
+    captain_requests_withdraw_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this captain request. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptainRequest"];
+                };
+            };
+        };
+    };
+    clubs_captain_requests_list: {
+        parameters: {
+            query?: {
+                fixture?: number;
+                status?: "accepted" | "closed" | "declined" | "pending" | "withdrawn";
+            };
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClubCaptainRequest"][];
+                };
+            };
+        };
+    };
+    clubs_captain_requests_accept_create: {
+        parameters: {
+            query?: {
+                fixture?: number;
+                status?: "accepted" | "closed" | "declined" | "pending" | "withdrawn";
+            };
+            header?: never;
+            path: {
+                club_id: number;
+                /** @description A unique integer value identifying this captain request. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CaptainRequestAcceptRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["CaptainRequestAcceptRequest"];
+                "multipart/form-data": components["schemas"]["CaptainRequestAcceptRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClubCaptainRequest"];
+                };
+            };
+        };
+    };
+    clubs_captain_requests_decline_create: {
+        parameters: {
+            query?: {
+                fixture?: number;
+                status?: "accepted" | "closed" | "declined" | "pending" | "withdrawn";
+            };
+            header?: never;
+            path: {
+                club_id: number;
+                /** @description A unique integer value identifying this captain request. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CaptainRequestDeclineRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["CaptainRequestDeclineRequest"];
+                "multipart/form-data": components["schemas"]["CaptainRequestDeclineRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClubCaptainRequest"];
+                };
+            };
+        };
+    };
     clubs_divisions_list: {
         parameters: {
             query?: never;
@@ -2887,6 +3315,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AdminFixtureDetail"];
+                };
+            };
+        };
+    };
+    clubs_fixtures_reschedule_create: {
+        parameters: {
+            query?: {
+                division?: number;
+                night?: number;
+                /** @description Without it, Seasons that haven't ended. */
+                season?: number;
+                status?: "both_teams_out" | "cancelled" | "confirming" | "friendly" | "one_team_out" | "played" | "ready" | "replacement_offered" | "scheduled";
+            };
+            header?: never;
+            path: {
+                club_id: number;
+                /** @description A unique integer value identifying this fixture. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RescheduleRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["RescheduleRequest"];
+                "multipart/form-data": components["schemas"]["RescheduleRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminFixtureDetail"];
+                };
+            };
+        };
+    };
+    clubs_fixtures_reschedule_preview_create: {
+        parameters: {
+            query?: {
+                division?: number;
+                night?: number;
+                /** @description Without it, Seasons that haven't ended. */
+                season?: number;
+                status?: "both_teams_out" | "cancelled" | "confirming" | "friendly" | "one_team_out" | "played" | "ready" | "replacement_offered" | "scheduled";
+            };
+            header?: never;
+            path: {
+                club_id: number;
+                /** @description A unique integer value identifying this fixture. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RescheduleRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["RescheduleRequest"];
+                "multipart/form-data": components["schemas"]["RescheduleRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReschedulePreview"];
                 };
             };
         };
@@ -3716,6 +4214,56 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Squad"];
+                };
+            };
+        };
+    };
+    fixtures_requests_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this fixture. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MatchRequests"];
+                };
+            };
+        };
+    };
+    fixtures_requests_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this fixture. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CaptainRequestCreateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["CaptainRequestCreateRequest"];
+                "multipart/form-data": components["schemas"]["CaptainRequestCreateRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MatchRequests"];
                 };
             };
         };

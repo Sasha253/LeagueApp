@@ -50,9 +50,14 @@ export function ClubFixturesPage() {
   return (
     <main className="la-screen">
       <ScreenHeader title="Fixtures" back={{ label: "Profile", to: "/profile" }} caption={clubName} />
-      <Link className="la-btn la-btn--secondary" to={`/clubs/${clubId}/fixtures/import`}>
-        Import fixtures
-      </Link>
+      <div className="la-actions">
+        <Link className="la-btn la-btn--secondary" to={`/clubs/${clubId}/fixtures/import`}>
+          Import fixtures
+        </Link>
+        <Link className="la-btn la-btn--secondary" to={`/clubs/${clubId}/requests`}>
+          Captain requests
+        </Link>
+      </div>
 
       {seasons.state === "ok" && seasons.data.length > 0 && (
         <fieldset className="la-fieldset la-stack-2">

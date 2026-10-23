@@ -4,7 +4,8 @@
 // When one Team was out, the search for a new opponent (FR-13 to FR-16): who the slot was
 // offered to, until when, and who took it. Once the match couldn't go ahead (FR-10 to FR-12,
 // FR-17, FR-43): the friendly and who joined it, or the cancellation and the credit returned.
-// The backend decides both; this only shows them.
+// The backend decides both; this only shows them. The Admin can reschedule the match
+// (FR-7 to FR-9) and answer its Captains' requests to cancel or postpone it (FR-18).
 
 import { useState } from "react";
 import { useParams } from "react-router";
@@ -17,10 +18,53 @@ import { LoadState, send, useClub, useLoad } from "../club/shared";
 import { POSITION_LABELS, ScreenHeader } from "../teams/shared";
 import { FIXTURE_STATUS, MatchCard } from "./shared";
 import { NOT_AN_ADMIN } from "./ClubFixturesPage";
+import { CaptainRequestsSection, moveOf, RescheduleSection, type Move } from "./reschedule";
 
 type Transition = Schemas["FixtureTransition"];
 type Replacement = Schemas["ReplacementOffer"];
 type Fallback = Schemas["FixtureFallback"];
+type Detail = Schemas["AdminFixtureDetail"];
+
+// A match still on its way to being played can be moved; the backend refuses anything else.
+const MOVABLE: Detail["status"][] = ["scheduled", "confirming", "ready"];
+
+function rescheduleLine(r: Detail["reschedules"][number]): string {
+  const pitch = r.from_pitch.id !== r.to_pitch.id ? `, ${r.from_pitch.name} to ${r.to_pitch.name}` : "";
+  return `${formatMoment(r.from_kick_off)} to ${formatMoment(r.to_kick_off)}${pitch}`;
+}
+
+function rescheduleBy(r: Detail["reschedules"][number]): string {
+  const parts = [`${formatMoment(r.at)}${r.by_name ? ` · ${r.by_name}` : ""}`, `${r.notified} told`];
+  if (r.confirmations_sent) parts.push("Confirmations sent at once");
+  return parts.join(" · ");
+}
+
+/** Reschedule and Captain requests: the picked time is shared, so a postponement can use it. */
+function MatchChanges({ clubId, fixture, onDone }: { clubId: number; fixture: Detail; onDone: () => void }) {
+  const [move, setMove] = useState<Move>(() => moveOf(fixture));
+  return (
+    <>
+      <CaptainRequestsSection clubId={clubId} requests={fixture.captain_requests} move={move} onDone={onDone} />
+      {MOVABLE.includes(fixture.status) && (
+        <RescheduleSection clubId={clubId} fixture={fixture} move={move} onMove={setMove} onDone={onDone} />
+      )}
+      {fixture.reschedules.length > 0 && (
+        <ul className="la-group" aria-label="Reschedules">
+          {fixture.reschedules.map((r) => (
+            <li key={r.id} className="la-item">
+              <span className="la-item__body">
+                <span className="body-strong">Moved {rescheduleLine(r)}</span>
+                <span className="caption la-muted">{rescheduleBy(r)}</span>
+                {r.note && <span className="caption">{r.note}</span>}
+              </span>
+              <StatusChip status="info">Rescheduled</StatusChip>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
 
 const FALLBACK_OUTCOME: Record<Fallback["outcome"], { status: Status; label: string }> = {
   friendly: { status: "info", label: "Friendly" },
@@ -150,6 +194,13 @@ export function ClubFixturePage() {
               )}
               {error && <Banner status="cancelled" title={error} />}
             </section>
+
+            <MatchChanges
+              key={`${match.kick_off}-${match.pitch.id}`}
+              clubId={clubId}
+              fixture={match}
+              onDone={reload}
+            />
 
             {match.replacements.length > 0 && (
               <section className="la-stack-2" aria-labelledby="replacement">

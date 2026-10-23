@@ -135,8 +135,13 @@ def _locked(fixture_id: int) -> tuple[Fixture, ClubSettings]:
 
 
 @transaction.atomic
-def send_confirmations(fixture_id: int, now: datetime | None = None) -> bool:
-    """T-36h (FR-1). True when it ran now; False when not due or it already ran."""
+def send_confirmations(
+    fixture_id: int, now: datetime | None = None, *, actor=None, note: str = ""
+) -> bool:
+    """T-36h (FR-1). True when it ran now; False when not due or it already ran.
+
+    An Admin's reschedule to within the window (FR-9) calls it at once, as `actor`.
+    """
     now = now or timezone.now()
     fixture, club_settings = _locked(fixture_id)
     cutoff = confirmation_cutoff(fixture, club_settings)
@@ -149,8 +154,9 @@ def send_confirmations(fixture_id: int, now: datetime | None = None) -> bool:
     lifecycle.transition(
         fixture,
         S.CONFIRMING,
-        cause=FixtureTransition.Cause.CHECKPOINT,
-        note=f"T-{club_settings.confirmation_hours_before}h: Confirmations sent.",
+        cause=FixtureTransition.Cause.ADMIN if actor else FixtureTransition.Cause.CHECKPOINT,
+        actor=actor,
+        note=note or f"T-{club_settings.confirmation_hours_before}h: Confirmations sent.",
     )
     title, body = notifications.confirmation_content(fixture)
     notifications.notify(
