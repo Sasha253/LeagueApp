@@ -2,6 +2,30 @@
 
 Newest first. Each entry: the date, what was decided, and why.
 
+## 2026-10-23: Notifications (chunk 9) (provisional, unattended run)
+
+Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 9: Notifications
+(backend and push sending)".
+
+- **Notification (provisional, unattended run):** one per recipient, belongs to a Club, of
+  one of the seven PRD kinds. The kind gives its buttons: Confirm / Decline
+  (Confirmation, Booking), Accept / Decline (Player and Goalkeeper Requests), a "Find a
+  match" link (General), none (Reminder, Update). An answer can be changed until
+  `answer_by` and while the notification is open. Every notification stays in the inbox
+  whether or not the push arrived.
+- **Targeting (provisional, unattended run):** all recipients come from
+  `backend/notifications/targeting.py`. Night opt-ins filter every notification sent to a
+  Player, their own Team's included. "The Admin of the registered Night" is every Admin
+  of the Night's Club. "Referees" means the Fixture's pitch's Referee (both pitches when
+  a reschedule moves it). A Player who plays both positions gets both kinds of request.
+- **Push (provisional, unattended run):** Firebase Cloud Messaging through firebase-admin,
+  credentials from FIREBASE_CREDENTIALS_FILE or FIREBASE_CREDENTIALS_JSON. Locally pushes
+  are only logged; tests use a fake sender. Pushes go out after the transaction commits.
+  Dead tokens are removed; a token registered again moves to the account signed in.
+- **Delivery fallback (provisional, unattended run):** not built yet; only the inbox and
+  recorded push results. The proposal (retries in chunk 11, then email) waits for an
+  answer.
+
 ## 2026-10-23: Ledger and credit (chunk 8) (provisional, unattended run)
 
 Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 8: Ledger and credit".

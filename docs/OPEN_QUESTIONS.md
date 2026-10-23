@@ -134,3 +134,60 @@ docs/DECISIONS.md under "2026-10-23: Teams (chunk 5)".
   reversal, at most once, with a reason. Spent credit can't be reversed. To undo a
   mistaken reversal, record the entry again. Why: FR-50; keeps every balance from going
   below zero. If the answer differs: change the checks in `ledger.services.reverse`.
+
+## Chunk 9: Notifications (backend and push sending)
+
+- **Does the Night opt-in also filter a Player's own Team's notifications?** Question: the
+  PRD says "Players only receive notifications for the Nights they opted into", but FR-1
+  says every Player of both Teams gets a Confirmation. Choice: the opt-in filters every
+  notification addressed to a Player (Captains too), own Team included, as CLAUDE.md asks
+  ("follows the PRD exactly"). Admins and Referees are told through their Club role and
+  are not filtered. Why: the literal rule, and the stricter one. Risk: a Player in a
+  Tuesday Team who didn't opt into Tuesday gets no Confirmation, so may count as not
+  confirmed at T-6h. If the answer differs: in `notifications/targeting.py`, drop
+  `opted_in()` from `team_players` and `fixture_players` (keep it in `players_outside`),
+  or opt a Player into a Team's Night when they join it (teams chunk).
+- **Who is "the Admin of the registered Night"? (FR-8)** Question: a Night has no Admin of
+  its own; Admins are held per Club. Choice: every Admin of the Night's Club
+  (`targeting.night_admins`). Why: no model for a Night's Admin exists, and adding one is a
+  bigger change than this chunk. If the answer differs: add Admins to Night and change
+  `night_admins` only; every caller goes through it.
+- **Which Referees are told for FR-4, FR-12, FR-16 and FR-17?** Question: the PRD says
+  "Referees" without saying which. Choice: only the Referee of the Fixture's pitch, while
+  they still hold the Referee role at that Club; on a pitch change (FR-8) the old and the
+  new pitch's Referees. Why: they are the ones affected; the fewest people told. If the
+  answer differs: add the Club's Referees in `targeting.officials`.
+- **Which Admins are told for the Reminder and FR-12, FR-16, FR-17?** Choice: the Night's
+  Admins, which today is every Admin of the Club. If the answer differs: change
+  `targeting.officials`.
+- **Player Requests to Players who play both positions.** Choice: a Player whose position
+  is "both" gets Player Requests and Goalkeeper Requests. A Player in another Team of the
+  same Night can still be asked (only the two opposing Teams are left out, FR-36). If the
+  answer differs: change `targeting.players_outside`.
+- **Delivery failure fallback (NFR Timeliness) - proposal, not built.** The prompt asks to
+  propose and ask first. Proposal: (1) every notification is kept in the inbox whatever
+  happens to the push (built); (2) each push result is recorded, and tokens Firebase
+  reports as dead are removed (built); (3) with Celery (chunk 11), retry a failed push
+  twice, 1 and 5 minutes later; (4) if an answerable notification (Confirmation, Player
+  or Goalkeeper Request, Booking) still has no device that took it, or no answer 2 hours
+  before its `answer_by`, send an email with a link to the app; SMS only if the club
+  wants to pay for it. Choice for now: (1) and (2) only. Why: the prompt says to ask
+  before building the fallback, and email and SMS need a provider and its keys. If the
+  answer differs: build (3) and (4) in chunk 11 or later.
+- **Sending now, not from Celery.** Choice: `notify()` pushes in the same process right
+  after the transaction commits. Why: Celery arrives in chunk 11. If the answer differs:
+  chunk 11 moves `services.push` into a task; callers don't change.
+- **FCM registration tokens.** firebase-admin 7.7 marks `Message.token` deprecated in
+  favour of `fid` (Firebase installation ID). Choice: send by registration token, which
+  is what `@capacitor/push-notifications` gives on Android (iOS needs FCM tokens too, so
+  chunk 10 must register an FCM token, not the raw APNs token). If the answer differs:
+  store the FID in `DeviceToken.token` and send with `fid=` in `FirebaseSender`.
+- **A token registered by another account.** Choice: registering a token already known
+  moves it to the account now signed in (a shared or handed-on phone gets the new
+  account's pushes only). Removing a device works only for its owner. Why: a phone
+  should never receive another account's notifications. If the answer differs: refuse
+  with 409 in `DeviceListView`.
+- **Answering.** Choice: an answer can be changed until `answer_by` (later chunks set it,
+  e.g. T-6h for FR-3) and while the notification isn't closed; closed or late answers get
+  409. What an answer does is left to later chunks through the `notification_answered`
+  signal. The inbox shows the newest 100, unanswered ones first.

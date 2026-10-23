@@ -637,6 +637,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/devices/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Registers this phone for push. A token already known is moved to this account. */
+        post: operations["devices_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/devices/{device_id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** @description Forgets this phone (on logout), so it gets no more pushes for this account. */
+        delete: operations["devices_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/fixtures/{id}/": {
         parameters: {
             query?: never;
@@ -666,6 +700,88 @@ export interface paths {
         };
         /** @description Liveness check for the app and for deployments. Open to everyone. */
         get: operations["health_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inbox/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The signed-in user's notifications: unanswered ones on top, then newest first. */
+        get: operations["inbox_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inbox/{notification_id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["inbox_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inbox/{notification_id}/answer/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Confirm or decline, accept or decline. The answer can be changed while it is open. */
+        post: operations["inbox_answer_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inbox/{notification_id}/read/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["inbox_read_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inbox/summary/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["inbox_summary_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1021,6 +1137,18 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        Action: {
+            /** @description An answer, or `find_match`. */
+            readonly key: string;
+            readonly label: string;
+            /**
+             * @description `answer` posts to the answer endpoint; `open` only opens a screen.
+             *
+             *     * `answer` - Answer
+             *     * `open` - Open
+             */
+            readonly action: components["schemas"]["NotificationActionEnum"];
+        };
         /** @description A Fixture as the club's Admin sees it. FriendlyEligibleSerializer changes it. */
         AdminFixture: {
             readonly id: number;
@@ -1115,6 +1243,9 @@ export interface components {
             decided_at?: string | null;
             decline_reason?: string;
             readonly members: components["schemas"]["Member"][];
+        };
+        AnswerRequest: {
+            answer: components["schemas"]["NotificationAnswerEnum"];
         };
         AssignCaptainRequest: {
             /** @description The user id of a Player in the Team. */
@@ -1243,6 +1374,25 @@ export interface components {
         };
         DeclineTeamRequest: {
             reason?: string;
+        };
+        /**
+         * @description * `ios` - iOS
+         *     * `android` - Android
+         *     * `web` - Web
+         * @enum {string}
+         */
+        DevicePlatformEnum: "ios" | "android" | "web";
+        DeviceToken: {
+            readonly id: number;
+            platform: components["schemas"]["DevicePlatformEnum"];
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly last_seen_at: string;
+        };
+        DeviceTokenRequest: {
+            token: string;
+            platform: components["schemas"]["DevicePlatformEnum"];
         };
         /** @description For a record of the Club in the URL. The view puts that Club in the context. */
         Division: {
@@ -1464,6 +1614,10 @@ export interface components {
              */
             file: Blob;
         };
+        InboxSummary: {
+            readonly unread: number;
+            readonly needs_reply: number;
+        };
         JoinRequest: {
             readonly id: number;
             readonly team: components["schemas"]["Team"];
@@ -1622,6 +1776,55 @@ export interface components {
             readonly club: components["schemas"]["ClubSummary"];
             weekday: components["schemas"]["WeekdayEnum"];
         };
+        Notification: {
+            readonly id: number;
+            readonly kind: components["schemas"]["NotificationKindEnum"];
+            readonly title: string;
+            readonly body: string;
+            readonly club_id: number;
+            readonly fixture_id: number | null;
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly read_at: string | null;
+            readonly answer: components["schemas"]["NotificationAnswerEnum"] | components["schemas"]["BlankEnum"];
+            /** Format: date-time */
+            readonly answered_at: string | null;
+            /**
+             * Format: date-time
+             * @description No answer is taken after this (e.g. T-6h, FR-3).
+             */
+            readonly answer_by: string | null;
+            readonly actions: components["schemas"]["Action"][];
+            /** @description It can be answered (or the answer changed) now. */
+            readonly can_answer: boolean;
+            /** @description It can be answered now and has no answer yet. */
+            readonly needs_reply: boolean;
+        };
+        /**
+         * @description * `answer` - Answer
+         *     * `open` - Open
+         * @enum {string}
+         */
+        NotificationActionEnum: "answer" | "open";
+        /**
+         * @description * `confirm` - Confirm
+         *     * `decline` - Decline
+         *     * `accept` - Accept
+         * @enum {string}
+         */
+        NotificationAnswerEnum: "confirm" | "decline" | "accept";
+        /**
+         * @description * `confirmation` - Confirmation
+         *     * `reminder` - Reminder
+         *     * `general` - General
+         *     * `update` - Update
+         *     * `player_request` - Player Request
+         *     * `goalkeeper_request` - Goalkeeper Request
+         *     * `booking` - Booking
+         * @enum {string}
+         */
+        NotificationKindEnum: "confirmation" | "reminder" | "general" | "update" | "player_request" | "goalkeeper_request" | "booking";
         /** @enum {unknown} */
         NullEnum: null;
         PaidByMethod: {
@@ -3044,6 +3247,51 @@ export interface operations {
             };
         };
     };
+    devices_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeviceTokenRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["DeviceTokenRequest"];
+                "multipart/form-data": components["schemas"]["DeviceTokenRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeviceToken"];
+                };
+            };
+        };
+    };
+    devices_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                device_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     fixtures_retrieve: {
         parameters: {
             query?: never;
@@ -3089,6 +3337,116 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Health"];
+                };
+            };
+        };
+    };
+    inbox_list: {
+        parameters: {
+            query?: {
+                /** @description Needs reply: can be answered and isn't yet. Updates: no answer buttons (Reminder, General, Update). */
+                filter?: "all" | "needs_reply" | "updates";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notification"][];
+                };
+            };
+        };
+    };
+    inbox_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notification_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notification"];
+                };
+            };
+        };
+    };
+    inbox_answer_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notification_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnswerRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["AnswerRequest"];
+                "multipart/form-data": components["schemas"]["AnswerRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notification"];
+                };
+            };
+        };
+    };
+    inbox_read_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notification_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notification"];
+                };
+            };
+        };
+    };
+    inbox_summary_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboxSummary"];
                 };
             };
         };

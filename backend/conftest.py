@@ -62,3 +62,14 @@ def admin_of(make_user, give_role):
         return client
 
     return make
+
+
+@pytest.fixture(autouse=True)
+def fake_push(settings):
+    """Every test pushes through FakeSender; `fake_push.sent` lists what went out."""
+    from notifications.push import FakeSender
+
+    settings.PUSH_SENDER = "notifications.push.FakeSender"
+    FakeSender.reset()
+    yield FakeSender
+    FakeSender.reset()

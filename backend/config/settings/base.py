@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "teams",
     "fixtures",
     "ledger",
+    "notifications",
 ]
 
 MIDDLEWARE = [
@@ -132,6 +133,10 @@ SPECTACULAR_SETTINGS = {
         "LedgerMethodEnum": "ledger.models.LEDGER_METHODS",
         "LedgerSubjectEnum": "ledger.models.LEDGER_SUBJECTS",
         "LedgerCategoryEnum": "ledger.models.LEDGER_CATEGORIES",
+        "NotificationKindEnum": "notifications.models.NOTIFICATION_KINDS",
+        "NotificationAnswerEnum": "notifications.models.NOTIFICATION_ANSWERS",
+        "NotificationActionEnum": "notifications.models.NOTIFICATION_ACTIONS",
+        "DevicePlatformEnum": "notifications.models.DEVICE_PLATFORMS",
     },
 }
 
@@ -140,3 +145,10 @@ SPECTACULAR_SETTINGS = {
 # token auth, so CORS never needs credentials (cookies).
 CAPACITOR_ORIGINS = ["capacitor://localhost", "https://localhost"]
 CORS_ALLOWED_ORIGINS = [*env.list("CORS_ALLOWED_ORIGINS", default=[]), *CAPACITOR_ORIGINS]
+
+# Push notifications (notifications/push.py). Locally pushes are only logged; production
+# sends through Firebase Cloud Messaging with a service account from the environment:
+# a file path (FIREBASE_CREDENTIALS_FILE) or the JSON itself (FIREBASE_CREDENTIALS_JSON).
+PUSH_SENDER = env("PUSH_SENDER", default="notifications.push.LogSender")
+FIREBASE_CREDENTIALS_FILE = env("FIREBASE_CREDENTIALS_FILE", default="")
+FIREBASE_CREDENTIALS_JSON = env("FIREBASE_CREDENTIALS_JSON", default="")
