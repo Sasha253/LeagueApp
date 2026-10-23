@@ -115,3 +115,37 @@ By hand:
 
 Checks: make test 404 passed; make lint clean; npm test 162 passed (31 files);
 npm run build ok.
+
+## Review (fix: chunk 10 review)
+
+Independent review of 62d4d93 against the chunk 10 prompt and CLAUDE.md.
+
+Checked, no change needed:
+- Device features only through `frontend/src/native/push.ts`, every call a no-op in the
+  browser; token auth only (no cookies).
+- Club isolation: the inbox API (chunk 9) filters by recipient; the app shows only what
+  the API returns. "Open the match" picks the club Fixture screen only for an Admin of
+  the notification's own Club; the backend still checks the role.
+- Nothing decided in the frontend: can_answer, needs_reply and answer_by come from the
+  API. No money, ledger or configurable values touched. No API change, so no gen:api.
+- Logout removes the device registration before the session ends; a tapped push or
+  button only opens a screen and never answers by itself (logged in OPEN_QUESTIONS).
+- UI uses design-system tokens and `la-` classes; new pieces are listed as proposed
+  components in docs/DECISIONS.md.
+- Nothing from later chunks (tab bar, Games you can join, what an answer does).
+
+Fixed:
+- Inbox: switching filter kept showing the previous filter's rows (for example every
+  notification under "Updates") until the new list arrived, because the shared `useLoad`
+  keeps the last result while a new key loads. The list is now its own component keyed by
+  the filter, so a new filter starts from the loading state. Test added
+  ("never shows the last filter's rows while the next one loads").
+
+Not changed (noted):
+- iOS still hands Capacitor the APNs token until Firebase is added by hand (step 3 of
+  "By hand"); pushes to iPhones fail until then. Documented by the builder.
+- A notification URL with a non-numeric id shows the load error with Retry rather than
+  "not found". Cosmetic.
+
+Checks after the fix: make test 404 passed (backend unchanged); make lint clean;
+npm test 163 passed (31 files); npm run build ok.

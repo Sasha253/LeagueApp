@@ -69,6 +69,24 @@ describe("InboxPage", () => {
     expect(asked).toBe(3);
   });
 
+  it("never shows the last filter's rows while the next one loads", async () => {
+    await openAs(
+      "/inbox",
+      {
+        [LIST]: (request: Request) =>
+          new URL(request.url).searchParams.get("filter") === "updates"
+            ? new Promise<Response>(() => {}) // still loading
+            : json(200, [notification(), UPDATE]),
+      },
+      "Inbox",
+    );
+    await screen.findByRole("region", { name: "Needs reply" });
+
+    await userEvent.click(screen.getByRole("button", { name: "Updates" }));
+
+    expect(screen.queryByRole("link", { name: /Can you make/ })).not.toBeInTheDocument();
+  });
+
   it("says when there is nothing, per filter", async () => {
     await openAs("/inbox", { [LIST]: byFilter({}) }, "Inbox");
 

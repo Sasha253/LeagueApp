@@ -73,22 +73,48 @@ function Section({ title, id, items }: { title?: string; id: string; items: Noti
   );
 }
 
-export function InboxPage() {
-  const [filter, setFilter] = useState<Filter>("all");
+/** The notifications for one filter; reloads when the inbox changes. */
+function List({ filter, onSeeAll }: { filter: Filter; onSeeAll: () => void }) {
   const [list, reloadList] = useLoad(
     () => api.GET("/api/v1/inbox/", { params: { query: { filter } } }),
     `inbox-${filter}`,
   );
+  useEffect(() => onInboxChanged(reloadList), [reloadList]);
+
+  return (
+    <LoadState result={list} retry={reloadList} what="inbox" forbidden="Sign in to see your inbox.">
+      {(items) =>
+        items.length === 0 ? (
+          <div className="la-stack-2">
+            <p className="body la-muted">{EMPTY[filter]}</p>
+            {filter === "all" ? (
+              <Link className="la-btn la-btn--secondary" to="/profile">
+                Choose your Nights
+              </Link>
+            ) : (
+              <button type="button" className="la-btn la-btn--secondary" onClick={onSeeAll}>
+                See all
+              </button>
+            )}
+          </div>
+        ) : filter === "all" ? (
+          <>
+            <Section title="Needs reply" id="needs-reply" items={items.filter((n) => n.needs_reply)} />
+            <Section title="Earlier" id="earlier" items={items.filter((n) => !n.needs_reply)} />
+          </>
+        ) : (
+          <Section id="list" items={items} />
+        )
+      }
+    </LoadState>
+  );
+}
+
+export function InboxPage() {
+  const [filter, setFilter] = useState<Filter>("all");
   const [summary, reloadSummary] = useLoad(() => api.GET("/api/v1/inbox/summary/"), "inbox-summary");
 
-  useEffect(
-    () =>
-      onInboxChanged(() => {
-        reloadList();
-        reloadSummary();
-      }),
-    [reloadList, reloadSummary],
-  );
+  useEffect(() => onInboxChanged(reloadSummary), [reloadSummary]);
 
   const waiting = summary.state === "ok" ? summary.data.needs_reply : 0;
   const unread = summary.state === "ok" ? summary.data.unread : 0;
@@ -119,31 +145,8 @@ export function InboxPage() {
           </button>
         ))}
       </div>
-      <LoadState result={list} retry={reloadList} what="inbox" forbidden="Sign in to see your inbox.">
-        {(items) =>
-          items.length === 0 ? (
-            <div className="la-stack-2">
-              <p className="body la-muted">{EMPTY[filter]}</p>
-              {filter === "all" ? (
-                <Link className="la-btn la-btn--secondary" to="/profile">
-                  Choose your Nights
-                </Link>
-              ) : (
-                <button type="button" className="la-btn la-btn--secondary" onClick={() => setFilter("all")}>
-                  See all
-                </button>
-              )}
-            </div>
-          ) : filter === "all" ? (
-            <>
-              <Section title="Needs reply" id="needs-reply" items={items.filter((n) => n.needs_reply)} />
-              <Section title="Earlier" id="earlier" items={items.filter((n) => !n.needs_reply)} />
-            </>
-          ) : (
-            <Section id="list" items={items} />
-          )
-        }
-      </LoadState>
+      {/* Keyed by filter: a new filter starts loading afresh, never showing the last one's rows. */}
+      <List key={filter} filter={filter} onSeeAll={() => setFilter("all")} />
     </main>
   );
 }
