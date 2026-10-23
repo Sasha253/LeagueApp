@@ -2,6 +2,25 @@
 
 Newest first. Each entry: the date, what was decided, and why.
 
+## 2026-10-23: Teams screens (chunk 6) (provisional, unattended run)
+
+Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 6: Teams (UI)".
+
+- **No drawn Team screens (provisional, unattended run):** design/ has no Team mockups, so
+  the screens follow the Screens.md descriptions (Player 4 and 5, Captain 1 to 3, Admin 3)
+  with the existing `la-` components.
+- **Where Teams are reached (provisional, unattended run):** there is no tab bar yet, so
+  Profile links a Player to Teams (`/teams`) and an Admin to Team requests
+  (`/clubs/{id}/teams`). The tab bar comes in a later chunk.
+- **Division filter in Find a team (provisional, unattended run):** after a Night is
+  picked, its Division chips are the Divisions of that Night's Teams in the results.
+- **Declined Teams (provisional, unattended run):** a declined Team drops out of the
+  Player's Teams list, as the chunk 5 API does, and its reason is shown only to Admins. The
+  Captain hears of it with the notifications chunks.
+- **Proposed component:** SelectableRow (`.la-item--choice` in
+  `frontend/src/styles/proposed.css`): a ListRow picked like a radio, `accent-soft` when
+  selected. Used for the Night and Division rows in Request a Team.
+
 ## 2026-10-23: Teams (chunk 5)
 
 Decided by @Sasha while building chunk 5 (the Captain and Admin rows of the roles table).

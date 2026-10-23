@@ -11,6 +11,12 @@ import { ImportNightsPage } from "./pages/club/ImportNightsPage";
 import { NightsPage } from "./pages/club/NightsPage";
 import { PeoplePage } from "./pages/club/PeoplePage";
 import { SeasonsPage } from "./pages/club/SeasonsPage";
+import { ClubTeamPage } from "./pages/teams/ClubTeamPage";
+import { ClubTeamsPage } from "./pages/teams/ClubTeamsPage";
+import { FindTeamPage } from "./pages/teams/FindTeamPage";
+import { MyTeamsPage } from "./pages/teams/MyTeamsPage";
+import { RequestTeamPage } from "./pages/teams/RequestTeamPage";
+import { TeamPage } from "./pages/teams/TeamPage";
 
 export const routes: RouteObject[] = [
   { path: "/", element: <HomePage /> },
@@ -27,6 +33,12 @@ export const routes: RouteObject[] = [
       { path: "/clubs/:clubId/setup/nights/import", element: <ImportNightsPage /> },
       { path: "/clubs/:clubId/setup/fields", element: <FieldsPage /> },
       { path: "/clubs/:clubId/setup/people", element: <PeoplePage /> },
+      { path: "/clubs/:clubId/teams", element: <ClubTeamsPage /> },
+      { path: "/clubs/:clubId/teams/:teamId", element: <ClubTeamPage /> },
+      { path: "/teams", element: <MyTeamsPage /> },
+      { path: "/teams/find", element: <FindTeamPage /> },
+      { path: "/teams/new", element: <RequestTeamPage /> },
+      { path: "/teams/:teamId", element: <TeamPage /> },
     ],
   },
 ];

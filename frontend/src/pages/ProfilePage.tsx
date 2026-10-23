@@ -118,6 +118,19 @@ export function ProfilePage() {
         <p className="caption la-muted">{me.email}</p>
       </div>
 
+      {me.player && (
+        <ul className="la-group">
+          <li>
+            <Link className="la-item la-item--link" to="/teams">
+              <span className="la-item__body">
+                <span className="body-strong">Teams</span>
+                <span className="caption la-muted">Your Teams, find a team, request a Team</span>
+              </span>
+            </Link>
+          </li>
+        </ul>
+      )}
+
       {me.club_roles.length > 0 && (
         <section className="la-stack-2" aria-labelledby="club-roles">
           <h2 id="club-roles" className="la-overline">
@@ -131,13 +144,22 @@ export function ProfilePage() {
                   <span className="caption la-muted">{role.club_name}</span>
                 </div>
                 {role.role === "admin" && (
-                  <Link
-                    className="la-btn la-btn--secondary la-btn--sm"
-                    to={`/clubs/${role.club_id}/setup`}
-                    aria-label={`Club setup for ${role.club_name}`}
-                  >
-                    Club setup
-                  </Link>
+                  <span className="la-confirm">
+                    <Link
+                      className="la-btn la-btn--secondary la-btn--sm"
+                      to={`/clubs/${role.club_id}/teams`}
+                      aria-label={`Team requests for ${role.club_name}`}
+                    >
+                      Team requests
+                    </Link>
+                    <Link
+                      className="la-btn la-btn--secondary la-btn--sm"
+                      to={`/clubs/${role.club_id}/setup`}
+                      aria-label={`Club setup for ${role.club_name}`}
+                    >
+                      Club setup
+                    </Link>
+                  </span>
                 )}
               </li>
             ))}

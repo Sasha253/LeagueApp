@@ -88,6 +88,22 @@ describe("ProfilePage", () => {
     expect(router.state.location.pathname).toBe("/clubs/1/setup");
   });
 
+  it("links an Admin to the club's Team requests", async () => {
+    await openProfile({ ...ME, club_roles: [{ club_id: 1, club_name: "Club A", role: "admin" }] });
+
+    expect(screen.getByRole("link", { name: "Team requests for Club A" })).toHaveAttribute("href", "/clubs/1/teams");
+  });
+
+  it("links a Player to Teams", async () => {
+    await openProfile();
+    expect(screen.getByRole("link", { name: /^Teams/ })).toHaveAttribute("href", "/teams");
+  });
+
+  it("has no Teams link for someone who only hires fields", async () => {
+    await openProfile({ ...ME, player: null, is_booking_user: true });
+    expect(screen.queryByRole("link", { name: /^Teams/ })).not.toBeInTheDocument();
+  });
+
   it("hides position and Nights for someone who only hires fields", async () => {
     await openProfile({ ...ME, player: null, is_booking_user: true });
 

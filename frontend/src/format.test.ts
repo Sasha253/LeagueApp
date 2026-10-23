@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDate, formatRand } from "./format";
+import { formatDate, formatRand, localDate } from "./format";
 
 describe("formatRand", () => {
   it.each([
@@ -16,5 +16,12 @@ describe("formatDate", () => {
   it("shows the weekday, day and month", () => {
     expect(formatDate("2026-10-27")).toBe("Tue 27 Oct");
     expect(formatDate("2026-08-04")).toBe("Tue 4 Aug");
+  });
+});
+
+describe("localDate", () => {
+  it("gives the date in South Africa, not in UTC", () => {
+    expect(localDate("2026-10-26T23:30:00Z")).toBe("2026-10-27");
+    expect(localDate("2026-10-26T21:00:00Z")).toBe("2026-10-26");
   });
 });

@@ -71,3 +71,13 @@
 .la-file { cursor: pointer; }
 .la-file:focus-within { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .la-file:has(input:disabled) { opacity: .6; cursor: default; }
+
+/* SelectableRow: a ListRow that is picked, like a radio. Selected rows use accent-soft
+   (design/src/ds/README.md, Colour). */
+.la-item--choice { width: 100%; background: transparent; border-left: 0; border-right: 0; border-bottom: 0; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.la-group > li:first-child > .la-item--choice { border-top: 0; }
+.la-item--choice:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.la-item--choice:active { opacity: .72; }
+.la-item--choice[aria-pressed="true"] { background: var(--accent-soft); }
+.la-item--choice[aria-pressed="true"] .body-strong { color: var(--accent-ink); }
+.la-item--choice:disabled { opacity: .4; cursor: default; }

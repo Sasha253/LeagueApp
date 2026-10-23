@@ -23,3 +23,14 @@ export function formatDate(isoDate: string): string {
 /** Night weekdays as the API numbers them: 0 is Monday. */
 export const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 export const WEEKDAYS_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+/** The South African calendar date of a moment from the API (UTC): "2026-10-26T23:30:00Z" → "2026-10-27". */
+export function localDate(isoDateTime: string): string {
+  // en-CA writes dates as YYYY-MM-DD.
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Johannesburg",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(isoDateTime));
+}

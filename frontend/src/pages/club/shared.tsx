@@ -67,11 +67,14 @@ export function LoadState<T>({
   result,
   retry,
   what,
+  forbidden = "Only this club's Admins can open club setup.",
   children,
 }: {
   result: Loaded<T>;
   retry: () => void;
   what: string;
+  /** What a 403 means on this screen. */
+  forbidden?: string;
   children: (data: T) => ReactNode;
 }) {
   if (result.state === "loading") {
@@ -82,7 +85,7 @@ export function LoadState<T>({
     );
   }
   if (result.state === "forbidden") {
-    return <Banner status="cancelled" title="Only this club's Admins can open club setup." />;
+    return <Banner status="cancelled" title={forbidden} />;
   }
   if (result.state === "error") {
     return (
