@@ -5,6 +5,7 @@ development they can live in a git-ignored .env file at the repo root; real envi
 variables always take precedence over it.
 """
 
+import json
 from datetime import timedelta
 from pathlib import Path
 
@@ -40,6 +41,7 @@ INSTALLED_APPS = [
     "fixtures",
     "ledger",
     "notifications",
+    "payments",
 ]
 
 MIDDLEWARE = [
@@ -150,6 +152,9 @@ SPECTACULAR_SETTINGS = {
         "CaptainRequestStatusEnum": "fixtures.models.CAPTAIN_REQUEST_STATUSES",
         "PlayerRequestKindEnum": "fixtures.models.PLAYER_REQUEST_KINDS",
         "PlayerRequestStatusEnum": "fixtures.models.PLAYER_REQUEST_STATUSES",
+        "PaymentProviderEnum": "clubs.models.PaymentProvider",
+        "PaymentStatusEnum": "payments.models.PAYMENT_STATUSES",
+        "PaymentCreditEnum": "payments.models.PAYMENT_CREDIT_SOURCES",
     },
 }
 
@@ -189,3 +194,33 @@ CELERY_BEAT_SCHEDULE = {
         "options": {"expires": CHECKPOINT_INTERVAL_SECONDS},
     },
 }
+
+# Card payments (payments/). Card details go only to the gateway's hosted page, never to
+# this app. PayFast credentials come from the environment: one default merchant account,
+# and optionally an account per Club in PAYFAST_CLUB_ACCOUNTS, a JSON object keyed by Club
+# id: {"12": {"merchant_id": "...", "merchant_key": "...", "passphrase": "..."}}.
+# PAYFAST_SANDBOX picks PayFast's sandbox hosts; production must set it to false.
+PAYFAST_SANDBOX = env.bool("PAYFAST_SANDBOX", default=True)
+PAYFAST_MERCHANT_ID = env("PAYFAST_MERCHANT_ID", default="")
+PAYFAST_MERCHANT_KEY = env("PAYFAST_MERCHANT_KEY", default="")
+PAYFAST_PASSPHRASE = env("PAYFAST_PASSPHRASE", default="")
+PAYFAST_CLUB_ACCOUNTS = json.loads(env("PAYFAST_CLUB_ACCOUNTS", default="") or "{}")
+# Where PayFast posts its ITN (this API's payments/payfast/notify/ on a public HTTPS host),
+# and where the payer's browser goes after paying or cancelling.
+PAYFAST_NOTIFY_URL = env("PAYFAST_NOTIFY_URL", default="")
+PAYMENT_RETURN_URL = env("PAYMENT_RETURN_URL", default="")
+PAYMENT_CANCEL_URL = env("PAYMENT_CANCEL_URL", default="")
+# ITNs are accepted only from PayFast's networks (PayFast's published list; check it
+# before going live). Behind a reverse proxy, PAYFAST_TRUSTED_PROXIES is how many proxies
+# add themselves to X-Forwarded-For; 0 reads the connecting address.
+PAYFAST_ITN_NETWORKS = env.list(
+    "PAYFAST_ITN_NETWORKS",
+    default=[
+        "197.97.145.144/28",
+        "41.74.179.192/27",
+        "102.216.36.0/28",
+        "102.216.36.128/28",
+        "144.126.193.139/32",
+    ],
+)
+PAYFAST_TRUSTED_PROXIES = env.int("PAYFAST_TRUSTED_PROXIES", default=0)

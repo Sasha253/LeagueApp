@@ -95,6 +95,7 @@ class TeamBalanceView(APIView):
             "paid": balance.paid,
             "outstanding": balance.outstanding,
             "paid_by_method": balance.paid_by_method,
+            "is_paid": balance.is_paid,
             "entries": entries_of(services.account_entries(team)),
         }
         return Response(TeamBalanceSerializer(data).data)

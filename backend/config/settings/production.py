@@ -22,3 +22,6 @@ STORAGES = {
 }
 
 PUSH_SENDER = env("PUSH_SENDER", default="notifications.push.FirebaseSender")
+
+# Live PayFast unless the environment says otherwise.
+PAYFAST_SANDBOX = env.bool("PAYFAST_SANDBOX", default=False)

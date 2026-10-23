@@ -680,6 +680,23 @@ export interface paths {
         patch: operations["clubs_settings_partial_update"];
         trace?: never;
     };
+    "/api/v1/clubs/{club_id}/team-payments/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Which of the club's active Teams have paid (FR-21), unpaid first. */
+        get: operations["clubs_team_payments_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clubs/{club_id}/teams/": {
         parameters: {
             query?: never;
@@ -1166,6 +1183,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/payments/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The signed-in Player's payments, newest first. */
+        get: operations["me_payments_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/player-requests/": {
         parameters: {
             query?: never;
@@ -1224,6 +1258,45 @@ export interface paths {
         get: operations["nights_list"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payments/{reference}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description One payment, for the Player who made it (e.g. after returning from the gateway). */
+        get: operations["payments_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payments/payfast/notify/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description PayFast's ITN webhook. No login: PayFast calls it, and every ITN is checked.
+         *
+         *     Answers 200 when the ITN was applied or had already been, so PayFast stops sending
+         *     it, and 400 when a check failed (nothing is recorded).
+         */
+        post: operations["payments_payfast_notify_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1422,6 +1495,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/teams/{team_id}/cash-payments/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description An Admin of the Team's Club records cash paid to the club (FR-22). */
+        post: operations["teams_cash_payments_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/teams/{team_id}/credit/": {
         parameters: {
             query?: never;
@@ -1431,6 +1521,40 @@ export interface paths {
         };
         /** @description A Team's own credit. Only its Captain sees it. */
         get: operations["teams_credit_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/{team_id}/payments/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description A Player pays towards their Team: credit first if chosen, then card (FR-19). */
+        post: operations["teams_payments_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/{team_id}/payments/options/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description What the Player needs to choose how much to pay towards their Team. */
+        get: operations["teams_payments_options_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1631,6 +1755,13 @@ export interface components {
          * @enum {string}
          */
         CaptainRequestStatusEnum: "pending" | "accepted" | "declined" | "withdrawn" | "closed";
+        CashPaymentRequest: {
+            /** Format: decimal */
+            amount: string;
+            /** @description The Player who paid; empty for the Team. */
+            player_id?: number | null;
+            reason?: string;
+        };
         /**
          * @description * `import` - Fixture import
          *     * `admin` - Admin
@@ -1640,6 +1771,18 @@ export interface components {
          * @enum {string}
          */
         CauseEnum: "import" | "admin" | "captain" | "checkpoint" | "system";
+        /** @description The gateway's hosted payment page. Card details are typed there, never in the app. */
+        Checkout: {
+            /** @description Open this link to pay. */
+            readonly url: string;
+            /** @description Or post `form_fields`, in this order, to this URL. */
+            readonly action: string;
+            readonly form_fields: components["schemas"]["CheckoutField"][];
+        };
+        CheckoutField: {
+            readonly name: string;
+            readonly value: string;
+        };
         /** @description A Captain's request as the club's Admin sees it in the requests list. */
         ClubCaptainRequest: {
             readonly id: number;
@@ -2063,6 +2206,15 @@ export interface components {
             /** Format: date-time */
             readonly joined_at: string;
         };
+        /** @description The gateway's form fields (PayFast ITN), as it sends them. */
+        GatewayNotificationFieldsRequest: {
+            m_payment_id: string;
+            pf_payment_id: string;
+            payment_status: string;
+            amount_gross: string;
+            merchant_id: string;
+            signature: string;
+        };
         Health: {
             /**
              * @description The API's own health: the database's.
@@ -2476,17 +2628,76 @@ export interface components {
             /** Format: date */
             ends_on?: string;
         };
+        /** @description A Player's contribution: credit spent at once, the rest by card at the gateway. */
+        Payment: {
+            /**
+             * Format: uuid
+             * @description Our id for the payment at the gateway (PayFast m_payment_id).
+             */
+            readonly reference: string;
+            readonly team: components["schemas"]["Named"];
+            /** Format: decimal */
+            readonly amount: string;
+            readonly credit_used: components["schemas"]["PaymentCreditEnum"];
+            /** Format: decimal */
+            readonly credit_amount: string;
+            /** Format: decimal */
+            readonly card_amount: string;
+            readonly provider: components["schemas"]["PaymentProviderEnum"];
+            readonly status: components["schemas"]["PaymentStatusEnum"];
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly completed_at: string | null;
+            /** @description Where to pay the card part; empty unless the payment is pending. */
+            readonly checkout: components["schemas"]["Checkout"] | null;
+        };
+        /**
+         * @description * `none` - No credit
+         *     * `player` - The Player's credit
+         *     * `team` - The Team's credit (its Captain)
+         * @enum {string}
+         */
+        PaymentCreditEnum: "none" | "player" | "team";
         /**
          * @description * `gateway` - Card through the payment gateway, and cash
          *     * `cash_only` - Cash only, confirmed by an Admin
          * @enum {string}
          */
         PaymentModeEnum: "gateway" | "cash_only";
+        /** @description What a Player needs to choose a contribution. Amounts are decided by the backend. */
+        PaymentOptions: {
+            readonly team: components["schemas"]["Named"];
+            /** Format: decimal */
+            readonly due: string;
+            /** Format: decimal */
+            readonly outstanding: string;
+            readonly is_paid: boolean;
+            /** @description Whether the club takes card payments now. */
+            readonly card_enabled: boolean;
+            /** Format: decimal */
+            readonly minimum_card_amount: string | null;
+            /** Format: decimal */
+            readonly my_credit: string;
+            /**
+             * Format: decimal
+             * @description The Team's credit; only its Captain sees it.
+             */
+            readonly team_credit: string | null;
+        };
         /**
          * @description * `payfast` - PayFast
          * @enum {string}
          */
         PaymentProviderEnum: "payfast";
+        /**
+         * @description * `pending` - Waiting for the gateway
+         *     * `complete` - Paid
+         *     * `failed` - Failed
+         *     * `cancelled` - Cancelled
+         * @enum {string}
+         */
+        PaymentStatusEnum: "pending" | "complete" | "failed" | "cancelled";
         PlayerProfile: {
             position: components["schemas"]["PositionEnum"];
             /** @description The Nights to get notifications for. */
@@ -2784,6 +2995,22 @@ export interface components {
             /** Format: date-time */
             readonly answered_at: string | null;
         };
+        StartPaymentRequest: {
+            /**
+             * Format: decimal
+             * @description How much this Player pays towards the Team, in rand (FR-19).
+             */
+            amount: string;
+            /**
+             * @description Spend credit first: the Player's own, or the Team's (Captain only).
+             *
+             *     * `none` - No credit
+             *     * `player` - The Player's credit
+             *     * `team` - The Team's credit (its Captain)
+             * @default none
+             */
+            credit: components["schemas"]["PaymentCreditEnum"];
+        };
         /** @description A Team as Players see it when they search. */
         Team: {
             readonly id: number;
@@ -2816,6 +3043,8 @@ export interface components {
              */
             readonly outstanding: string;
             readonly paid_by_method: components["schemas"]["PaidByMethod"];
+            /** @description An active Team that owes nothing (FR-20). */
+            readonly is_paid: boolean;
             readonly entries: components["schemas"]["LedgerEntry"][];
         };
         TeamCredit: {
@@ -2824,6 +3053,19 @@ export interface components {
             /** @description Credits, credit spent, and their reversals. */
             readonly entries: components["schemas"]["LedgerEntry"][];
             readonly team: components["schemas"]["Named"];
+        };
+        /** @description One Team's payment status, for its club's Admins (FR-21). */
+        TeamPaymentStatus: {
+            readonly team: components["schemas"]["Named"];
+            readonly season: components["schemas"]["Named"];
+            readonly division: components["schemas"]["Named"];
+            /** Format: decimal */
+            readonly due: string;
+            /** Format: decimal */
+            readonly paid: string;
+            /** Format: decimal */
+            readonly outstanding: string;
+            readonly is_paid: boolean;
         };
         /** @description What the T-6h check decided for a Team, and the Admin's ruling if it waited for one. */
         TeamReadiness: {
@@ -4165,6 +4407,30 @@ export interface operations {
             };
         };
     };
+    clubs_team_payments_list: {
+        parameters: {
+            query?: {
+                /** @description Only this Season's Teams. */
+                season?: number;
+            };
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamPaymentStatus"][];
+                };
+            };
+        };
+    };
     clubs_teams_list: {
         parameters: {
             query?: {
@@ -4839,6 +5105,25 @@ export interface operations {
             };
         };
     };
+    me_payments_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Payment"][];
+                };
+            };
+        };
+    };
     me_player_requests_list: {
         parameters: {
             query?: never;
@@ -4893,6 +5178,56 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Night"][];
                 };
+            };
+        };
+    };
+    payments_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reference: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Payment"];
+                };
+            };
+        };
+    };
+    payments_payfast_notify_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/x-www-form-urlencoded": components["schemas"]["GatewayNotificationFieldsRequest"];
+            };
+        };
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No response body */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -5145,6 +5480,33 @@ export interface operations {
             };
         };
     };
+    teams_cash_payments_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CashPaymentRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["CashPaymentRequest"];
+                "multipart/form-data": components["schemas"]["CashPaymentRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LedgerEntry"];
+                };
+            };
+        };
+    };
     teams_credit_retrieve: {
         parameters: {
             query?: never;
@@ -5162,6 +5524,54 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TeamCredit"];
+                };
+            };
+        };
+    };
+    teams_payments_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartPaymentRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["StartPaymentRequest"];
+                "multipart/form-data": components["schemas"]["StartPaymentRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Payment"];
+                };
+            };
+        };
+    };
+    teams_payments_options_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentOptions"];
                 };
             };
         };

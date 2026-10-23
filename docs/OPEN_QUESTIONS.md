@@ -569,3 +569,66 @@ docs/DECISIONS.md under "2026-10-23: Teams (chunk 5)".
   constraint), must still be outside both Teams, opted into the Night and of the right
   position when they accept. Not checked: whether they play another match that night.
   If the answer differs: add that check to `borrowing.join` and `borrowing.recipients`.
+
+## Chunk 18: PayFast payments (backend)
+
+- **Whose PayFast merchant account takes a club's card payments? (open question 5 in
+  DECISIONS.md)** Question: does each club have its own merchant account, or do all card
+  payments go to one account? Choice: both are configuration only. One default merchant
+  account from the environment (`PAYFAST_MERCHANT_ID`, `PAYFAST_MERCHANT_KEY`,
+  `PAYFAST_PASSPHRASE`), and a club can have its own in `PAYFAST_CLUB_ACCOUNTS` (JSON keyed
+  by Club id, also from the environment). Each Payment records the merchant id it was made
+  with, and its ITN is checked against that account. Why: CLAUDE.md keeps secrets in the
+  environment, and this way neither answer reworks models or money. If the answer
+  differs: per-club accounts only: drop the default; if clubs must enter their own keys in
+  the app, add encrypted per-club credentials (a security decision to make first).
+- **Who chooses how much, and is it capped?** Question: FR-19 lets a Player choose their
+  contribution; may it exceed what the Team still owes? Choice: from R 0.01 up to what the
+  Team owes when the payment starts (409 above it, and 409 when nothing is owed). Two
+  payments started together can still overpay when both are confirmed: the money was
+  taken, so both are recorded and the Team shows below zero. Why: never refuse money
+  PayFast already took; an Admin can return the overpayment as credit. If the answer
+  differs: count pending card payments against what is owed when starting one.
+- **Card minimum.** Question: what is the smallest card payment? Choice: R 5 (PayFast's
+  minimum), a property of the PayFast gateway, not a club setting. A card part under it
+  is refused with a hint to use less credit. If the answer differs: change
+  `PayFastGateway.minimum_amount`.
+- **Credit first.** Question: how is "spending Player or Team credit first" chosen?
+  Choice: the Player picks `credit`: none, their own (`player`), or the Team's (`team`,
+  Captain only, FR-52). As much credit as is held, up to the amount, is spent at once (a
+  ledger payment with method credit); the rest is the card part. Credit covering it all
+  completes with no card. If the card part is then abandoned, the credit stays spent: it
+  is a real payment towards what the Team owes. Why: credit is the holder's to spend and
+  spending it is immediate. If the answer differs: hold credit until the card part is
+  confirmed (needs a pending-credit step in `ledger.services`).
+- **Who sees what is owed.** Question: chunk 8 shows a Team's balance only to its Captain
+  and Admins; what does a Player see before paying? Choice: a Player in the Team sees due,
+  outstanding and paid or not (`GET /api/v1/teams/{id}/payments/options/`), not the
+  payment lines. Team credit is shown only to the Captain. Why: FR-19 needs the Player to
+  know the total to choose a share; FR-21 keeps "who paid" for Captains and Admins. If the
+  answer differs: drop `due` and `outstanding` from the options.
+- **"Team marked paid" (FR-20).** Question: is "paid" stored? Choice: no, computed: an
+  active Team that owes nothing (`is_paid` on the balance). When a payment (card, cash or
+  credit) takes what is owed from above zero to zero or below, `payments.signals.team_paid`
+  is sent, for the Barcode chunk. A reversal later makes it unpaid again. Why: a stored
+  flag would go stale on reversals. If the answer differs: store `paid_at` on Team.
+- **A confirmed card payment from a Player who left the Team.** Choice: recorded anyway
+  (`record_payment(..., money_taken=True)`), named for that Player and Team. Why: the
+  money was taken. If the answer differs: record it as Player credit instead.
+- **A COMPLETE ITN after a FAILED or CANCELLED one.** Choice: recorded, and the Payment
+  becomes complete; a complete Payment never goes back. Why: PayFast's COMPLETE means the
+  money is taken.
+- **Cash (FR-22).** Question: who records cash, and how much? Choice: an Admin of the
+  Team's Club, in either payment mode, for a Player in the Team or for the whole Team, up
+  to what the Team owes (409 above it), with an optional reason ("Cash paid to the club"
+  by default). A cash payment for the whole Team becomes Team credit if returned (FR-52).
+  If the answer differs: change `payments.services.record_cash`.
+- **ITN source behind a proxy.** Choice: the connecting address, unless
+  `PAYFAST_TRUSTED_PROXIES` says how many proxies add to X-Forwarded-For; then it is read
+  from the right, so a caller can't add an address of their own. PayFast's networks are
+  `PAYFAST_ITN_NETWORKS`, defaulting to PayFast's published list. If the answer differs:
+  set the variables; no code change.
+- **Return to the app.** Choice: `PAYMENT_RETURN_URL` and `PAYMENT_CANCEL_URL` (env) get
+  `?payment=<reference>`, so the app can show the result with
+  `GET /api/v1/payments/{reference}/`. The ITN, not the return, records the payment.
+  Chunk 19 decides the URLs (a deep link or a web page).

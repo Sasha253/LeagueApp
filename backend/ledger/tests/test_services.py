@@ -462,3 +462,28 @@ def test_credit_from_a_reversed_payment_is_refused(lions, people, cashier, club_
             user=people["sipho"],
             source=payment,
         )
+
+
+@pytest.mark.django_db
+def test_team_balances_in_one_query_match_team_balance(
+    lions, make_team, make_user, people, cashier
+):
+    tigers = make_team("Blue Tigers", make_user("t@example.com", position="outfield"))
+    empty = make_team("Green Geese", make_user("g@example.com", position="outfield"))
+    for team in (lions, tigers):
+        league_fee(team)
+    card = pay(lions, "100", cashier, player=people["sipho"], method=Method.CARD)
+    pay(lions, "50", cashier)
+    services.reverse(card, reason="Charged twice", recorded_by=cashier)
+    pay(tigers, "350", cashier)
+    fee = services.charge(
+        club=lions.club, amount=D("20"), category="league", reason="Late", team=lions
+    )
+    services.reverse(fee, reason="Waived", recorded_by=cashier)
+
+    balances = services.team_balances(Team.objects.filter(pk__in=[lions.pk, tigers.pk, empty.pk]))
+
+    for team in (lions, tigers, empty):
+        assert balances[team.pk] == services.team_balance(team)
+    assert balances[tigers.pk].is_paid
+    assert not balances[lions.pk].is_paid

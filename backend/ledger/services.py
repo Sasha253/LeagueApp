@@ -119,10 +119,14 @@ class TeamBalance:
     paid: Decimal
     outstanding: Decimal
     paid_by_method: dict[str, Decimal] = field(default_factory=dict)
+    is_paid: bool = False
 
 
 def team_balance(team: Team) -> TeamBalance:
-    """What the Team owes, has paid (less refunds) and still owes. Overpaid shows below 0."""
+    """What the Team owes, has paid (less refunds) and still owes. Overpaid shows below 0.
+
+    `is_paid` (FR-20): an active Team that owes nothing.
+    """
     entries = LedgerEntry.objects.filter(team=team)
     due = _net(entries, Kind.CHARGE)
     by_method = {
@@ -131,7 +135,63 @@ def team_balance(team: Team) -> TeamBalance:
         for method in Method.values
     }
     paid = sum(by_method.values(), ZERO)
-    return TeamBalance(due=due, paid=paid, outstanding=due - paid, paid_by_method=by_method)
+    outstanding = due - paid
+    return TeamBalance(
+        due=due,
+        paid=paid,
+        outstanding=outstanding,
+        paid_by_method=by_method,
+        is_paid=team.status == Team.Status.ACTIVE and outstanding <= 0,
+    )
+
+
+def team_balances(teams: QuerySet[Team]) -> dict[int, TeamBalance]:
+    """`team_balance` for many Teams in one query, keyed by Team id."""
+    sums = {
+        "charge": Q(kind=Kind.CHARGE),
+        "charge_reversed": Q(kind=Kind.REVERSAL, reverses__kind=Kind.CHARGE),
+    }
+    for method in Method.values:
+        for kind in (Kind.PAYMENT, Kind.REFUND):
+            sums[f"{kind}_{method}"] = Q(kind=kind, method=method)
+            sums[f"{kind}_{method}_reversed"] = Q(
+                kind=Kind.REVERSAL, reverses__kind=kind, method=method
+            )
+    rows = (
+        LedgerEntry.objects.filter(team__in=teams)
+        .values("team_id")
+        .annotate(
+            **{
+                name: Coalesce(
+                    Sum("amount", filter=where), Value(ZERO), output_field=DecimalField()
+                )
+                for name, where in sums.items()
+            }
+        )
+    )
+    totals = {row["team_id"]: row for row in rows}
+    balances = {}
+    for team in teams:
+        row = totals.get(team.pk, {})
+
+        def net(name, row=row):
+            return Decimal(row.get(name, ZERO)) - Decimal(row.get(f"{name}_reversed", ZERO))
+
+        due = net("charge").quantize(CENT)
+        by_method = {
+            method: (net(f"payment_{method}") - net(f"refund_{method}")).quantize(CENT)
+            for method in Method.values
+        }
+        paid = sum(by_method.values(), ZERO)
+        outstanding = due - paid
+        balances[team.pk] = TeamBalance(
+            due=due,
+            paid=paid,
+            outstanding=outstanding,
+            paid_by_method=by_method,
+            is_paid=team.status == Team.Status.ACTIVE and outstanding <= 0,
+        )
+    return balances
 
 
 def team_credit(team: Team) -> Decimal:
@@ -256,14 +316,20 @@ def record_payment(
     category: str = Category.LEAGUE,
     reason: str = "",
     fixture: Fixture | None = None,
+    money_taken: bool = False,
 ) -> LedgerEntry:
-    """Card or cash paid towards what a Team owes, by one Player or for the whole Team."""
+    """Card or cash paid towards what a Team owes, by one Player or for the whole Team.
+
+    `money_taken`: the gateway has already taken the money (a confirmed card payment), so
+    it is recorded even if the Player has left the Team since they started paying.
+    """
     if method not in (Method.CARD, Method.CASH):
         raise ValueError("Payments are by card or cash. Credit is spent with spend_credit.")
     team = _lock_team(team)
-    _active(team)
+    if not money_taken:
+        _active(team)
     _same_club(team.club, fixture)
-    if player is not None and not _is_member(team, player):
+    if player is not None and not money_taken and not _is_member(team, player):
         raise Conflict("That Player isn't in this Team.")
     return LedgerEntry.objects.create(
         club=team.club,

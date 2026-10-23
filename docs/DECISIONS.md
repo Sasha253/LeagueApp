@@ -2,6 +2,33 @@
 
 Newest first. Each entry: the date, what was decided, and why.
 
+## 2026-10-23: PayFast payments (chunk 18) (provisional, unattended run)
+
+Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 18: PayFast payments
+(backend)". Answers open question 5 below, provisionally.
+
+- **Gateway (provisional, unattended run):** `payments.gateways.PaymentGateway`, picked by
+  the club's `payment_provider`; PayFast is the first (`payments/payfast.py`). Card
+  details are typed only on PayFast's hosted page. Sandbox or live, credentials and URLs
+  come from the environment (`PAYFAST_*`, `PAYMENT_RETURN_URL`, `PAYMENT_CANCEL_URL`).
+- **Merchant accounts, open question 5 (provisional, unattended run):** one default
+  account from the environment, and optionally a club's own in `PAYFAST_CLUB_ACCOUNTS`
+  (environment, keyed by Club id). Each Payment records the merchant id it used.
+- **Paying (provisional, unattended run):** a Player in an active Team pays any amount up
+  to what the Team owes (FR-19). Credit first if chosen: their own, or the Team's for the
+  Captain (FR-52), spent at once; the rest by card, at least R 5. Credit covering it all
+  needs no card.
+- **ITN (provisional, unattended run):** recorded only after source (PayFast's networks),
+  signature, merchant, amount and PayFast's server-side validation pass. One card ledger
+  entry per Payment, however often the ITN comes; every ITN is logged in
+  `GatewayNotification`. A complete Payment never goes back.
+- **Paid (provisional, unattended run):** not stored: an active Team that owes nothing
+  (`is_paid`). `payments.signals.team_paid` is sent when a payment takes what is owed to
+  nothing (FR-20), for the Barcode chunk.
+- **Cash (provisional, unattended run):** an Admin of the Team's Club records cash for a
+  Player or the whole Team, up to what is owed, in either payment mode (FR-22). Admins
+  see which of their Teams have paid, unpaid first (FR-21).
+
 ## 2026-10-23: Player and Goalkeeper Requests (chunk 17) (provisional, unattended run)
 
 Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 17: Player and
@@ -509,4 +536,6 @@ Raised by the multi-club decision (2026-10-23). Questions 3 and 4 were answered 
 (see the entry above).
 
 5. Does each club take card payments into its own PayFast merchant account?
+   (Provisionally answered in chunk 18: either works by configuration; a default account
+   and optional per-club accounts, all from the environment.)
 6. Does a Player's credit (FR-52) belong to one club, or can it be spent at any club?

@@ -66,6 +66,9 @@ class TeamBalanceSerializer(serializers.Serializer):
         **MONEY, help_text="Due less paid. Below zero when the Team has paid more."
     )
     paid_by_method = PaidByMethodSerializer(read_only=True)
+    is_paid = serializers.BooleanField(
+        read_only=True, help_text="An active Team that owes nothing (FR-20)."
+    )
     entries = LedgerEntrySerializer(many=True, read_only=True)
 
 
