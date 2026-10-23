@@ -7,6 +7,7 @@ from django.utils import timezone
 from barcodes import services, signing
 from barcodes.models import Barcode, BarcodeScan
 from barcodes.services import State
+from clubs.models import PaymentMode
 from core.exceptions import Conflict
 from fixtures.models import Fixture
 from ledger import services as ledger
@@ -159,6 +160,38 @@ def test_a_season_barcode_ends_with_its_season(cash_only, owing, cashier, pay):
         State.EXPIRED, "The Spring Season has ended."
     )
     assert services.current_for(owing).barcode is None
+
+
+def test_a_revoked_season_barcode_gives_way_to_a_match_barcode_in_gateway_mode(
+    cash_only, owing, match, cashier, pay
+):
+    """The club moved from cash to the gateway mid-Season (review fix)."""
+    pay(owing, cashier)
+    services.revoke(Barcode.objects.get(), by=cashier, reason="Lost phone")
+    cash_only.payment_mode = PaymentMode.GATEWAY
+    cash_only.save()
+
+    issued = services.issue(owing, by=cashier)
+    assert issued.mode == Barcode.Mode.MATCH
+    current = services.current_for(owing)
+    assert current.status.valid
+    assert current.barcode == issued
+
+
+def test_a_team_replaced_in_its_match_loses_that_barcode(
+    owing, match, cashier, pay, make_team, make_user
+):
+    """Chunk 14 swaps a dropped-out Team for a replacement on the same Fixture (review fix)."""
+    pay(owing, cashier)
+    barcode = Barcode.objects.get()
+    assert services.status_of(barcode).valid
+    stand_in = make_team("Stand Ins", make_user("sam@example.com", name="Sam"))
+    Fixture.objects.filter(pk=match.pk).update(home_team=stand_in)
+    barcode.refresh_from_db()
+
+    status = services.status_of(barcode)
+    assert status.state == State.EXPIRED
+    assert "Red Lions no longer plays in the match" in status.reason
 
 
 # Revoking and reissuing

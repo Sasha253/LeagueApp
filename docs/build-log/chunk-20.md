@@ -88,3 +88,30 @@ By hand:
   production refuses to start without it. Changing it later invalidates every Barcode.
 - Rebuild the native apps after this chunk to try the ticket on a phone, and check a
   phone camera reads the Code 128 at normal brightness.
+
+## Review (independent, unattended run)
+
+Checked the commit against the chunk prompt and CLAUDE.md: no money as float (the Barcode
+keeps no amounts; the "still owes" reason formats the ledger's Decimal), every queryset and
+view is scoped to the Team's or Barcode's Club (others get 404), the Captain sees only their
+own Team's Barcode, scans are append-only and club-scoped, the signing key comes from env,
+the UI uses only `la-` classes and tokens (the ticket's status line and notches are listed
+in proposed.css), schema.d.ts was regenerated, and nothing from chunk 21 (scan endpoint and
+screen) is built.
+
+Defects found and fixed:
+- A Team swapped out of its match (chunk 14 replacements put the stand-in Team on the same
+  Fixture) kept a valid Barcode for that match. `status_of` now marks a per-match Barcode
+  "no longer valid" when its Team no longer plays in the Fixture.
+- After a club moved from cash-only to gateway mode mid-Season, a revoked (or unpaid)
+  Season Barcode hid every match Barcode: `current_for` returned it first, so the Captain
+  never saw the Barcode an Admin reissued. In gateway mode only a valid Season Barcode now
+  wins; otherwise the current match's Barcode is shown.
+- Two pytest tests added for these.
+
+Not changed (noted): the Admin list works out each Barcode's state with one balance query
+per row (fine at a Team's handful of Barcodes); a Team with no charges at all counts as
+paid (FR-20's existing rule in the ledger, not this chunk's).
+
+Checks after the fixes: make test 771 passed; make lint clean; npm test 253 passed;
+npm run build ok.

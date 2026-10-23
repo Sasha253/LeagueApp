@@ -139,6 +139,11 @@ def status_of(barcode: Barcode) -> Status:
             return Status(
                 State.EXPIRED, f"This Barcode was for {_day(played_on)}. It isn't valid now."
             )
+        if team.pk not in (fixture.home_team_id, fixture.away_team_id):
+            return Status(
+                State.EXPIRED,
+                f"{team.name} no longer plays in the match on {_day(played_on)}.",
+            )
     elif barcode.season.ends_on < today:
         return Status(State.EXPIRED, f"The {barcode.season.name} Season has ended.")
     balance = ledger.team_balance(team)
@@ -271,9 +276,12 @@ def current_for(team: Team) -> Current:
         .select_related("team", "season", "fixture")
         .first()
     )
+    mode = _mode_of(team)
     if season_barcode is not None:
         status = status_of(season_barcode)
-        if status.state != State.EXPIRED:
+        # In gateway mode (the club changed mode in the Season) only a valid Season Barcode
+        # wins; otherwise the current match's Barcode is the one that counts.
+        if status.state != State.EXPIRED and (mode == Mode.SEASON or status.valid):
             return _shown(season_barcode, status)
 
     fixture = next_match(team)
@@ -290,7 +298,6 @@ def current_for(team: Team) -> Current:
     if not balance.is_paid:
         reason = f"{team.name} still owes {_rand(balance.outstanding)}."
         return Current(None, Status(State.UNPAID, reason))
-    mode = _mode_of(team)
     if mode == Mode.MATCH and fixture is None:
         return Current(None, Status(State.NO_MATCH, NO_MATCH))
     if mode == Mode.SEASON and season_barcode is not None:
