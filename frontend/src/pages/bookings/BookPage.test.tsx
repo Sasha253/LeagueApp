@@ -3,16 +3,21 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { ME } from "../../test/fakeApi";
 import { openAs } from "../teams/testing";
-import { BOOKER, booking, CLUB, FREE } from "./testing";
+import { BOOKER, booking, CLUB, FREE, POLICY } from "./testing";
 
 const CLUBS = "GET /api/v1/bookings/clubs/";
 const AVAILABILITY = "GET /api/v1/bookings/availability/";
+const POLICY_PATH = "GET /api/v1/bookings/policy/";
 
 describe("BookPage", () => {
   it("shows each field's free times and the price from the API", async () => {
     const { calls } = await openAs(
       "/book",
-      { [CLUBS]: { status: 200, body: [CLUB] }, [AVAILABILITY]: { status: 200, body: FREE } },
+      {
+        [CLUBS]: { status: 200, body: [CLUB] },
+        [AVAILABILITY]: { status: 200, body: FREE },
+        [POLICY_PATH]: { status: 200, body: { ...POLICY, credit: "150.00" } },
+      },
       "Book a field",
       BOOKER,
     );
@@ -33,12 +38,34 @@ describe("BookPage", () => {
     expect(screen.getByText(/Pitch 4 isn't free for/)).toBeInTheDocument();
   });
 
+  it("shows the club's policy and the user's credit before the request (FR-45)", async () => {
+    await openAs(
+      "/book",
+      {
+        [CLUBS]: { status: 200, body: [CLUB] },
+        [AVAILABILITY]: { status: 200, body: FREE },
+        [POLICY_PATH]: { status: 200, body: { ...POLICY, credit: "150.00" } },
+      },
+      "Book a field",
+      BOOKER,
+    );
+
+    const policy = await screen.findByRole("list", { name: "Cancellation policy" });
+    expect(policy).toHaveTextContent("24h to 6h before");
+    expect(policy).toHaveTextContent("Cancel: 50% back as credit");
+    expect(policy).toHaveTextContent("Reschedule: Not allowed");
+    expect(screen.getByText(/Payment is taken 24h before you play/)).toHaveTextContent(
+      "Your credit here, R 150, is used first.",
+    );
+  });
+
   it("requests the picked slot and shows it as requested", async () => {
     const { calls } = await openAs(
       "/book",
       {
         [CLUBS]: { status: 200, body: [CLUB] },
         [AVAILABILITY]: { status: 200, body: FREE },
+        [POLICY_PATH]: { status: 200, body: POLICY },
         "POST /api/v1/me/bookings/": { status: 201, body: booking() },
       },
       "Book a field",
@@ -62,6 +89,7 @@ describe("BookPage", () => {
       {
         [CLUBS]: { status: 200, body: [CLUB] },
         [AVAILABILITY]: { status: 200, body: FREE },
+        [POLICY_PATH]: { status: 200, body: POLICY },
         "POST /api/v1/me/bookings/": { status: 409, body: { detail: "This field is already taken." } },
       },
       "Book a field",
@@ -88,6 +116,7 @@ describe("BookPage", () => {
       {
         [CLUBS]: { status: 200, body: [CLUB, { ...CLUB, id: 2, name: "Club B" }] },
         [AVAILABILITY]: { status: 200, body: FREE },
+        [POLICY_PATH]: { status: 200, body: POLICY },
       },
       "Book a field",
       BOOKER,

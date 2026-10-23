@@ -2,6 +2,35 @@
 
 Newest first. Each entry: the date, what was decided, and why.
 
+## 2026-10-24: Booking payments and cancellation policy (chunk 24) (provisional, unattended run)
+
+Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 24: Booking payments and
+cancellation policy".
+
+- **No stored cards (provisional, unattended run):** FR-32 tokenisation is not built. At the
+  club's payment cutoff (`booking_payment_cutoff_hours`, Celery Beat `bookings.run_payments`)
+  the Booking User's credit at the club is spent first (FR-46) and they are asked to pay the
+  rest by card on PayFast's hosted page (Pay on the booking), or in cash to the club, which
+  an Admin records (FR-44). Card payments are offered only from the cutoff.
+- **Policy engine (provisional, unattended run):** `bookings/policy.py`, every number from
+  the club's settings. Windows: free (before the cutoff and before payment was ever taken),
+  late (to the late-cancel hours), very late (until it starts), club. Cancelling returns a
+  percent of what was paid as credit, never cash: 100% free, the late percent, the no-show
+  percent, the club percent. Late reschedules: the allowed number, within the window days
+  of the current start; none when very late. Shown before booking
+  (`GET /api/v1/bookings/policy/`) and before cancelling or moving
+  (`GET /api/v1/me/bookings/{id}/outcome/`, FR-45).
+- **Club cancels (provisional, unattended run):** an Admin cancels a booking for the club
+  until it ends, with a reason; the club percent comes back as credit. No card refunds in
+  the app yet. Declining a paid move returns the club percent too.
+- **No-shows (provisional, unattended run):** an accepted booking that ended without a Paid
+  scan gets the no-show percent of what was paid as credit, once.
+- **Money (provisional, unattended run):** booking payments, credit spent on a booking and
+  credit returned from one are ledger entries naming the Booking (`LedgerEntry.booking`),
+  subject Booking User, category `booking`. What a booking has paid is its payments less
+  refunds, reversals and credit returned. A `Payment` is for a Team or a Booking (exactly
+  one). Percentages round half a cent up.
+
 ## 2026-10-23: Bookings (chunk 23) (provisional, unattended run)
 
 Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 23: Bookings".

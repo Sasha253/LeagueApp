@@ -11,25 +11,34 @@ from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import generics, mixins, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.permissions import IsBookingUser
 from barcodes import services as barcodes
-from clubs.models import Club
+from clubs.models import Club, ClubSettings
 from clubs.views import ClubAdminMixin
+from ledger import services as ledger
+from ledger.serializers import LedgerEntrySerializer
+from payments import services as payments
+from payments.serializers import PaymentSerializer
 
-from . import services
+from . import policy, services
 from .models import Booking
 from .serializers import (
     AvailabilityQuerySerializer,
     AvailabilitySerializer,
     BookingBarcodeSerializer,
+    BookingCashSerializer,
     BookingClubSerializer,
+    BookingOutcomeSerializer,
     BookingRequestSerializer,
     BookingSerializer,
     ClubBookingSerializer,
+    ClubCancelSerializer,
+    ClubPolicySerializer,
     DeclineSerializer,
     SlotSerializer,
 )
@@ -86,6 +95,30 @@ class AvailabilityView(APIView):
         return Response(AvailabilitySerializer(found).data)
 
 
+class PolicyView(APIView):
+    """FR-45: a club's booking policy, and the user's credit there, before they book."""
+
+    permission_classes = [IsBookingUser]
+
+    @extend_schema(
+        parameters=[OpenApiParameter("club", int, required=True)],
+        responses=ClubPolicySerializer,
+    )
+    def get(self, request):
+        club_id = request.query_params.get("club", "")
+        if not club_id.isdigit():
+            raise ValidationError({"club": ["A club id."]})
+        club = get_object_or_404(Club, pk=int(club_id))
+        club_settings = ClubSettings.objects.get(club=club)
+        data = {
+            "club": club,
+            "payment_cutoff_hours": club_settings.booking_payment_cutoff_hours,
+            "rows": policy.rows(club_settings),
+            "credit": ledger.booking_credit(club, request.user),
+        }
+        return Response(ClubPolicySerializer(data).data)
+
+
 class MyBookingViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     """The signed-in user's own Bookings, soonest first."""
 
@@ -93,7 +126,7 @@ class MyBookingViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
     pagination_class = None
 
     def get_permissions(self):
-        if self.action in ("create", "reschedule"):
+        if self.action in ("create", "reschedule", "pay"):
             return [IsBookingUser()]
         return [IsAuthenticated()]
 
@@ -163,6 +196,36 @@ class MyBookingViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
         )
         return self._answer(booking)
 
+    @extend_schema(
+        summary="What cancelling or moving it now means",
+        description="FR-45: the club's policy, the current window, what a cancellation now "
+        "returns as credit, and whether (and how far) it can be moved.",
+        responses=BookingOutcomeSerializer,
+    )
+    @action(detail=True, methods=["get"])
+    def outcome(self, request, pk=None):
+        booking = self.get_object()
+        data = {
+            "cancel": policy.cancel_outcome(booking),
+            "reschedule": policy.reschedule_outcome(booking),
+            "rows": policy.rows(ClubSettings.objects.get(club_id=booking.club_id)),
+            "credit": ledger.booking_credit(booking.club, booking.user),
+        }
+        return Response(BookingOutcomeSerializer(data).data)
+
+    @extend_schema(
+        summary="Pay for a booking",
+        description="FR-34, FR-46: once payment is due, what is left: the user's credit at "
+        "the club first, the rest by card on the gateway's page (`checkout`). 409 before "
+        "it is due, when nothing is owed, or when the club takes cash only.",
+        request=None,
+        responses={201: PaymentSerializer},
+    )
+    @action(detail=True, methods=["post"])
+    def pay(self, request, pk=None):
+        payment = payments.start_booking_payment(booking=self.get_object(), user=request.user)
+        return Response(PaymentSerializer(payment).data, status=status.HTTP_201_CREATED)
+
     @extend_schema(summary="The booking's Barcode", responses=BookingBarcodeSerializer)
     @action(detail=True, methods=["get"])
     def barcode(self, request, pk=None):
@@ -219,3 +282,41 @@ class ClubBookingViewSet(
         body.is_valid(raise_exception=True)
         booking = services.decline(booking, by=request.user, reason=body.validated_data["reason"])
         return self._answer(booking)
+
+    @extend_schema(
+        summary="Cancel a booking for the club",
+        description="The policy's club row (pitch, weather, operational): before it ends, "
+        "with a reason the user is told. The club's percent of what was paid comes back to "
+        "the user as credit.",
+        request=ClubCancelSerializer,
+        responses=ClubBookingSerializer,
+    )
+    @action(detail=True, methods=["post"])
+    def cancel(self, request, *args, **kwargs):
+        booking = self.get_object()
+        body = ClubCancelSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        booking = services.club_cancel(
+            booking, by=request.user, reason=body.validated_data["reason"]
+        )
+        return self._answer(booking)
+
+    @extend_schema(
+        summary="Record cash for a booking",
+        description="FR-44: cash paid to the club for an accepted booking, up to what it "
+        "still owes. 409 otherwise.",
+        request=BookingCashSerializer,
+        responses={201: LedgerEntrySerializer},
+    )
+    @action(detail=True, methods=["post"])
+    def cash(self, request, *args, **kwargs):
+        booking = self.get_object()
+        body = BookingCashSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        entry = services.record_cash(
+            booking,
+            by=request.user,
+            amount=body.validated_data["amount"],
+            reason=body.validated_data["reason"],
+        )
+        return Response(LedgerEntrySerializer(entry).data, status=status.HTTP_201_CREATED)

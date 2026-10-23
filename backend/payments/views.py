@@ -152,26 +152,26 @@ class StartPaymentView(APIView):
         return Response(PaymentSerializer(payment).data, status=status.HTTP_201_CREATED)
 
 
-class MyPaymentListView(APIView):
-    """The signed-in Player's payments, newest first."""
+PAYMENT_RELATED = ("team", "player", "booking__field")
 
-    permission_classes = [IsPlayer]
+
+class MyPaymentListView(APIView):
+    """The signed-in user's payments (Team or Booking), newest first."""
 
     @extend_schema(responses=PaymentSerializer(many=True))
     def get(self, request):
-        payments = Payment.objects.filter(player=request.user).select_related("team", "player")
+        payments = Payment.objects.filter(player=request.user).select_related(*PAYMENT_RELATED)
         return Response(PaymentSerializer(payments, many=True).data)
 
 
 class PaymentDetailView(APIView):
-    """One payment, for the Player who made it (e.g. after returning from the gateway)."""
-
-    permission_classes = [IsPlayer]
+    """One payment, for whoever made it (e.g. after returning from the gateway). Anyone
+    else's is 404."""
 
     @extend_schema(responses=PaymentSerializer)
     def get(self, request, reference):
         payment = get_object_or_404(
-            Payment.objects.select_related("team", "player"),
+            Payment.objects.select_related(*PAYMENT_RELATED),
             reference=reference,
             player=request.user,
         )

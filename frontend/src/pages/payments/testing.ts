@@ -27,6 +27,7 @@ export function payment(overrides: object = {}) {
   return {
     reference: REFERENCE,
     team: TEAM,
+    booking: null,
     amount: "70.00",
     credit_used: "none",
     credit_amount: "0.00",

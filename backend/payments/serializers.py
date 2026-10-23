@@ -36,10 +36,25 @@ def checkout_data(checkout) -> dict:
     ).data
 
 
-class PaymentSerializer(serializers.ModelSerializer):
-    """A Player's contribution: credit spent at once, the rest by card at the gateway."""
+class PaidBookingSerializer(serializers.Serializer):
+    """The Booking a payment is for."""
 
-    team = NamedSerializer(read_only=True)
+    id = serializers.IntegerField(read_only=True)
+    field = NamedSerializer(read_only=True)
+    starts_at = serializers.DateTimeField(
+        read_only=True, help_text="Stored in UTC; show it in Africa/Johannesburg."
+    )
+    hours = serializers.IntegerField(read_only=True)
+
+
+class PaymentSerializer(serializers.ModelSerializer):
+    """A contribution towards a Team (a Player) or a Booking (its Booking User): credit
+    spent at once, the rest by card at the gateway."""
+
+    team = NamedSerializer(read_only=True, allow_null=True, help_text="Empty for a booking.")
+    booking = PaidBookingSerializer(
+        read_only=True, allow_null=True, help_text="Empty for a Team's payment."
+    )
     amount = serializers.DecimalField(**MONEY)
     credit_amount = serializers.DecimalField(**MONEY)
     card_amount = serializers.DecimalField(**MONEY)
@@ -52,6 +67,7 @@ class PaymentSerializer(serializers.ModelSerializer):
         fields = [
             "reference",
             "team",
+            "booking",
             "amount",
             "credit_used",
             "credit_amount",

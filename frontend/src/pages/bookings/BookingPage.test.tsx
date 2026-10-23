@@ -2,10 +2,11 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { openAs } from "../teams/testing";
-import { BOOKER, booking, bookingBarcode, FREE } from "./testing";
+import { BOOKER, booking, bookingBarcode, FREE, outcome } from "./testing";
 
 const ONE = "GET /api/v1/me/bookings/70/";
 const BARCODE = "GET /api/v1/me/bookings/70/barcode/";
+const OUTCOME = "GET /api/v1/me/bookings/70/outcome/";
 
 describe("MyBookingsPage", () => {
   it("lists bookings coming up and before", async () => {
@@ -79,6 +80,7 @@ describe("BookingPage", () => {
       "/bookings/70",
       {
         [ONE]: { status: 200, body: booking() },
+        [OUTCOME]: { status: 200, body: outcome() },
         "POST /api/v1/me/bookings/70/cancel/": {
           status: 200,
           body: booking({ status: "cancelled", can_cancel: false, can_reschedule: false }),
@@ -102,6 +104,7 @@ describe("BookingPage", () => {
       "/bookings/70",
       {
         [ONE]: { status: 200, body: booking() },
+        [OUTCOME]: { status: 200, body: outcome() },
         "GET /api/v1/bookings/availability/": { status: 200, body: FREE },
         "POST /api/v1/me/bookings/70/reschedule/": {
           status: 200,

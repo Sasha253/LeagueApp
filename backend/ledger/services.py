@@ -389,10 +389,11 @@ def issue_credit(
     category: str = Category.LEAGUE,
     fixture: Fixture | None = None,
     source: LedgerEntry | None = None,
+    booking=None,
 ) -> LedgerEntry:
     """Credit to a Player's, Booking User's or Team's wallet, with a reason (FR-50)."""
     subject = _subject_of(team, user, subject)
-    _same_club(club, team, fixture, source)
+    _same_club(club, team, fixture, source, booking)
     amount = _money(amount)
     # Locks in the same order as reverse(): the payment, then the holder.
     if source is not None:
@@ -422,6 +423,7 @@ def issue_credit(
         team=team if subject == Subject.TEAM else None,
         user=None if subject == Subject.TEAM else user,
         fixture=fixture,
+        booking=booking,
         source=source,
         reason=_reason(reason),
         recorded_by=recorded_by,
@@ -455,6 +457,7 @@ def return_as_credit(
         category=payment.category,
         fixture=fixture or payment.fixture,
         source=payment,
+        booking=payment.booking,
     )
 
 
@@ -543,6 +546,7 @@ def reverse(entry: LedgerEntry, *, reason: str, recorded_by: User | None) -> Led
                 team=entry.team,
                 user=entry.user,
                 fixture=entry.fixture,
+                booking=entry.booking,
                 source=entry.source,
                 reverses=entry,
                 reason=reason,
@@ -645,3 +649,133 @@ def fixture_credit_returned(fixture: Fixture) -> tuple[Decimal, int]:
     total = _net(entries, Kind.CREDIT)
     standing = entries.filter(kind=Kind.CREDIT, reversed_by__isnull=True).count()
     return total, standing
+
+
+# Bookings (FR-33, FR-34, FR-44 to FR-46)
+#
+# A Booking's payments are on no Team's account: subject Booking User, category
+# `booking`, naming the Booking. Its price is on the Booking itself (bookings app); the
+# ledger holds only what was paid and what came back as credit. Booking User credit is
+# its own wallet per club (`user_credit(club, user, Subject.BOOKING_USER)`).
+
+
+def booking_credit(club: Club, user: User) -> Decimal:
+    """The Booking User's credit at one Club (FR-46)."""
+    return user_credit(club, user, Subject.BOOKING_USER)
+
+
+def _booking_entry(booking, *, kind, method, amount, reason, recorded_by, source=None):
+    return LedgerEntry.objects.create(
+        club_id=booking.club_id,
+        kind=kind,
+        method=method,
+        category=Category.BOOKING,
+        amount=amount,
+        subject=Subject.BOOKING_USER,
+        team=None,
+        user=booking.user,
+        booking=booking,
+        source=source,
+        reason=reason,
+        recorded_by=recorded_by,
+    )
+
+
+@transaction.atomic
+def record_booking_payment(
+    *, booking, amount, method: str, recorded_by: User | None, reason: str = ""
+) -> LedgerEntry:
+    """Card or cash paid for a Booking, by its Booking User. How much may be paid is
+    checked by bookings/ and payments/ (never more than still owed, except a card payment
+    the gateway has already taken)."""
+    if method not in (Method.CARD, Method.CASH):
+        raise ValueError("Booking payments are by card or cash. Credit: spend_booking_credit.")
+    _lock_user(booking.user)
+    return _booking_entry(
+        booking,
+        kind=Kind.PAYMENT,
+        method=method,
+        amount=_money(amount),
+        reason=(reason or "").strip(),
+        recorded_by=recorded_by,
+    )
+
+
+@transaction.atomic
+def spend_booking_credit(
+    *, booking, amount, spent_by: User | None, reason: str = ""
+) -> LedgerEntry:
+    """Pays for a Booking from its Booking User's credit at the Booking's club (FR-46).
+    The app spends it on the user's behalf (`spent_by` None) or the user does. Never more
+    than held or than the Booking still owes (`booking_outstanding`)."""
+    amount = _money(amount)
+    if spent_by is not None and spent_by.pk != booking.user_id:
+        raise Conflict("Only the Booking User can spend their credit.")
+    _lock_user(booking.user)
+    if amount > booking_credit(booking.club, booking.user):
+        raise Conflict(NOT_ENOUGH_CREDIT)
+    if amount > booking_outstanding(booking):
+        raise Conflict("That is more than the booking still owes.")
+    return _booking_entry(
+        booking,
+        kind=Kind.PAYMENT,
+        method=Method.CREDIT,
+        amount=amount,
+        reason=(reason or "").strip(),
+        recorded_by=spent_by,
+    )
+
+
+def booking_payments(booking) -> QuerySet[LedgerEntry]:
+    """The payments for a Booking (card, cash or credit), oldest first."""
+    return LedgerEntry.objects.filter(booking=booking, kind=Kind.PAYMENT).order_by(
+        "created_at", "pk"
+    )
+
+
+def booking_paid(booking) -> Decimal:
+    """What still stands as paid for a Booking: its payments less refunds, reversals and
+    what was returned as credit (a cancellation, or a reschedule to fewer hours)."""
+    entries = LedgerEntry.objects.filter(booking=booking)
+    paid = _net(entries, Kind.PAYMENT) - _net(entries, Kind.REFUND)
+    returned = _net(entries.filter(source__isnull=False), Kind.CREDIT)
+    return paid - returned
+
+
+def booking_outstanding(booking) -> Decimal:
+    """What the Booking still owes; 0 once it no longer holds its field."""
+    if not booking.holds_field:
+        return ZERO
+    return max(booking.price - booking_paid(booking), ZERO)
+
+
+def booking_credit_returned(booking) -> Decimal:
+    """The credit returned from the Booking's payments, less any reversed."""
+    return _net(LedgerEntry.objects.filter(booking=booking, source__isnull=False), Kind.CREDIT)
+
+
+@transaction.atomic
+def return_booking_payments(
+    booking, amount, *, reason: str, recorded_by: User | None
+) -> list[LedgerEntry]:
+    """Returns `amount` of what was paid for a Booking as credit to its Booking User
+    (credit, never cash: the policy). Taken from the newest payments first, never more
+    than is left of each, so the total returned never passes what was paid."""
+    reason = _reason(reason)
+    amount = Decimal(amount).quantize(CENT)
+    credits = []
+    for payment in booking_payments(booking).order_by("-created_at", "-pk"):
+        if amount <= 0:
+            break
+        payment = LedgerEntry.objects.select_for_update().get(pk=payment.pk)
+        if LedgerEntry.objects.filter(reverses=payment).exists():
+            continue
+        left = _credit_left_of(payment)
+        if left <= 0:
+            continue
+        part = min(left, amount)
+        credits.append(
+            return_as_credit(payment, reason=reason, recorded_by=recorded_by, amount=part)
+        )
+        amount -= part
+    return credits

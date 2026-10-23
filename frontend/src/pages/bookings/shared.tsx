@@ -233,3 +233,49 @@ export function SlotPicker({ clubId, bookingId, initial, submitLabel, busy, erro
     </div>
   );
 }
+
+export type PolicyRow = Schemas["PolicyRow"];
+
+/** The club's cancellation and refund policy (FR-45), as the API words it. `current` marks
+ * the row that applies now. */
+export function PolicyList({ rows, current }: { rows: PolicyRow[]; current?: string }) {
+  return (
+    <ul className="la-group" aria-label="Cancellation policy">
+      {rows.map((row) => (
+        <li key={row.window} className="la-item" aria-current={row.window === current ? "true" : undefined}>
+          <span className="la-item__body">
+            <span className="body-strong">{row.window === current ? `${row.when} · now` : row.when}</span>
+            <span className="caption">{`Cancel: ${row.cancel}`}</span>
+            <span className="caption la-muted">{`Reschedule: ${row.reschedule}`}</span>
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** A club's policy, loaded before a booking is requested (FR-45). */
+export function ClubPolicy({ clubId }: { clubId: number }) {
+  const [policy, reload] = useLoad(
+    () => api.GET("/api/v1/bookings/policy/", { params: { query: { club: clubId } } }),
+    `booking-policy-${clubId}`,
+  );
+  return (
+    <section className="la-stack-2" aria-labelledby="policy">
+      <h2 id="policy" className="headline">
+        If plans change
+      </h2>
+      <LoadState result={policy} retry={reload} what="policy">
+        {(loaded) => (
+          <>
+            <p className="caption la-muted">
+              {`Payment is taken ${loaded.payment_cutoff_hours}h before you play. What comes back is credit, never cash.`}
+              {Number(loaded.credit) > 0 && ` Your credit here, ${formatRand(loaded.credit)}, is used first.`}
+            </p>
+            <PolicyList rows={loaded.rows} />
+          </>
+        )}
+      </LoadState>
+    </section>
+  );
+}

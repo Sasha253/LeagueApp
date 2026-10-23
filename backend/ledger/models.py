@@ -15,6 +15,7 @@ from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models
 
+from bookings.models import Booking
 from clubs.models import Club
 from fixtures.models import Fixture
 from teams.models import Team
@@ -97,6 +98,14 @@ class LedgerEntry(models.Model):
     )
     fixture = models.ForeignKey(
         Fixture, on_delete=models.PROTECT, null=True, blank=True, related_name="ledger_entries"
+    )
+    booking = models.ForeignKey(
+        Booking,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="ledger_entries",
+        help_text="The Booking a payment, credit spent or credit returned was for.",
     )
     reverses = models.OneToOneField(
         "self",

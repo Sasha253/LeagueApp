@@ -1,6 +1,8 @@
 // The club's bookings (design/src/ds/Screens.md, Admin 3, the Bookings tab): field bookings
 // waiting for an answer, or all of them, each with Accept and Decline (FR-29). Accepting
-// sends the Booking User their Barcode (FR-30). What may be decided is the API's call.
+// sends the Booking User their Barcode (FR-30). An Admin records cash paid for a booking
+// (FR-44) and cancels one for the club, which returns the club's percent as credit (the
+// policy). What may be done, and every amount, is the API's call.
 
 import { useState } from "react";
 import { api } from "../../api/client";
@@ -14,6 +16,7 @@ import { ScreenHeader } from "../teams/shared";
 import { BookingStatus, type ClubBooking, hoursLabel, priceLine, whenLine } from "./shared";
 
 type Filter = "pending" | "all";
+type Acting = { id: number; kind: "decline" | "cancel" | "cash" };
 
 export function ClubBookingsPage() {
   const { clubId, clubName } = useClub();
@@ -27,22 +30,40 @@ export function ClubBookingsPage() {
   );
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [declining, setDeclining] = useState<number | null>(null);
+  const [acting, setActing] = useState<Acting | null>(null);
   const [reason, setReason] = useState("");
+  const [amount, setAmount] = useState("");
 
-  async function decide(booking: ClubBooking, decision: "accept" | "decline") {
+  function start(booking: ClubBooking, kind: Acting["kind"]) {
+    setActing({ id: booking.id, kind });
+    setReason("");
+    setAmount(kind === "cash" ? booking.outstanding : "");
+  }
+
+  async function act(booking: ClubBooking, action: "accept" | Acting["kind"]) {
     setBusy(true);
     const path = { club_id: clubId, id: booking.id };
-    const failed = await send(() =>
-      decision === "accept"
-        ? api.POST("/api/v1/clubs/{club_id}/bookings/{id}/accept/", { params: { path } })
-        : api.POST("/api/v1/clubs/{club_id}/bookings/{id}/decline/", { params: { path }, body: { reason } }),
-    );
+    const failed = await send(() => {
+      switch (action) {
+        case "accept":
+          return api.POST("/api/v1/clubs/{club_id}/bookings/{id}/accept/", { params: { path } });
+        case "decline":
+          return api.POST("/api/v1/clubs/{club_id}/bookings/{id}/decline/", { params: { path }, body: { reason } });
+        case "cancel":
+          return api.POST("/api/v1/clubs/{club_id}/bookings/{id}/cancel/", { params: { path }, body: { reason } });
+        case "cash":
+          return api.POST("/api/v1/clubs/{club_id}/bookings/{id}/cash/", {
+            params: { path },
+            body: { amount: amount.trim(), reason: "" },
+          });
+      }
+    });
     setBusy(false);
     setError(failed ? (failed.general ?? Object.values(failed.fields)[0] ?? "That didn't work.") : null);
     if (!failed) {
-      setDeclining(null);
+      setActing(null);
       setReason("");
+      setAmount("");
       reload();
     }
   }
@@ -75,31 +96,109 @@ export function ClubBookingsPage() {
                     <span className="caption la-muted">
                       {`${priceLine(b)} = ${formatRand(b.price)} · ${[b.user.phone, b.user.email].filter(Boolean).join(" · ")}`}
                     </span>
-                    {b.decline_reason && <span className="caption la-muted">{b.decline_reason}</span>}
-                    {b.can_decide && declining !== b.id && (
-                      <span className="la-actions">
-                        <button
-                          type="button"
-                          className="la-btn la-btn--primary la-btn--sm"
-                          disabled={busy}
-                          onClick={() => void decide(b, "accept")}
-                        >
-                          Accept
-                        </button>
-                        <button
-                          type="button"
-                          className="la-btn la-btn--quiet la-btn--sm"
-                          disabled={busy}
-                          onClick={() => {
-                            setDeclining(b.id);
-                            setReason("");
-                          }}
-                        >
-                          Decline
-                        </button>
+                    {b.status === "accepted" && (
+                      <span className="caption">
+                        {Number(b.outstanding) > 0
+                          ? `Paid ${formatRand(b.paid)} · still to pay ${formatRand(b.outstanding)}`
+                          : `Paid ${formatRand(b.paid)}`}
                       </span>
                     )}
-                    {b.can_decide && declining === b.id && (
+                    {b.decline_reason && <span className="caption la-muted">{b.decline_reason}</span>}
+                    {b.cancelled_by_club && <span className="caption la-muted">Cancelled by the club</span>}
+                    {acting?.id !== b.id && (b.can_decide || b.can_record_cash || b.can_club_cancel) && (
+                      <span className="la-actions">
+                        {b.can_decide && (
+                          <>
+                            <button
+                              type="button"
+                              className="la-btn la-btn--primary la-btn--sm"
+                              disabled={busy}
+                              onClick={() => void act(b, "accept")}
+                            >
+                              Accept
+                            </button>
+                            <button
+                              type="button"
+                              className="la-btn la-btn--quiet la-btn--sm"
+                              disabled={busy}
+                              onClick={() => start(b, "decline")}
+                            >
+                              Decline
+                            </button>
+                          </>
+                        )}
+                        {b.can_record_cash && (
+                          <button
+                            type="button"
+                            className="la-btn la-btn--secondary la-btn--sm"
+                            disabled={busy}
+                            onClick={() => start(b, "cash")}
+                          >
+                            Record cash
+                          </button>
+                        )}
+                        {b.can_club_cancel && !b.can_decide && (
+                          <button
+                            type="button"
+                            className="la-btn la-btn--quiet la-btn--sm"
+                            disabled={busy}
+                            onClick={() => start(b, "cancel")}
+                          >
+                            Cancel for the club
+                          </button>
+                        )}
+                      </span>
+                    )}
+                    {acting?.id === b.id && acting.kind === "cash" && (
+                      <span className="la-stack-2">
+                        <TextField
+                          label="Cash received (R)"
+                          value={amount}
+                          inputMode="decimal"
+                          onChange={(event) => setAmount(event.target.value)}
+                          help={`Up to ${formatRand(b.outstanding)}.`}
+                        />
+                        <span className="la-actions">
+                          <button
+                            type="button"
+                            className="la-btn la-btn--primary la-btn--sm"
+                            disabled={busy}
+                            onClick={() => void act(b, "cash")}
+                          >
+                            Record cash
+                          </button>
+                          <button type="button" className="la-btn la-btn--quiet la-btn--sm" onClick={() => setActing(null)}>
+                            Back
+                          </button>
+                        </span>
+                      </span>
+                    )}
+                    {acting?.id === b.id && acting.kind === "cancel" && (
+                      <span className="la-stack-2">
+                        <span className="body-strong">{b.club_cancel_summary}</span>
+                        <TextField
+                          label="Why the club cancels"
+                          value={reason}
+                          maxLength={300}
+                          onChange={(event) => setReason(event.target.value)}
+                          help={`Told to ${b.user.name}.`}
+                        />
+                        <span className="la-actions">
+                          <button
+                            type="button"
+                            className="la-btn la-btn--danger la-btn--sm"
+                            disabled={busy || reason.trim() === ""}
+                            onClick={() => void act(b, "cancel")}
+                          >
+                            Cancel booking
+                          </button>
+                          <button type="button" className="la-btn la-btn--quiet la-btn--sm" onClick={() => setActing(null)}>
+                            Keep it
+                          </button>
+                        </span>
+                      </span>
+                    )}
+                    {b.can_decide && acting?.id === b.id && acting.kind === "decline" && (
                       <span className="la-stack-2">
                         <TextField
                           label="Reason (optional)"
@@ -113,14 +212,14 @@ export function ClubBookingsPage() {
                             type="button"
                             className="la-btn la-btn--danger la-btn--sm"
                             disabled={busy}
-                            onClick={() => void decide(b, "decline")}
+                            onClick={() => void act(b, "decline")}
                           >
                             Decline booking
                           </button>
                           <button
                             type="button"
                             className="la-btn la-btn--quiet la-btn--sm"
-                            onClick={() => setDeclining(null)}
+                            onClick={() => setActing(null)}
                           >
                             Keep it waiting
                           </button>

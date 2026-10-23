@@ -44,17 +44,66 @@ export function booking(overrides: object = {}) {
     is_over: false,
     can_cancel: true,
     can_reschedule: true,
+    cancelled_by_club: false,
+    paid: "0.00",
+    outstanding: "1200.00",
+    payment_due_at: "2026-10-26T16:00:00Z",
+    payment_requested: false,
+    can_pay: false,
     ...overrides,
   };
 }
 
+/** The club's policy rows, as the API words them (FR-45). */
+export const ROWS = [
+  { window: "free", when: "Before payment is taken (24h before)", cancel: "Free; nothing charged", reschedule: "Free" },
+  { window: "late", when: "24h to 6h before", cancel: "50% back as credit", reschedule: "Free, once, to a slot within 30 days" },
+  { window: "very_late", when: "Under 6h before, or no-show", cancel: "No credit", reschedule: "Not allowed" },
+  {
+    window: "club",
+    when: "The club cancels (pitch, weather, operational)",
+    cancel: "100% back as credit. Ask the club about a card refund.",
+    reschedule: "Free",
+  },
+];
+
+export const POLICY = { club: { id: 1, name: "Club A" }, payment_cutoff_hours: 24, rows: ROWS, credit: "0.00" };
+
+export function outcome(overrides: { cancel?: object; reschedule?: object; credit?: string } = {}) {
+  return {
+    cancel: {
+      window: "free",
+      allowed: true,
+      paid: "0.00",
+      credit_percent: 100,
+      credit: "0.00",
+      kept: "0.00",
+      summary: "Cancelling now is free. Nothing is charged.",
+      ...overrides.cancel,
+    },
+    reschedule: {
+      window: "free",
+      allowed: true,
+      reschedules_left: null,
+      latest_start: null,
+      summary: "Moving it now is free.",
+      ...overrides.reschedule,
+    },
+    rows: ROWS,
+    credit: overrides.credit ?? "0.00",
+  };
+}
+
 export function clubBooking(overrides: object = {}) {
-  const { can_cancel: _c, can_reschedule: _r, ...rest } = booking();
+  const { can_cancel: _c, can_reschedule: _r, can_pay: _p, ...rest } = booking();
   return {
     ...rest,
     user: { id: 9, name: "Hannah Hirer", email: "hirer@example.com", phone: "082 555 0101" },
     decided_by: null,
     can_decide: true,
+    can_club_cancel: true,
+    club_cancel_summary: "Nothing has been paid, so nothing is charged or returned.",
+    can_record_cash: false,
     ...overrides,
   };
 }

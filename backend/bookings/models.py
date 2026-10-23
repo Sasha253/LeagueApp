@@ -8,7 +8,8 @@ gate (FR-30, barcodes app). The Booking User can cancel or reschedule it (FR-31)
 - Pending and accepted Bookings hold their Field: nothing else may overlap them, and no
   Booking may overlap a Fixture on that Field (bookings/services.py checks both).
 - The price is the hourly fee fixed when the Booking was requested times the hours
-  (FR-33), in rand, Decimal. Payment and the cancellation policy come with chunk 24.
+  (FR-33), in rand, Decimal. It is paid at the club's payment cutoff (FR-34), and the
+  cancellation policy decides what comes back as credit (bookings/policy.py).
 - Every change is logged in BookingEvent, which is never changed or deleted.
 
 Times are stored in UTC and shown in South African time (CLAUDE.md).
@@ -59,6 +60,27 @@ class Booking(models.Model):
     )
     decline_reason = models.CharField(max_length=300, blank=True)
     cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancelled_by_club = models.BooleanField(
+        default=False, editable=False, help_text="An Admin cancelled it for the club."
+    )
+    payment_requested_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        editable=False,
+        help_text="When payment was taken for its current slot (FR-34). Cleared on reschedule.",
+    )
+    payment_taken_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        editable=False,
+        help_text="When payment was first taken. After it, cancelling is never free again.",
+    )
+    settled_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        editable=False,
+        help_text="When the app looked at it after it ended (no-show credit, once).",
+    )
 
     class Meta:
         ordering = ["starts_at", "pk"]
@@ -104,9 +126,17 @@ class BookingEvent(models.Model):
         ACCEPTED = "accepted", "Accepted"
         DECLINED = "declined", "Declined"
         CANCELLED = "cancelled", "Cancelled"
+        CLUB_CANCELLED = "club_cancelled", "Cancelled by the club"
+        PAYMENT_DUE = "payment_due", "Payment taken"
+        NO_SHOW = "no_show", "No-show"
 
     booking = models.ForeignKey(Booking, on_delete=models.PROTECT, related_name="events")
-    kind = models.CharField(max_length=12, choices=Kind.choices)
+    kind = models.CharField(max_length=16, choices=Kind.choices)
+    window = models.CharField(
+        max_length=10,
+        blank=True,
+        help_text="The policy window a cancel or reschedule fell in (bookings/policy.py).",
+    )
     at = models.DateTimeField()
     actor = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="+"

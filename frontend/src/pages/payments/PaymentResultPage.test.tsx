@@ -14,6 +14,29 @@ beforeEach(() => vi.mocked(openCheckout).mockClear());
 afterEach(() => vi.useRealTimers());
 
 describe("PaymentResultPage", () => {
+  it("shows a booking's payment and leads back to the booking", async () => {
+    await openAs(
+      DONE,
+      {
+        [RESULT]: {
+          status: 200,
+          body: payment({
+            team: null,
+            booking: { id: 70, field: { id: 3, name: "Pitch 3" }, starts_at: "2026-10-27T16:00:00Z", hours: 2 },
+            amount: "1200.00",
+            card_amount: "1200.00",
+            status: "complete",
+            checkout: null,
+          }),
+        },
+      },
+      "Payment",
+    );
+
+    expect(await screen.findByText("R 1,200 towards your Pitch 3 booking")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Back to the booking" })).toHaveAttribute("href", "/bookings/70");
+  });
+
   it("shows a completed payment, with what came from credit and card", async () => {
     await openAs(
       DONE,

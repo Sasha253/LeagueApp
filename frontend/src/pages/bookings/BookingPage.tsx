@@ -1,20 +1,33 @@
 // A booking (design/src/ds/Screens.md, Booking User 3; f15-booking.mjs "approved"): its
-// status, the entry Barcode once the club accepts it (FR-30), and Reschedule and Cancel
-// (FR-31). Whether each can be done, and whether the Barcode counts at the gate, is the
-// API's decision. The cancellation policy and its outcome come with booking payments.
+// status, what is paid and owed, Pay once payment is due (FR-34; credit first, FR-46), the
+// entry Barcode once the club accepts it (FR-30), and Reschedule and Cancel (FR-31) with the
+// club's policy and what they would mean now (FR-45). Every amount, outcome and whether each
+// can be done is the API's decision.
 
 import { useState } from "react";
-import { useParams } from "react-router";
-import { api } from "../../api/client";
+import { useNavigate, useParams } from "react-router";
+import { api, type Schemas } from "../../api/client";
 import type { FormErrors } from "../../api/errors";
 import { Banner } from "../../components/Banner";
 import { PaymentTicket } from "../../components/PaymentTicket";
-import { formatRand, formatTime, localDate, formatMoment } from "../../format";
+import { formatMoment, formatRand, formatTime, localDate } from "../../format";
+import { openCheckout } from "../../native/browser";
 import { LoadState, send, useLoad } from "../club/shared";
 import { ScreenHeader } from "../teams/shared";
-import { BookingStatus, type Booking, hoursLabel, priceLine, SlotPicker, type Slot, whenLine } from "./shared";
+import {
+  BookingStatus,
+  type Booking,
+  hoursLabel,
+  PolicyList,
+  priceLine,
+  SlotPicker,
+  type Slot,
+  whenLine,
+} from "./shared";
 
 const NOT_YOURS = "This booking isn't yours.";
+
+type Payment = Schemas["Payment"];
 
 export function BookingPage() {
   const id = Number(useParams().bookingId);
@@ -35,6 +48,111 @@ export function BookingPage() {
 
 function Detail({ initial }: { initial: Booking }) {
   const [b, setB] = useState(initial);
+  const owes = Number(b.outstanding) > 0;
+  const paid = Number(b.paid) > 0;
+
+  return (
+    <>
+      <div className="la-card la-stack-2">
+        <div className="la-section-head">
+          <span className="la-overline">{`${b.club.name} · ${b.field.name}`}</span>
+          <BookingStatus booking={b} />
+        </div>
+        <p className="title-2">{whenLine(b)}</p>
+        <div className="la-kv">
+          <span>{priceLine(b)}</span>
+          <span>{formatRand(b.price)}</span>
+        </div>
+        {paid && (
+          <div className="la-kv">
+            <span>Paid</span>
+            <span>{formatRand(b.paid)}</span>
+          </div>
+        )}
+        {b.status === "accepted" && owes && (
+          <div className="la-kv">
+            <span>Still to pay</span>
+            <span>{formatRand(b.outstanding)}</span>
+          </div>
+        )}
+        <p className="caption la-muted">{hoursLabel(b.hours)}</p>
+      </div>
+
+      {b.status === "pending" && !b.is_over && (
+        <Banner status="pending" title="Waiting for the club">
+          The club approves every booking. Your entry Barcode appears here once it's accepted.
+        </Banner>
+      )}
+      {b.status === "declined" && (
+        <Banner status="cancelled" title="The club declined this booking">
+          {b.decline_reason || undefined}
+        </Banner>
+      )}
+      {b.status === "cancelled" && b.cancelled_by_club && (
+        <Banner status="cancelled" title="The club cancelled this booking">
+          What you paid for it came back as credit, used first on your next booking.
+        </Banner>
+      )}
+      {b.status === "accepted" && !b.is_over && owes && !b.payment_requested && (
+        <p className="caption la-muted">{`Payment is taken ${formatMoment(b.payment_due_at)}.`}</p>
+      )}
+      {b.can_pay && <PayNow booking={b} />}
+      {b.status === "accepted" && !b.is_over && <EntryBarcode booking={b} />}
+
+      {(b.can_cancel || b.can_reschedule) && <Changes booking={b} onChanged={setB} />}
+    </>
+  );
+}
+
+function PayNow({ booking }: { booking: Booking }) {
+  const navigate = useNavigate();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function pay() {
+    setBusy(true);
+    setError(null);
+    let payment: Payment | undefined;
+    const failed = await send(async () => {
+      const answer = await api.POST("/api/v1/me/bookings/{id}/pay/", { params: { path: { id: booking.id } } });
+      payment = answer.data;
+      return answer;
+    });
+    if (failed || !payment) {
+      setBusy(false);
+      setError(failed?.general ?? "That didn't work. Try again.");
+      return;
+    }
+    const result = `/payments/done?payment=${payment.reference}`;
+    if (payment.status === "pending" && payment.checkout) {
+      try {
+        // In a browser this page leaves for PayFast, which sends the user back itself.
+        if (!(await openCheckout(payment.checkout.url))) return;
+      } catch {
+        // The result screen offers "Pay by card" again.
+      }
+    }
+    navigate(result);
+  }
+
+  return (
+    <section className="la-stack-2" aria-label="Pay for this booking">
+      <Banner status="pending" title={`Payment due: ${formatRand(booking.outstanding)}`}>
+        Any credit you have at this club is used first. The rest is paid by card on PayFast.
+      </Banner>
+      {error && <Banner status="cancelled" title={error} />}
+      <button type="button" className="la-btn la-btn--primary la-btn--block" disabled={busy} onClick={() => void pay()}>
+        {`Pay ${formatRand(booking.outstanding)}`}
+      </button>
+    </section>
+  );
+}
+
+function Changes({ booking: b, onChanged }: { booking: Booking; onChanged: (booking: Booking) => void }) {
+  const [outcome, reload] = useLoad(
+    () => api.GET("/api/v1/me/bookings/{id}/outcome/", { params: { path: { id: b.id } } }),
+    `booking-outcome-${b.id}-${b.status}-${b.starts_at}`,
+  );
   const [moving, setMoving] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -52,9 +170,9 @@ function Detail({ initial }: { initial: Booking }) {
     });
     setBusy(false);
     if (failed || !saved) return setErrors(failed);
-    setB(saved);
     setMoving(false);
     setCancelling(false);
+    onChanged(saved);
   }
 
   const reschedule = (slot: Slot) =>
@@ -62,83 +180,82 @@ function Detail({ initial }: { initial: Booking }) {
   const cancel = () => void change(() => api.POST("/api/v1/me/bookings/{id}/cancel/", { params: { path } }));
 
   return (
-    <>
-      <div className="la-card la-stack-2">
-        <div className="la-section-head">
-          <span className="la-overline">{`${b.club.name} · ${b.field.name}`}</span>
-          <BookingStatus booking={b} />
-        </div>
-        <p className="title-2">{whenLine(b)}</p>
-        <div className="la-kv">
-          <span>{priceLine(b)}</span>
-          <span>{formatRand(b.price)}</span>
-        </div>
-        <p className="caption la-muted">{hoursLabel(b.hours)}</p>
-      </div>
+    <LoadState result={outcome} retry={reload} what="cancellation policy" forbidden={NOT_YOURS}>
+      {(now) => (
+        <>
+          {errors?.general && !moving && <Banner status="cancelled" title={errors.general} />}
 
-      {b.status === "pending" && !b.is_over && (
-        <Banner status="pending" title="Waiting for the club">
-          The club approves every booking. Your entry Barcode appears here once it's accepted.
-        </Banner>
-      )}
-      {b.status === "declined" && (
-        <Banner status="cancelled" title="The club declined this booking">
-          {b.decline_reason || undefined}
-        </Banner>
-      )}
-      {b.status === "accepted" && !b.is_over && <EntryBarcode booking={b} />}
-
-      {errors?.general && !moving && <Banner status="cancelled" title={errors.general} />}
-
-      {moving && (
-        <section className="la-stack" aria-labelledby="reschedule">
-          <h2 id="reschedule" className="headline">
-            Reschedule
-          </h2>
-          <p className="caption la-muted">The club approves the new time before your Barcode works again.</p>
-          <SlotPicker
-            clubId={b.club.id}
-            bookingId={b.id}
-            initial={{ field: b.field.id, date: localDate(b.starts_at), hours: b.hours }}
-            submitLabel="Move my booking"
-            busy={busy}
-            errors={errors}
-            onSubmit={reschedule}
-          />
-          <button type="button" className="la-btn la-btn--quiet" onClick={() => setMoving(false)}>
-            Keep the time I have
-          </button>
-        </section>
-      )}
-
-      {cancelling && (
-        <div className="la-card la-stack-2" role="group" aria-label="Cancel booking">
-          <p className="title-2">Cancel this booking?</p>
-          <p className="body">{`${b.field.name}, ${formatMoment(b.starts_at)} to ${formatTime(b.ends_at)}.`}</p>
-          <button type="button" className="la-btn la-btn--danger la-btn--block" disabled={busy} onClick={cancel}>
-            Yes, cancel it
-          </button>
-          <button type="button" className="la-btn la-btn--secondary la-btn--block" onClick={() => setCancelling(false)}>
-            Keep booking
-          </button>
-        </div>
-      )}
-
-      {!moving && !cancelling && (b.can_reschedule || b.can_cancel) && (
-        <div className="la-actions">
-          {b.can_reschedule && (
-            <button type="button" className="la-btn la-btn--secondary" onClick={() => setMoving(true)}>
-              Reschedule
-            </button>
+          {moving && (
+            <section className="la-stack" aria-labelledby="reschedule">
+              <h2 id="reschedule" className="headline">
+                Reschedule
+              </h2>
+              <p className="caption la-muted">
+                {`${now.reschedule.summary} The club approves the new time before your Barcode works again.`}
+              </p>
+              <SlotPicker
+                clubId={b.club.id}
+                bookingId={b.id}
+                initial={{ field: b.field.id, date: localDate(b.starts_at), hours: b.hours }}
+                submitLabel="Move my booking"
+                busy={busy}
+                errors={errors}
+                onSubmit={reschedule}
+              />
+              <button type="button" className="la-btn la-btn--quiet" onClick={() => setMoving(false)}>
+                Keep the time I have
+              </button>
+            </section>
           )}
-          {b.can_cancel && (
-            <button type="button" className="la-btn la-btn--danger" onClick={() => setCancelling(true)}>
-              Cancel booking
-            </button>
+
+          {cancelling && (
+            <div className="la-card la-stack-2" role="group" aria-label="Cancel booking">
+              <p className="title-2">Cancel this booking?</p>
+              <p className="body">{`${b.field.name}, ${formatMoment(b.starts_at)} to ${formatTime(b.ends_at)}.`}</p>
+              <p className="body-strong">{now.cancel.summary}</p>
+              <button type="button" className="la-btn la-btn--danger la-btn--block" disabled={busy} onClick={cancel}>
+                Yes, cancel it
+              </button>
+              <button
+                type="button"
+                className="la-btn la-btn--secondary la-btn--block"
+                onClick={() => setCancelling(false)}
+              >
+                Keep booking
+              </button>
+            </div>
           )}
-        </div>
+
+          {!moving && !cancelling && (
+            <>
+              <div className="la-actions">
+                {b.can_reschedule && (
+                  <button type="button" className="la-btn la-btn--secondary" onClick={() => setMoving(true)}>
+                    Reschedule
+                  </button>
+                )}
+                {b.can_cancel && (
+                  <button type="button" className="la-btn la-btn--danger" onClick={() => setCancelling(true)}>
+                    Cancel booking
+                  </button>
+                )}
+              </div>
+              {!b.can_reschedule && <p className="caption la-muted">{now.reschedule.summary}</p>}
+            </>
+          )}
+
+          <section className="la-stack-2" aria-labelledby="policy">
+            <h2 id="policy" className="headline">
+              If plans change
+            </h2>
+            {Number(now.credit) > 0 && (
+              <p className="caption la-muted">{`Your credit at ${b.club.name}: ${formatRand(now.credit)}.`}</p>
+            )}
+            <PolicyList rows={now.rows} current={now.cancel.window} />
+          </section>
+        </>
       )}
-    </>
+    </LoadState>
   );
 }
 

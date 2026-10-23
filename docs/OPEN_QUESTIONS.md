@@ -907,3 +907,70 @@ docs/DECISIONS.md under "2026-10-23: Teams (chunk 5)".
 - **What the cancellation costs.** Not decided here: the policy outcome (free, 50% credit,
   none) and showing it before confirming come with chunk 24. In this chunk nothing is paid,
   so nothing is returned.
+
+## Chunk 24: Booking payments and cancellation policy
+
+- **How PayFast holds card details for a later charge (tokenisation, FR-32).** Question: the
+  chunk prompt asks this before building it. Choice: no card details or card tokens are held
+  at all. At the club's payment cutoff the app spends the Booking User's credit and asks
+  them (an Update notification, and Pay on the booking) to pay the rest on PayFast's hosted
+  page, the chunk 18 flow. Why: nobody could answer during the unattended run, and holding
+  nothing is the most conservative choice for PCI scope and consent; it reuses a verified
+  flow. If the answer differs (PayFast tokenisation / ad hoc subscriptions): add a token
+  model and a `charge_token` method to `payments.gateways.PaymentGateway`, capture the
+  token at the first booking payment (or at sign-up for FR-32), and charge it in
+  `bookings.services.take_payment` instead of asking. Models used here don't change.
+- **What "payment is taken" means without a stored card.** Choice: the cutoff moment
+  itself. At the cutoff the Booking's `payment_taken_at` is set, credit is spent, and the
+  user is asked for the rest; from then on cancelling is never free. A booking still unpaid
+  at its start is not cancelled automatically: its Barcode reads Not paid at the gate, and
+  an Admin can record cash or cancel it for the club. Why: the PRD ties the free window to
+  the cutoff; cancelling someone's booking automatically is a bigger step than the PRD
+  asks for. If the answer differs: add an automatic cancel for unpaid bookings to
+  `take_due_payments` (e.g. at the late-cancel time).
+- **Percent of what?** Question: "50% credit" of the price or of what was paid? Choice: of
+  what was paid (card, cash and credit spent), rounded half a cent up. Nothing unpaid is
+  owed once a booking is cancelled. Why: the policy says value is returned as credit; the
+  ledger can only return money it holds, and nothing in the app chases debts. If the answer
+  differs: post a booking charge for the kept part and track it as owed.
+- **Paying early.** Choice: card payment is offered only from the cutoff (FR-34 "only at a
+  club-configured time"). An Admin may record cash at any time once the booking is accepted;
+  cash paid before the cutoff of a booking then cancelled in the free window comes back in
+  full as credit (credit, never cash). Why: keeps the free window free. If the answer
+  differs: allow `pay` before the cutoff in `payments.services.start_booking_payment`.
+- **Late reschedule rules.** Choice: allowed `booking_reschedules_allowed` times per booking
+  (counted from the log, window `late`), to a slot starting no later than
+  `booking_reschedule_window_days` after the booking's current start; under the late-cancel
+  hours not at all. Before the cutoff (and before payment was ever taken) moves are free and
+  unlimited. A booking moved after payment was taken never gets the free window back. Why:
+  the PRD's "Free, once, to a slot within 30 days" with the club's own numbers; anchoring on
+  the current start keeps the user's 30 days. If the answer differs: change
+  `policy.reschedule_outcome`.
+- **Moving to fewer or more hours.** Choice: fewer hours: what was paid over the new price
+  comes back as credit at once. More hours: the difference is owed and taken at the new
+  slot's cutoff (or at once if that has passed) when the Admin accepts the move. Why: a free
+  reschedule shouldn't cost the user the hours they gave up. If the answer differs: keep the
+  excess as a club gain in `services.reschedule`.
+- **When the club cancels.** Choice: any Admin of the club can cancel a pending or accepted
+  booking until it ends, with a reason the user is told; the club's percent (default 100%)
+  of what was paid comes back as credit. "Card refund on request" is not built: the policy
+  row tells the user to ask the club, which refunds outside the app. An Admin declining a
+  rescheduled booking that was paid returns the same club percent. Why: refunds need the
+  PayFast refund API and the club's say on who may refund. If the answer differs: add a
+  refund action that calls the gateway and posts a `refund` ledger entry.
+- **No-shows.** Choice: an accepted booking that ended without a Paid scan of its Barcode is
+  a no-show: the club's no-show percent (default 0) of what was paid comes back as credit,
+  once (`Booking.settled_at`), and the log records it. Why: the policy's "or no-show" row,
+  read from the gate scans. If the answer differs: change `services.settle`.
+- **Credit used before card (FR-46).** Choice: the Booking User's credit at the booking's
+  club is spent automatically, at the cutoff and again when they press Pay, but always
+  leaves at least the gateway's smallest card amount (R 5 on PayFast) for the card so the
+  rest can be paid. Credit is spent on the user's behalf by the app (recorded by no one).
+  Why: FR-46 says it is used before card; leaving R 4 owed that no card can pay would strand
+  the booking. If the answer differs: change `services._credit_to_spend`.
+- **Card payments after a cancel.** Choice: a card payment PayFast confirms for a booking
+  already cancelled or declined is recorded and comes back in full as credit; anything paid
+  over the price comes back as credit too. Pending card payments are closed on cancel,
+  reschedule and decline. Why: money the gateway took is never lost.
+- **Who sees a payment.** Choice: `GET /api/v1/payments/{reference}/` and `me/payments/` serve
+  whoever made the payment (Booking Users aren't Players). Others get 404 as before.

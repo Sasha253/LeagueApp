@@ -21,6 +21,7 @@ from decimal import Decimal, InvalidOperation
 from urllib.parse import quote_plus, urlencode, urlsplit, urlunsplit
 
 from django.conf import settings
+from django.utils import timezone
 
 from clubs.models import Club, PaymentProvider
 
@@ -120,6 +121,14 @@ def _with_reference(url: str, reference: str) -> str:
     return urlunsplit(parts._replace(query=query + urlencode({"payment": reference})))
 
 
+def item_name(payment) -> str:
+    """What the payer sees on PayFast's page."""
+    if payment.booking_id is not None:
+        starts = timezone.localtime(payment.booking.starts_at)
+        return f"{payment.booking.field.name} booking, {starts:%a %d %b %H:%M}"
+    return f"{payment.team.name} league fee"
+
+
 class PayFastGateway(PaymentGateway):
     provider = PaymentProvider.PAYFAST
     minimum_amount = Decimal("5.00")  # PayFast takes no card payment under R 5.
@@ -148,7 +157,7 @@ class PayFastGateway(PaymentGateway):
             ("email_address", payment.player.email),
             ("m_payment_id", reference),
             ("amount", f"{payment.card_amount:.2f}"),
-            ("item_name", f"{payment.team.name} league fee"[:100]),
+            ("item_name", item_name(payment)[:100]),
         ]
         fields = [(name, value) for name, value in fields if str(value).strip() != ""]
         fields.append(("signature", signature(fields, account.passphrase, skip_blank=True)))

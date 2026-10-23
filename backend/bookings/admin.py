@@ -9,7 +9,7 @@ class BookingEventInline(admin.TabularInline):
     model = BookingEvent
     extra = 0
     can_delete = False
-    readonly_fields = ["kind", "at", "actor", "field", "starts_at", "hours", "note"]
+    readonly_fields = ["kind", "window", "at", "actor", "field", "starts_at", "hours", "note"]
 
     def has_add_permission(self, request, obj=None):
         return False

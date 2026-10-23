@@ -95,7 +95,7 @@ def itn_fields(payment, *, status="COMPLETE", amount=None, pf_payment_id="108925
         ("m_payment_id", str(payment.reference)),
         ("pf_payment_id", pf_payment_id),
         ("payment_status", status),
-        ("item_name", f"{payment.team.name} league fee"),
+        ("item_name", payfast.item_name(payment)),
         ("item_description", ""),
         ("amount_gross", f"{gross:.2f}"),
         ("amount_fee", "-2.30"),

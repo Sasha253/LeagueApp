@@ -1,6 +1,7 @@
 // Book a field (design/src/ds/Screens.md, Booking User 1 and 2; f15-booking.mjs): pick the
 // club, then day, hours, field and start time from the API's free times, and request it.
-// Every club approves each booking (FR-29), so it ends on "Booking requested".
+// Every club approves each booking (FR-29), so it ends on "Booking requested". The club's
+// cancellation policy is shown before the request is sent (FR-45).
 
 import { useState } from "react";
 import { Link } from "react-router";
@@ -11,7 +12,16 @@ import { Icon } from "../../components/Icon";
 import { formatRand } from "../../format";
 import { LoadState, send, useLoad } from "../club/shared";
 import { ScreenHeader } from "../teams/shared";
-import { BookingStatus, type Booking, hoursLabel, priceLine, SlotPicker, type Slot, whenLine } from "./shared";
+import {
+  BookingStatus,
+  type Booking,
+  ClubPolicy,
+  hoursLabel,
+  priceLine,
+  SlotPicker,
+  type Slot,
+  whenLine,
+} from "./shared";
 
 export const NOT_A_BOOKING_USER = "Turn on “I hire a field” in your Profile to book a field.";
 
@@ -92,6 +102,7 @@ export function BookPage() {
               {club && (
                 <>
                   <p className="caption la-muted">{`${club.name} · ${formatRand(club.hourly_fee)} an hour`}</p>
+                  <ClubPolicy key={`policy-${club.id}`} clubId={club.id} />
                   <SlotPicker
                     key={club.id}
                     clubId={club.id}

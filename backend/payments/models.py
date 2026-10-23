@@ -15,6 +15,7 @@ import uuid
 from django.conf import settings
 from django.db import models
 
+from bookings.models import Booking
 from clubs.models import Club, PaymentProvider
 from ledger.models import LedgerEntry
 from teams.models import Team
@@ -31,6 +32,7 @@ class Payment(models.Model):
         NONE = "none", "No credit"
         PLAYER = "player", "The Player's credit"
         TEAM = "team", "The Team's credit (its Captain)"
+        BOOKING_USER = "booking_user", "The Booking User's credit (spent first, FR-46)"
 
     reference = models.UUIDField(
         default=uuid.uuid4,
@@ -39,17 +41,27 @@ class Payment(models.Model):
         help_text="Our id for the payment at the gateway (PayFast m_payment_id).",
     )
     club = models.ForeignKey(Club, on_delete=models.PROTECT, related_name="payments")
-    team = models.ForeignKey(Team, on_delete=models.PROTECT, related_name="payments")
+    team = models.ForeignKey(
+        Team, on_delete=models.PROTECT, null=True, blank=True, related_name="payments"
+    )
+    booking = models.ForeignKey(
+        Booking,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="payments",
+        help_text="A Booking paid for (FR-34); a Payment is for a Team or a Booking.",
+    )
     player = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         related_name="payments",
-        help_text="The Player who chose this contribution and pays it.",
+        help_text="Who pays it: the Player, or the Booking User of a Booking.",
     )
     amount = models.DecimalField(
         max_digits=10, decimal_places=2, help_text="The whole contribution: credit plus card."
     )
-    credit_used = models.CharField(max_length=6, choices=Credit.choices)
+    credit_used = models.CharField(max_length=12, choices=Credit.choices)
     credit_amount = models.DecimalField(max_digits=10, decimal_places=2)
     card_amount = models.DecimalField(max_digits=10, decimal_places=2)
     provider = models.CharField(max_length=10, choices=PaymentProvider.choices)
@@ -98,11 +110,16 @@ class Payment(models.Model):
                 | (~models.Q(credit_used="none") & models.Q(credit_amount__gt=0)),
                 name="payment_credit_named",
             ),
+            models.CheckConstraint(
+                condition=models.Q(team__isnull=False, booking__isnull=True)
+                | models.Q(team__isnull=True, booking__isnull=False),
+                name="payment_for_a_team_or_a_booking",
+            ),
         ]
         indexes = [models.Index(fields=["team", "status"])]
 
     def __str__(self) -> str:
-        return f"R {self.amount} for {self.team} ({self.get_status_display()})"
+        return f"R {self.amount} for {self.team or self.booking} ({self.get_status_display()})"
 
     def delete(self, *args, **kwargs):
         raise ValueError("A Payment is never deleted.")

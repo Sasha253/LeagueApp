@@ -10,6 +10,7 @@ router.register("me/bookings", views.MyBookingViewSet, basename="my-bookings")
 
 urlpatterns = [
     path("bookings/clubs/", views.BookingClubListView.as_view(), name="booking-clubs"),
+    path("bookings/policy/", views.PolicyView.as_view(), name="booking-policy"),
     path("bookings/availability/", views.AvailabilityView.as_view(), name="booking-availability"),
     *router.urls,
 ]

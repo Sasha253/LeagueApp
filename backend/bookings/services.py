@@ -14,7 +14,11 @@ Rules (docs/DECISIONS.md, chunk 23, provisional):
   it. Once decided, every Admin's Notification for it closes.
 - Accepting issues the Booking User's Barcode (FR-30). Cancelling or rescheduling revokes
   it; a reschedule waits for an Admin again.
-- What a cancellation or late reschedule costs (the policy) is chunk 24.
+- Payment is taken at the club's payment cutoff (FR-34, `take_due_payments`, on Celery
+  Beat): the Booking User's credit first (FR-46), then they are asked to pay the rest by
+  card on the gateway's page, or to the club in cash (an Admin records it, FR-44).
+- What a cancellation or reschedule costs is the club's policy (bookings/policy.py):
+  what comes back is credit, never cash. An Admin can cancel for the club.
 
 Locks are taken in one order everywhere: Booking, then Field, then Notifications.
 """
@@ -24,6 +28,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from django.db import transaction
+from django.db.models import DurationField, ExpressionWrapper, F
 from django.dispatch import receiver
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
@@ -32,11 +37,12 @@ from accounts.models import ClubRole, User
 from clubs.models import Club, ClubSettings, Field
 from core.exceptions import Conflict
 from fixtures.models import Fixture
+from ledger import services as ledger
 from notifications import targeting
 from notifications.models import Answer, Kind, Notification
 from notifications.services import close, match_day, match_time, notification_answered, notify
 
-from . import money
+from . import money, policy
 from .models import MOST_HOURS, Booking, BookingEvent
 
 S = Booking.Status
@@ -51,6 +57,12 @@ CLASHES_WITH_MATCH = "A league match is on this field for some of that time."
 NOTHING_CHANGED = "Pick a different field, time or number of hours."
 STARTED = "This booking has already started."
 ADMINS_ONLY = "Only an Admin of this club can decide a booking."
+REASON_NEEDED = "Give a reason. The Booking User is told."
+TOO_FAR = "A late move must start by {latest}."
+NOT_DUE = "Payment for this booking isn't due yet."
+NOTHING_OWED = "This booking has nothing left to pay."
+NOT_ACCEPTED = "Only an accepted booking is paid for."
+MORE_THAN_OWED = "That is more than the booking still owes."
 
 
 def _now() -> dt.datetime:
@@ -233,7 +245,7 @@ def _tell_admins(booking: Booking, title: str, body: str) -> None:
     )
 
 
-def _log(booking: Booking, kind: str, actor: User | None, note: str = "") -> None:
+def _log(booking: Booking, kind: str, actor: User | None, note: str = "", window: str = "") -> None:
     BookingEvent.objects.create(
         booking=booking,
         kind=kind,
@@ -243,7 +255,29 @@ def _log(booking: Booking, kind: str, actor: User | None, note: str = "") -> Non
         starts_at=booking.starts_at,
         hours=booking.hours,
         note=note[:300],
+        window=window,
     )
+
+
+def _return_credit(booking: Booking, amount: Decimal, reason: str, by: User | None) -> None:
+    if amount > 0:
+        ledger.return_booking_payments(booking, amount, reason=reason, recorded_by=by)
+
+
+def _close_pending_payments(booking: Booking) -> None:
+    """Card payments not yet made for it can't be made any more. One the gateway confirms
+    anyway comes back in full as credit (payments.services)."""
+    from payments.models import Payment  # payments imports this app's models.
+
+    booking.payments.filter(status=Payment.Status.PENDING).update(status=Payment.Status.CANCELLED)
+
+
+def _sentence(text: str) -> str:
+    return text if text.endswith((".", "!", "?")) else f"{text}."
+
+
+def _credit_line(credit: Decimal) -> str:
+    return f" {money.rand(credit)} is back as credit." if credit > 0 else ""
 
 
 def _lock(booking: Booking) -> Booking:
@@ -305,22 +339,58 @@ def _revoke_barcode(booking: Booking, by: User, reason: str) -> None:
 @transaction.atomic
 def cancel(booking: Booking, *, by: User) -> Booking:
     """FR-31: the Booking User cancels before it starts. The Barcode no longer counts.
-    What it costs (the policy) comes with chunk 24."""
+    The club's policy decides how much of what was paid comes back as credit."""
     booking = _lock(booking)
     _still_open(booking, "cancelled")
+    outcome = policy.cancel_outcome(booking)
     was_accepted = booking.status == S.ACCEPTED
     booking.status = S.CANCELLED
     booking.cancelled_at = _now()
     booking.save(update_fields=["status", "cancelled_at"])
-    _log(booking, E.CANCELLED, by)
+    _log(booking, E.CANCELLED, by, outcome.summary, window=outcome.window)
     _revoke_barcode(booking, by, "The booking was cancelled.")
+    _close_pending_payments(booking)
+    _return_credit(booking, outcome.credit, f"Booking cancelled, {slot_text(booking)}", by)
     close(_admin_notifications(booking))
+    if outcome.paid > 0:
+        _tell_user(booking, f"Booking cancelled: {booking.field.name}", outcome.summary)
     if was_accepted:
         _tell_admins(
             booking,
             f"Booking cancelled: {booking.field.name}",
             f"{booking.user.name} cancelled {slot_text(booking)}.",
         )
+    return booking
+
+
+@transaction.atomic
+def club_cancel(booking: Booking, *, by: User, reason: str) -> Booking:
+    """The club cancels (pitch, weather, operational; the policy's last row): an Admin of
+    the club, before it ends, with a reason. The club's percent of what was paid comes
+    back as credit, and the Booking User is told why."""
+    booking = _lock(booking)
+    if not is_admin(by, booking.club_id):
+        raise Conflict("Only an Admin of this club can cancel it for the club.")
+    reason = (reason or "").strip()[:300]
+    if not reason:
+        raise ValidationError({"reason": [REASON_NEEDED]})
+    outcome = policy.cancel_outcome(booking, by_club=True)
+    if not outcome.allowed:
+        raise Conflict(f"This booking is {booking.status}, so it can't be cancelled.")
+    booking.status = S.CANCELLED
+    booking.cancelled_at = _now()
+    booking.cancelled_by_club = True
+    booking.save(update_fields=["status", "cancelled_at", "cancelled_by_club"])
+    _log(booking, E.CLUB_CANCELLED, by, reason, window=policy.Window.CLUB)
+    _revoke_barcode(booking, by, "The club cancelled the booking.")
+    _close_pending_payments(booking)
+    _return_credit(booking, outcome.credit, f"The club cancelled: {reason}", by)
+    close(_admin_notifications(booking))
+    _tell_user(
+        booking,
+        f"The club cancelled your booking: {booking.field.name}",
+        f"{slot_text(booking)}. {_sentence(reason)}{_credit_line(outcome.credit)}",
+    )
     return booking
 
 
@@ -338,6 +408,12 @@ def reschedule(
     club_settings = _settings(booking.club)
     if (field.pk, starts_at, hours) == (booking.field_id, booking.starts_at, booking.hours):
         raise ValidationError({"starts_at": [NOTHING_CHANGED]})
+    outcome = policy.reschedule_outcome(booking)
+    if not outcome.allowed:
+        raise Conflict(outcome.summary)
+    if outcome.latest_start is not None and starts_at > outcome.latest_start:
+        latest = f"{match_day(outcome.latest_start)}, {match_time(outcome.latest_start)}"
+        raise ValidationError({"starts_at": [TOO_FAR.format(latest=latest)]})
     field = _lock_field(field)
     check_slot(starts_at, hours)
     ends_at = _ends_at(starts_at, hours)
@@ -351,6 +427,7 @@ def reschedule(
     booking.status = S.PENDING
     booking.decided_at = None
     booking.decided_by = None
+    booking.payment_requested_at = None  # Taken again at the new slot's cutoff if owed.
     booking.save(
         update_fields=[
             "field",
@@ -361,9 +438,14 @@ def reschedule(
             "status",
             "decided_at",
             "decided_by",
+            "payment_requested_at",
         ]
     )
-    _log(booking, E.RESCHEDULED, by)
+    _log(booking, E.RESCHEDULED, by, outcome.summary, window=outcome.window)
+    _close_pending_payments(booking)
+    # Moved to fewer hours: what was paid over the new price comes back as credit.
+    over = money.paid(booking) - booking.price
+    _return_credit(booking, over, f"Booking moved to {slot_text(booking)}", by)
     if was_accepted:
         _revoke_barcode(booking, by, "The booking was rescheduled.")
     close(_admin_notifications(booking))
@@ -418,14 +500,18 @@ def decline(booking: Booking, *, by: User, reason: str = "") -> Booking:
     if booking.status != S.PENDING:
         raise Conflict(f"This booking is {booking.status}, so it can't be declined.")
     reason = reason.strip()[:300]
+    outcome = policy.cancel_outcome(booking, by_club=True)  # Paid before a reschedule.
     booking.status = S.DECLINED
     booking.decided_at = _now()
     booking.decided_by = by
     booking.decline_reason = reason
     booking.save(update_fields=["status", "decided_at", "decided_by", "decline_reason"])
-    _log(booking, E.DECLINED, by, reason)
+    _log(booking, E.DECLINED, by, reason, window=policy.Window.CLUB if outcome.paid else "")
+    _close_pending_payments(booking)
+    _return_credit(booking, outcome.credit, f"Booking declined, {slot_text(booking)}", by)
     close(_admin_notifications(booking))
-    body = slot_text(booking) + (f". {reason}" if reason else ".")
+    body = f"{slot_text(booking)}." + (f" {_sentence(reason)}" if reason else "")
+    body += _credit_line(outcome.credit)
     _tell_user(booking, f"Booking declined: {booking.field.name}", body)
     return booking
 
@@ -440,3 +526,178 @@ def booking_answered(sender, notification: Notification, previous: str, **kwargs
         accept(booking, by=notification.recipient)
     else:
         decline(booking, by=notification.recipient)
+
+
+# Payment (FR-33, FR-34, FR-44, FR-46)
+
+
+def _card_options(club: Club) -> tuple[bool, Decimal | None]:
+    from payments import services as payments  # payments imports this app's models.
+
+    return payments.club_card_options(club)
+
+
+def due_for_payment(now: dt.datetime | None = None):
+    """Accepted Bookings still to come whose payment cutoff has passed and whose payment
+    hasn't been taken for their current slot."""
+    now = now or _now()
+    cutoff = ExpressionWrapper(
+        F("club__settings__booking_payment_cutoff_hours") * dt.timedelta(hours=1),
+        output_field=DurationField(),
+    )
+    return (
+        Booking.objects.filter(
+            status=S.ACCEPTED, payment_requested_at__isnull=True, starts_at__gt=now
+        )
+        .alias(due_at=F("starts_at") - cutoff)
+        .filter(due_at__lte=now)
+    )
+
+
+def _credit_to_spend(owed: Decimal, held: Decimal, club: Club) -> Decimal:
+    """Credit first (FR-46), but leave at least the gateway's smallest card amount for
+    the card, so what is left can still be paid by card."""
+    spend = min(held, owed)
+    card_enabled, minimum = _card_options(club)
+    if card_enabled and 0 < owed - spend < minimum:
+        spend = max(owed - minimum, Decimal("0.00"))
+    return spend
+
+
+@transaction.atomic
+def take_payment(booking: Booking) -> bool:
+    """FR-34: at the club's payment cutoff, the Booking User's credit at the club pays
+    first (FR-46); they are asked to pay the rest by card in the app, or to the club in
+    cash. From now on cancelling is never free (the policy). Once per slot."""
+    booking = _lock(booking)
+    now = _now()
+    if (
+        booking.status != S.ACCEPTED
+        or booking.payment_requested_at is not None
+        or booking.starts_at <= now
+        or now < policy.payment_due_at(booking)
+    ):
+        return False
+    owed = money.outstanding(booking)
+    spent = Decimal("0.00")
+    if owed > 0:
+        held = ledger.booking_credit(booking.club, booking.user)
+        spent = _credit_to_spend(owed, held, booking.club)
+        if spent > 0:
+            ledger.spend_booking_credit(
+                booking=booking,
+                amount=spent,
+                spent_by=None,
+                reason=f"Credit towards the booking, {slot_text(booking)}",
+            )
+    booking.payment_requested_at = now
+    booking.payment_taken_at = booking.payment_taken_at or now
+    booking.save(update_fields=["payment_requested_at", "payment_taken_at"])
+    left = money.outstanding(booking)
+    from_credit = f" {money.rand(spent)} came from your credit." if spent > 0 else ""
+    _log(booking, E.PAYMENT_DUE, None, f"Owed {money.rand(owed)}.{from_credit}")
+    if left > 0:
+        card_enabled, minimum = _card_options(booking.club)
+        if card_enabled and left >= minimum:
+            how = f"Pay {money.rand(left)} by card in My bookings before you play."
+        else:
+            how = f"Pay {money.rand(left)} to the club before you play."
+        _tell_user(
+            booking,
+            f"Payment due: {booking.field.name}",
+            f"{slot_text(booking)}.{from_credit} {how}",
+        )
+    elif spent > 0:
+        _tell_user(
+            booking,
+            f"Booking paid: {booking.field.name}",
+            f"{slot_text(booking)}. Paid from your credit: {money.rand(spent)}. "
+            "Your Barcode works at the gate.",
+        )
+    return True
+
+
+def take_due_payments(now: dt.datetime | None = None) -> int:
+    """Celery Beat: takes payment for every Booking whose cutoff has passed."""
+    taken = 0
+    for booking_id in due_for_payment(now).values_list("pk", flat=True):
+        taken += take_payment(Booking(pk=booking_id))
+    return taken
+
+
+@transaction.atomic
+def record_cash(booking: Booking, *, by: User, amount: Decimal, reason: str = ""):
+    """FR-44: cash paid to the club for an accepted Booking, recorded by one of its
+    Admins, up to what it still owes. The policy applies to it like any payment."""
+    booking = _lock(booking)
+    if not is_admin(by, booking.club_id):
+        raise Conflict("Only an Admin of this club can record cash for it.")
+    if booking.status != S.ACCEPTED:
+        raise Conflict(NOT_ACCEPTED)
+    owed = money.outstanding(booking)
+    if owed <= 0:
+        raise Conflict(NOTHING_OWED)
+    if amount > owed:
+        raise Conflict(MORE_THAN_OWED)
+    return ledger.record_booking_payment(
+        booking=booking,
+        amount=amount,
+        method=ledger.Method.CASH,
+        recorded_by=by,
+        reason=reason.strip() or "Cash paid to the club",
+    )
+
+
+def card_payment_recorded(booking: Booking, entry) -> None:
+    """A card payment the gateway confirmed (payments.services, Booking locked). Money
+    already taken is never lost: for a Booking cancelled or declined meanwhile it all
+    comes back as credit, and anything over the price comes back as credit."""
+    if not booking.holds_field:
+        ledger.return_as_credit(
+            entry, reason="Paid after the booking was cancelled", recorded_by=None
+        )
+        return
+    over = money.paid(booking) - booking.price
+    _return_credit(booking, over, "Paid more than the booking costs", None)
+
+
+# After it ends
+
+
+@transaction.atomic
+def settle(booking: Booking) -> bool:
+    """Once an accepted Booking has ended: never scanned in at the gate is a no-show,
+    and gets the club's no-show percent of what was paid back as credit (the policy)."""
+    from barcodes.models import BarcodeScan
+
+    booking = _lock(booking)
+    now = _now()
+    if booking.status != S.ACCEPTED or booking.settled_at is not None or booking.ends_at > now:
+        return False
+    booking.settled_at = now
+    booking.save(update_fields=["settled_at"])
+    came = BarcodeScan.objects.filter(
+        barcode__booking=booking, result=BarcodeScan.Result.PAID
+    ).exists()
+    if came:
+        return True
+    club_settings = ClubSettings.objects.get(club_id=booking.club_id)
+    paid = money.paid(booking)
+    percent = club_settings.booking_no_show_credit_percent
+    credit = money.percent_of(paid, percent) if paid > 0 else Decimal("0.00")
+    _log(booking, E.NO_SHOW, None, f"Not scanned in. Credit {money.rand(credit)}.", "very_late")
+    if credit > 0:
+        _return_credit(booking, credit, f"No-show, {slot_text(booking)}", None)
+        _tell_user(
+            booking,
+            f"Missed booking: {booking.field.name}",
+            f"{slot_text(booking)}. {money.rand(credit)} is back as credit ({percent}%).",
+        )
+    return True
+
+
+def settle_ended(now: dt.datetime | None = None) -> int:
+    """Celery Beat: settles every accepted Booking that has ended."""
+    now = now or _now()
+    ended = Booking.objects.filter(status=S.ACCEPTED, ends_at__lte=now, settled_at__isnull=True)
+    return sum(settle(Booking(pk=pk)) for pk in ended.values_list("pk", flat=True))

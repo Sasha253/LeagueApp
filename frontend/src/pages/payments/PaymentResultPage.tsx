@@ -64,7 +64,15 @@ function Result({ reference, left }: { reference: string; left: boolean }) {
 
 function Outcome({ payment, left, recheck }: { payment: Payment; left: boolean; recheck: () => void }) {
   const [error, setError] = useState<string | null>(null);
-  const team = payment.team;
+  // A payment is for a Team (a Player's share) or a Booking (its Booking User).
+  const target = payment.booking
+    ? { name: `your ${payment.booking.field.name} booking`, to: `/bookings/${payment.booking.id}`, back: "Back to the booking" }
+    : {
+        name: payment.team!.name,
+        to: `/teams/${payment.team!.id}`,
+        back: `Back to ${payment.team!.name}`,
+      };
+  const payAgain = payment.booking ? target.to : `/teams/${payment.team!.id}/pay`;
   const credit = Number(payment.credit_amount) > 0;
   const card = Number(payment.card_amount) > 0;
 
@@ -83,7 +91,7 @@ function Outcome({ payment, left, recheck }: { payment: Payment; left: boolean; 
       <section className="la-card la-stack-2" aria-label="Your payment">
         <div className="la-row">
           <span className="body-strong">
-            {formatRand(payment.amount)} towards {team.name}
+            {formatRand(payment.amount)} towards {target.name}
           </span>
           <PaymentStatus payment={payment} />
         </div>
@@ -93,7 +101,7 @@ function Outcome({ payment, left, recheck }: { payment: Payment; left: boolean; 
 
       {payment.status === "complete" && (
         <Banner status="confirmed" title="Paid">
-          Thanks. Your payment is recorded for {team.name}.
+          Thanks. Your payment is recorded for {target.name}.
         </Banner>
       )}
       {payment.status === "pending" && left && (
@@ -109,7 +117,7 @@ function Outcome({ payment, left, recheck }: { payment: Payment; left: boolean; 
       )}
       {(payment.status === "failed" || payment.status === "cancelled") && (
         <Banner status="cancelled" title={payment.status === "failed" ? "The card payment failed" : "The card payment was cancelled"}>
-          {credit ? "The credit you used still counts towards your Team. " : ""}You can pay again from your Team.
+          {credit ? `The credit you used still counts towards ${target.name}. ` : ""}You can pay again.
         </Banner>
       )}
       {error && <Banner status="cancelled" title={error} />}
@@ -121,7 +129,7 @@ function Outcome({ payment, left, recheck }: { payment: Payment; left: boolean; 
           </button>
         )}
         {payment.status === "pending" && !payment.checkout && (
-          <p className="caption la-muted">This card payment can't be finished any more. Pay again from your Team.</p>
+          <p className="caption la-muted">This card payment can't be finished any more. Pay again.</p>
         )}
         {payment.status === "pending" && (
           <button type="button" className="la-btn la-btn--secondary la-btn--block" onClick={recheck}>
@@ -129,12 +137,12 @@ function Outcome({ payment, left, recheck }: { payment: Payment; left: boolean; 
           </button>
         )}
         {(payment.status === "failed" || payment.status === "cancelled") && (
-          <Link className="la-btn la-btn--primary la-btn--block" to={`/teams/${team.id}/pay`}>
+          <Link className="la-btn la-btn--primary la-btn--block" to={payAgain}>
             Pay again
           </Link>
         )}
-        <Link className="la-btn la-btn--quiet la-btn--block" to={`/teams/${team.id}`}>
-          {`Back to ${team.name}`}
+        <Link className="la-btn la-btn--quiet la-btn--block" to={target.to}>
+          {target.back}
         </Link>
       </div>
     </>

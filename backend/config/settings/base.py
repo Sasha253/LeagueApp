@@ -205,6 +205,12 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": float(CHECKPOINT_INTERVAL_SECONDS),
         "options": {"expires": CHECKPOINT_INTERVAL_SECONDS},
     },
+    # Booking payments at the club's cutoff (FR-34) and no-shows after a booking ends.
+    "booking-payments": {
+        "task": "bookings.run_payments",
+        "schedule": float(CHECKPOINT_INTERVAL_SECONDS),
+        "options": {"expires": CHECKPOINT_INTERVAL_SECONDS},
+    },
 }
 
 # Card payments (payments/). Card details go only to the gateway's hosted page, never to

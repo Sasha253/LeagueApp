@@ -144,6 +144,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/bookings/policy/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description FR-45: a club's booking policy, and the user's credit there, before they book. */
+        get: operations["bookings_policy_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/captain-requests/{id}/withdraw/": {
         parameters: {
             query?: never;
@@ -212,6 +229,46 @@ export interface paths {
          * @description FR-29, FR-30: a waiting Booking still to come that clashes with nothing. The Booking User gets the Barcode. 409 otherwise.
          */
         post: operations["clubs_bookings_accept_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/bookings/{id}/cancel/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel a booking for the club
+         * @description The policy's club row (pitch, weather, operational): before it ends, with a reason the user is told. The club's percent of what was paid comes back to the user as credit.
+         */
+        post: operations["clubs_bookings_cancel_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/bookings/{id}/cash/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record cash for a booking
+         * @description FR-44: cash paid to the club for an accepted booking, up to what it still owes. 409 otherwise.
+         */
+        post: operations["clubs_bookings_cash_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1426,6 +1483,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/bookings/{id}/outcome/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What cancelling or moving it now means
+         * @description FR-45: the club's policy, the current window, what a cancellation now returns as credit, and whether (and how far) it can be moved.
+         */
+        get: operations["me_bookings_outcome_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/bookings/{id}/pay/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pay for a booking
+         * @description FR-34, FR-46: once payment is due, what is left: the user's credit at the club first, the rest by card on the gateway's page (`checkout`). 409 before it is due, when nothing is owed, or when the club takes cash only.
+         */
+        post: operations["me_bookings_pay_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/bookings/{id}/reschedule/": {
         parameters: {
             query?: never;
@@ -1524,7 +1621,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description The signed-in Player's payments, newest first. */
+        /** @description The signed-in user's payments (Team or Booking), newest first. */
         get: operations["me_payments_list"];
         put?: never;
         post?: never;
@@ -1605,7 +1702,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description One payment, for the Player who made it (e.g. after returning from the gateway). */
+        /**
+         * @description One payment, for whoever made it (e.g. after returning from the gateway). Anyone
+         *     else's is 404.
+         */
         get: operations["payments_retrieve"];
         put?: never;
         post?: never;
@@ -2269,6 +2369,27 @@ export interface components {
             readonly can_cancel: boolean;
             /** @description It can be rescheduled now. */
             readonly can_reschedule: boolean;
+            /** @description An Admin cancelled it for the club. */
+            readonly cancelled_by_club: boolean;
+            /**
+             * Format: decimal
+             * @description What still stands as paid for it.
+             */
+            readonly paid: string;
+            /**
+             * Format: decimal
+             * @description What it still owes.
+             */
+            readonly outstanding: string;
+            /**
+             * Format: date-time
+             * @description When payment is taken for it (FR-34). Stored in UTC; sent with its offset. Show it in Africa/Johannesburg.
+             */
+            readonly payment_due_at: string;
+            /** @description Payment has been taken for its current time: what is left is due now. */
+            readonly payment_requested: boolean;
+            /** @description The Booking User can pay what is left now (credit first, then card). */
+            readonly can_pay: boolean;
         };
         /** @description The Booking's Barcode (FR-30), and whether it counts at the gate now and why not. */
         BookingBarcode: {
@@ -2277,6 +2398,12 @@ export interface components {
             readonly reason: string;
             /** @description Empty until an Admin accepts the Booking. */
             readonly barcode: components["schemas"]["Barcode"] | null;
+        };
+        BookingCashRequest: {
+            /** Format: decimal */
+            amount: string;
+            /** @default  */
+            reason: string;
         };
         /** @description A club taking bookings, for a Booking User choosing where to play. */
         BookingClub: {
@@ -2288,6 +2415,17 @@ export interface components {
              */
             readonly hourly_fee: string;
             readonly fields: components["schemas"]["Named"][];
+        };
+        /** @description What cancelling or moving the Booking now would mean (FR-45), decided here. */
+        BookingOutcome: {
+            readonly cancel: components["schemas"]["CancelOutcome"];
+            readonly reschedule: components["schemas"]["RescheduleOutcome"];
+            readonly rows: components["schemas"]["PolicyRow"][];
+            /**
+             * Format: decimal
+             * @description The Booking User's credit at this club, used before card (FR-46).
+             */
+            readonly credit: string;
         };
         BookingRequestRequest: {
             field: number;
@@ -2319,6 +2457,24 @@ export interface components {
             readonly name: string;
             /** Format: date-time */
             readonly joined_at: string;
+        };
+        CancelOutcome: {
+            readonly window: components["schemas"]["WindowEnum"];
+            readonly allowed: boolean;
+            /** Format: decimal */
+            readonly paid: string;
+            readonly credit_percent: number;
+            /**
+             * Format: decimal
+             * @description Back as credit, never cash.
+             */
+            readonly credit: string;
+            /**
+             * Format: decimal
+             * @description What the club keeps.
+             */
+            readonly kept: string;
+            readonly summary: string;
         };
         /** @description A Captain's request to cancel or postpone a match (FR-18). */
         CaptainRequest: {
@@ -2442,10 +2598,39 @@ export interface components {
             readonly cancelled_at: string | null;
             /** @description It has ended. */
             readonly is_over: boolean;
+            /** @description An Admin cancelled it for the club. */
+            readonly cancelled_by_club: boolean;
+            /**
+             * Format: decimal
+             * @description What still stands as paid for it.
+             */
+            readonly paid: string;
+            /**
+             * Format: decimal
+             * @description What it still owes.
+             */
+            readonly outstanding: string;
+            /**
+             * Format: date-time
+             * @description When payment is taken for it (FR-34). Stored in UTC; sent with its offset. Show it in Africa/Johannesburg.
+             */
+            readonly payment_due_at: string;
+            /** @description Payment has been taken for its current time: what is left is due now. */
+            readonly payment_requested: boolean;
             readonly user: components["schemas"]["BookingUser"];
             readonly decided_by: components["schemas"]["Named"] | null;
             /** @description It is waiting for an Admin and still to come. */
             readonly can_decide: boolean;
+            /** @description An Admin can cancel it for the club now (before it ends). */
+            readonly can_club_cancel: boolean;
+            /** @description What cancelling it for the club would return as credit (the policy). */
+            readonly club_cancel_summary: string;
+            /** @description It is accepted and still owes money: an Admin can record cash (FR-44). */
+            readonly can_record_cash: boolean;
+        };
+        ClubCancelRequest: {
+            /** @description Why the club cancels (pitch, weather, ...). Told to the user. */
+            reason: string;
         };
         /** @description A Captain's request as the club's Admin sees it in the requests list. */
         ClubCaptainRequest: {
@@ -2524,6 +2709,18 @@ export interface components {
         /** @description A Night with its Divisions, for the Admin's setup screens. */
         ClubNightRequest: {
             weekday: components["schemas"]["WeekdayEnum"];
+        };
+        /** @description A club's booking policy, shown before a booking is requested (FR-45). */
+        ClubPolicy: {
+            readonly club: components["schemas"]["ClubSummary"];
+            /** @description Payment is taken this many hours before it starts (FR-34). */
+            readonly payment_cutoff_hours: number;
+            readonly rows: components["schemas"]["PolicyRow"][];
+            /**
+             * Format: decimal
+             * @description The Booking User's credit at this club, used before card (FR-46).
+             */
+            readonly credit: string;
         };
         ClubRole: {
             readonly club_id: number;
@@ -3320,6 +3517,17 @@ export interface components {
         NotificationKindEnum: "confirmation" | "reminder" | "general" | "update" | "player_request" | "goalkeeper_request" | "booking";
         /** @enum {unknown} */
         NullEnum: null;
+        /** @description The Booking a payment is for. */
+        PaidBooking: {
+            readonly id: number;
+            readonly field: components["schemas"]["Named"];
+            /**
+             * Format: date-time
+             * @description Stored in UTC; show it in Africa/Johannesburg.
+             */
+            readonly starts_at: string;
+            readonly hours: number;
+        };
         PaidByMethod: {
             /** Format: decimal */
             readonly card: string;
@@ -3412,14 +3620,20 @@ export interface components {
             /** Format: date */
             ends_on?: string;
         };
-        /** @description A Player's contribution: credit spent at once, the rest by card at the gateway. */
+        /**
+         * @description A contribution towards a Team (a Player) or a Booking (its Booking User): credit
+         *     spent at once, the rest by card at the gateway.
+         */
         Payment: {
             /**
              * Format: uuid
              * @description Our id for the payment at the gateway (PayFast m_payment_id).
              */
             readonly reference: string;
-            readonly team: components["schemas"]["Named"];
+            /** @description Empty for a booking. */
+            readonly team: components["schemas"]["Named"] | null;
+            /** @description Empty for a Team's payment. */
+            readonly booking: components["schemas"]["PaidBooking"] | null;
             /** Format: decimal */
             readonly amount: string;
             readonly credit_used: components["schemas"]["PaymentCreditEnum"];
@@ -3440,9 +3654,10 @@ export interface components {
          * @description * `none` - No credit
          *     * `player` - The Player's credit
          *     * `team` - The Team's credit (its Captain)
+         *     * `booking_user` - The Booking User's credit (spent first, FR-46)
          * @enum {string}
          */
-        PaymentCreditEnum: "none" | "player" | "team";
+        PaymentCreditEnum: "none" | "player" | "team" | "booking_user";
         /**
          * @description * `gateway` - Card through the payment gateway, and cash
          *     * `cash_only` - Cash only, confirmed by an Admin
@@ -3579,6 +3794,15 @@ export interface components {
          * @enum {string}
          */
         PlayerRequestStatusEnum: "open" | "filled" | "withdrawn" | "closed";
+        /** @description One row of the club's cancellation and refund policy (FR-45). */
+        PolicyRow: {
+            readonly window: components["schemas"]["WindowEnum"];
+            readonly when: string;
+            /** @description If the Booking User cancels. */
+            readonly cancel: string;
+            /** @description If the Booking User reschedules. */
+            readonly reschedule: string;
+        };
         /**
          * @description * `outfield` - Outfield
          *     * `goalkeeper` - Goalkeeper
@@ -3679,6 +3903,18 @@ export interface components {
          * @enum {string}
          */
         ReplacementStatusEnum: "open" | "accepted" | "lapsed" | "withdrawn";
+        RescheduleOutcome: {
+            readonly window: components["schemas"]["WindowEnum"];
+            readonly allowed: boolean;
+            /** @description Late moves left; empty when unlimited. */
+            readonly reschedules_left: number | null;
+            /**
+             * Format: date-time
+             * @description A late move must start by then; empty when any time. Stored in UTC; sent with its offset. Show it in Africa/Johannesburg.
+             */
+            readonly latest_start: string | null;
+            readonly summary: string;
+        };
         /** @description What a reschedule will do, before the Admin confirms it. */
         ReschedulePreview: {
             /** Format: date-time */
@@ -3869,6 +4105,7 @@ export interface components {
              *     * `none` - No credit
              *     * `player` - The Player's credit
              *     * `team` - The Team's credit (its Captain)
+             *     * `booking_user` - The Booking User's credit (spent first, FR-46)
              * @default none
              */
             credit: components["schemas"]["PaymentCreditEnum"];
@@ -4056,6 +4293,15 @@ export interface components {
          * @enum {integer}
          */
         WeekdayEnum: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+        /**
+         * @description * `free` - Before payment is taken
+         *     * `late` - After payment is taken
+         *     * `very_late` - Close to the start
+         *     * `started` - Started
+         *     * `club` - The club cancels
+         * @enum {string}
+         */
+        WindowEnum: "free" | "late" | "very_late" | "started" | "club";
     };
     responses: never;
     parameters: never;
@@ -4279,6 +4525,27 @@ export interface operations {
             };
         };
     };
+    bookings_policy_retrieve: {
+        parameters: {
+            query: {
+                club: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClubPolicy"];
+                };
+            };
+        };
+    };
     captain_requests_withdraw_create: {
         parameters: {
             query?: never;
@@ -4366,6 +4633,64 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClubBooking"];
+                };
+            };
+        };
+    };
+    clubs_bookings_cancel_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+                /** @description A unique integer value identifying this booking. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClubCancelRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ClubCancelRequest"];
+                "multipart/form-data": components["schemas"]["ClubCancelRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClubBooking"];
+                };
+            };
+        };
+    };
+    clubs_bookings_cash_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+                /** @description A unique integer value identifying this booking. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BookingCashRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["BookingCashRequest"];
+                "multipart/form-data": components["schemas"]["BookingCashRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LedgerEntry"];
                 };
             };
         };
@@ -6351,6 +6676,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Booking"];
+                };
+            };
+        };
+    };
+    me_bookings_outcome_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this booking. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingOutcome"];
+                };
+            };
+        };
+    };
+    me_bookings_pay_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this booking. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Payment"];
                 };
             };
         };

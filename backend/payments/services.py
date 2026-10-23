@@ -19,7 +19,9 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from accounts.models import User
-from clubs.models import PaymentMode
+from bookings import money as booking_money
+from bookings.models import Booking
+from clubs.models import Club, ClubSettings, PaymentMode
 from core.exceptions import Conflict
 from ledger import services as ledger
 from ledger.models import LedgerEntry
@@ -78,13 +80,18 @@ def paying(team: Team, write: Callable[[], LedgerEntry]) -> LedgerEntry:
     return entry
 
 
-def card_options(team: Team) -> tuple[bool, Decimal | None]:
-    """Whether the Team's Club takes cards now, and the smallest card amount."""
-    club_settings = team.club.settings
+def club_card_options(club: Club) -> tuple[bool, Decimal | None]:
+    """Whether the Club takes cards now, and the smallest card amount."""
+    club_settings = ClubSettings.objects.get(club_id=club.pk)
     if club_settings.payment_mode != PaymentMode.GATEWAY:
         return False, None
     gateway = gateway_for(club_settings.payment_provider)
-    return gateway.merchant_id_for(team.club) is not None, gateway.minimum_amount
+    return gateway.merchant_id_for(club) is not None, gateway.minimum_amount
+
+
+def card_options(team: Team) -> tuple[bool, Decimal | None]:
+    """Whether the Team's Club takes cards now, and the smallest card amount."""
+    return club_card_options(team.club)
 
 
 def suggested_amount(team: Team, player: User) -> Decimal | None:
@@ -227,6 +234,8 @@ def handle_notification(
 
     try:
         with transaction.atomic():
+            if payment.booking_id is not None:  # Locks in the bookings order: Booking first.
+                Booking.objects.select_for_update().get(pk=payment.booking_id)
             payment = Payment.objects.select_for_update().get(pk=payment.pk)
             outcome, detail = _apply(payment, confirmation)
             return _log(provider, payment, source_ip, fields, outcome, detail)
@@ -240,18 +249,21 @@ def _apply(payment: Payment, confirmation) -> tuple[str, str]:
         if payment.card_entry_id is not None:
             return Outcome.REPEAT, "Already recorded."
         gateway_id = confirmation.gateway_payment_id
-        payment.card_entry = paying(
-            payment.team,
-            lambda: ledger.record_payment(
-                team=payment.team,
-                amount=payment.card_amount,
-                method=LedgerEntry.Method.CARD,
-                recorded_by=None,
-                player=payment.player,
-                reason=f"Card payment, {payment.get_provider_display()} {gateway_id}".strip(),
-                money_taken=True,
-            ),
-        )
+        if payment.booking_id is not None:
+            payment.card_entry = _record_booking_card(payment, gateway_id)
+        else:
+            payment.card_entry = paying(
+                payment.team,
+                lambda: ledger.record_payment(
+                    team=payment.team,
+                    amount=payment.card_amount,
+                    method=LedgerEntry.Method.CARD,
+                    recorded_by=None,
+                    player=payment.player,
+                    reason=f"Card payment, {payment.get_provider_display()} {gateway_id}".strip(),
+                    money_taken=True,
+                ),
+            )
         payment.status = Status.COMPLETE
         payment.gateway_payment_id = gateway_id or None
         payment.completed_at = timezone.now()
@@ -264,6 +276,101 @@ def _apply(payment: Payment, confirmation) -> tuple[str, str]:
         payment.save(update_fields=["status"])
         return Outcome.ACCEPTED, f"Payment {confirmation.status}."
     return Outcome.REPEAT, "Still pending at the gateway."
+
+
+def _record_booking_card(payment: Payment, gateway_id: str) -> LedgerEntry:
+    """A Booking's card payment the gateway took: recorded however things stand now, and
+    the bookings app returns any of it not owed as credit."""
+    from bookings import services as bookings
+
+    booking = Booking.objects.select_related("club", "field", "user").get(pk=payment.booking_id)
+    entry = ledger.record_booking_payment(
+        booking=booking,
+        amount=payment.card_amount,
+        method=LedgerEntry.Method.CARD,
+        recorded_by=None,
+        reason=f"Card payment, {payment.get_provider_display()} {gateway_id}".strip(),
+    )
+    bookings.card_payment_recorded(booking, entry)
+    return entry
+
+
+# Bookings (FR-34, FR-46)
+
+BOOKING_NOT_YOURS = "This booking isn't yours."
+BOOKING_NOT_ACCEPTED = "Only an accepted booking is paid for."
+BOOKING_OVER = "This booking is over."
+BOOKING_NOT_DUE = "Payment for this booking isn't due yet. It is taken {when}."
+BOOKING_NOTHING_OWED = "This booking has nothing left to pay."
+BOOKING_PAY_CLUB = "Pay {amount} to the club: it is less than the smallest card payment."
+
+
+@transaction.atomic
+def start_booking_payment(*, booking: Booking, user: User) -> Payment:
+    """The Booking User pays what their accepted Booking still owes, once its payment
+    cutoff has passed (FR-34): their credit at the club first, always (FR-46), the rest
+    by card. Any card payment started before for it and not made is closed."""
+    from bookings import policy
+    from notifications.services import match_day, match_time
+
+    booking = (
+        Booking.objects.select_for_update(of=("self",))
+        .select_related("club", "field", "user")
+        .get(pk=booking.pk)
+    )
+    if booking.user_id != user.pk:
+        raise Conflict(BOOKING_NOT_YOURS)
+    if booking.status != Booking.Status.ACCEPTED:
+        raise Conflict(BOOKING_NOT_ACCEPTED)
+    if booking.ends_at <= timezone.now():
+        raise Conflict(BOOKING_OVER)
+    if booking.payment_requested_at is None:
+        due = policy.payment_due_at(booking)
+        raise Conflict(BOOKING_NOT_DUE.format(when=f"{match_day(due)}, {match_time(due)}"))
+    owed = booking_money.outstanding(booking)
+    if owed <= 0:
+        raise Conflict(BOOKING_NOTHING_OWED)
+
+    club_settings = ClubSettings.objects.get(club_id=booking.club_id)
+    credit_amount = min(ledger.booking_credit(booking.club, user), owed)
+    merchant_id = ""
+    if owed - credit_amount > 0:
+        if club_settings.payment_mode != PaymentMode.GATEWAY:
+            raise Conflict(CASH_ONLY)
+        gateway = gateway_for(club_settings.payment_provider)
+        merchant_id = gateway.merchant_id_for(booking.club)
+        if merchant_id is None:
+            raise Conflict(CARD_NOT_SET_UP)
+        if owed - credit_amount < gateway.minimum_amount:
+            # Leave the smallest card amount for the card, or pay the club in cash.
+            credit_amount = owed - gateway.minimum_amount
+            if credit_amount < 0:
+                raise Conflict(BOOKING_PAY_CLUB.format(amount=_rand(owed)))
+    card_amount = owed - credit_amount
+
+    booking.payments.filter(status=Status.PENDING).update(status=Status.CANCELLED)
+    payment = Payment.objects.create(
+        club=booking.club,
+        booking=booking,
+        player=user,
+        amount=owed,
+        credit_used=Credit.BOOKING_USER if credit_amount > 0 else Credit.NONE,
+        credit_amount=credit_amount,
+        card_amount=card_amount,
+        provider=club_settings.payment_provider,
+        merchant_id=merchant_id,
+        status=Status.PENDING if card_amount > 0 else Status.COMPLETE,
+        completed_at=None if card_amount > 0 else timezone.now(),
+    )
+    if credit_amount > 0:
+        payment.credit_entry = ledger.spend_booking_credit(
+            booking=booking,
+            amount=credit_amount,
+            spent_by=user,
+            reason=f"Credit towards the booking, payment {payment.reference}",
+        )
+        payment.save(update_fields=["credit_entry"])
+    return payment
 
 
 # Cash
