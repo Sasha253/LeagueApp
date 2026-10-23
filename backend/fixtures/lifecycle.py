@@ -12,7 +12,9 @@
                                       T-6h: both Teams are out (FR-5, FR-6)
     both_teams_out -> friendly | cancelled   (FR-10, FR-17, FR-43)
     one_team_out -> replacement_offered   the slot is offered to other Teams (FR-15)
-    replacement_offered -> confirming | ready   a Team accepted (FR-15)
+    replacement_offered -> scheduled | confirming | ready
+                                      a Team accepted (FR-15): before the T-36h
+                                      Confirmations, before T-6h, or after it
     any but friendly, cancelled and played -> friendly
                                       only when friendly-eligible (FR-10, FR-17)
     any but cancelled and played -> cancelled   (FR-17, FR-43)
@@ -45,7 +47,7 @@ TRANSITIONS: dict[str, frozenset[str]] = {
     ),
     S.ONE_TEAM_OUT: frozenset({S.REPLACEMENT_OFFERED, S.FRIENDLY, S.CANCELLED}),
     S.BOTH_TEAMS_OUT: frozenset({S.FRIENDLY, S.CANCELLED}),
-    S.REPLACEMENT_OFFERED: frozenset({S.CONFIRMING, S.READY, S.FRIENDLY, S.CANCELLED}),
+    S.REPLACEMENT_OFFERED: frozenset({S.SCHEDULED, S.CONFIRMING, S.READY, S.FRIENDLY, S.CANCELLED}),
     S.FRIENDLY: frozenset({S.PLAYED, S.CANCELLED}),
     S.CANCELLED: frozenset(),
     S.PLAYED: frozenset(),
@@ -66,6 +68,17 @@ FLAG_OPEN = frozenset(
 NOT_ALLOWED = "A {from_} Fixture can't become {to}."
 NOT_FRIENDLY_ELIGIBLE = "This Fixture isn't friendly-eligible, so it can't become a friendly."
 FLAG_CLOSED = "This Fixture is {status}, so whether it may become a friendly can't change now."
+
+
+def lock(fixture_id: int, *related: str) -> Fixture:
+    """Locks the Fixture row, then loads it with `related`. Call inside a transaction.
+
+    The lock is taken without joins: PostgreSQL rechecks a locked row that changed while it
+    waited against the joined rows it read before, so a lock joined to the Teams would find
+    nothing once a replacement Team (chunk 14) had just been swapped in.
+    """
+    Fixture.objects.select_for_update().filter(pk=fixture_id).values_list("pk").get()
+    return Fixture.objects.select_related(*related).get(pk=fixture_id)
 
 
 def can_move(from_status: str, to_status: str) -> bool:

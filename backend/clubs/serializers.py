@@ -8,6 +8,7 @@ from .models import Club, ClubSettings, Division, Field, Night, Season
 PAST_READINESS = "Must be fewer hours before kick-off than the Confirmations."
 RESEND_TOO_LATE = "The resend must go out before the readiness check."
 LATE_CANCEL_AFTER_CUTOFF = "Must be fewer hours before kick-off than the payment cutoff."
+REPLACEMENT_AFTER_READINESS = "Must be fewer hours before kick-off than the readiness check."
 
 
 class ClubSummarySerializer(serializers.ModelSerializer):
@@ -177,6 +178,10 @@ class ClubSettingsSerializer(serializers.ModelSerializer):
             errors["readiness_hours_before"] = PAST_READINESS
         elif resend >= confirmation - readiness:
             errors["confirmation_resend_after_hours"] = RESEND_TOO_LATE
+        if "readiness_hours_before" not in errors and value(
+            "replacement_close_hours_before"
+        ) >= value("readiness_hours_before"):
+            errors["replacement_close_hours_before"] = REPLACEMENT_AFTER_READINESS
         if value("booking_late_cancel_hours") >= value("booking_payment_cutoff_hours"):
             errors["booking_late_cancel_hours"] = LATE_CANCEL_AFTER_CUTOFF
         if errors:

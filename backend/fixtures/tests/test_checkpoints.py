@@ -352,7 +352,7 @@ def test_the_task_runs_the_checkpoints(match, clock):
 
     result = run_checkpoints.apply().get()
 
-    assert result == ran(confirmation=1)
+    assert result == {**ran(confirmation=1), "replacement_lapsed": 0, "replacement_withdrawn": 0}
 
 
 def test_beat_starts_the_task_every_minute():

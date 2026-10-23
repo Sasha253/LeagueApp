@@ -115,7 +115,7 @@ def due(club_settings: ClubSettings, now: datetime) -> dict[str, list[int]]:
     }
 
 
-def _claim(fixture: Fixture, kind: str, now: datetime, notified: int) -> bool:
+def claim(fixture: Fixture, kind: str, now: datetime, notified: int) -> bool:
     """Records that this checkpoint ran. False when it already had (exactly once)."""
     try:
         with transaction.atomic():
@@ -128,10 +128,8 @@ def _claim(fixture: Fixture, kind: str, now: datetime, notified: int) -> bool:
 
 
 def _locked(fixture_id: int) -> tuple[Fixture, ClubSettings]:
-    fixture = (
-        Fixture.objects.select_for_update(of=("self",))
-        .select_related("home_team", "away_team", "pitch", "division__night", "club__settings")
-        .get(pk=fixture_id)
+    fixture = lifecycle.lock(
+        fixture_id, "home_team", "away_team", "pitch", "division__night", "club__settings"
     )
     return fixture, fixture.club.settings
 
@@ -146,7 +144,7 @@ def send_confirmations(fixture_id: int, now: datetime | None = None) -> bool:
     if fixture.status != S.SCHEDULED or not opens <= now < cutoff:
         return False
     recipients = list(targeting.confirmation_recipients(fixture))
-    if not _claim(fixture, Checkpoint.CONFIRMATION, now, len(recipients)):
+    if not claim(fixture, Checkpoint.CONFIRMATION, now, len(recipients)):
         return False
     lifecycle.transition(
         fixture,
@@ -194,7 +192,7 @@ def resend_confirmations(fixture_id: int, now: datetime | None = None) -> bool:
     # Locked, so a Player answering at this moment is either seen as answered or answers
     # after the resend; never pushed again (and shown unread) just after answering.
     ids = list(unanswered.select_for_update(of=("self",)).values_list("pk", flat=True))
-    if not _claim(fixture, Checkpoint.RESEND, now, len(ids)):
+    if not claim(fixture, Checkpoint.RESEND, now, len(ids)):
         return False
     notifications.resend(Notification.objects.filter(pk__in=ids))
     return True
@@ -212,7 +210,7 @@ def check_readiness(fixture_id: int, now: datetime | None = None) -> bool:
         confirmation_cutoff(fixture, club_settings) <= now < fixture.kick_off
     ):
         return False
-    if not _claim(fixture, Checkpoint.READINESS, now, 0):
+    if not claim(fixture, Checkpoint.READINESS, now, 0):
         return False
     readiness.assess(fixture, now)
     return True
@@ -228,7 +226,7 @@ def send_reminders(fixture_id: int, now: datetime | None = None) -> bool:
     ):
         return False
     recipients = list(targeting.reminder_recipients(fixture))
-    if not _claim(fixture, Checkpoint.REMINDER, now, len(recipients)):
+    if not claim(fixture, Checkpoint.REMINDER, now, len(recipients)):
         return False
     title, body = notifications.reminder_content(fixture)
     notifications.notify(

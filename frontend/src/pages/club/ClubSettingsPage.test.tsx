@@ -22,6 +22,7 @@ describe("ClubSettingsPage", () => {
 
     expect(screen.getByLabelText("Confirmations go out (hours before kick-off)")).toHaveValue("36");
     expect(screen.getByLabelText("Credit when the club cancels (%)")).toHaveValue("100");
+    expect(screen.getByLabelText("New opponent search closes (hours before kick-off)")).toHaveValue("2");
     expect(screen.getByLabelText("League fee per Team (R)")).toHaveValue("");
     expect(screen.getByText(/Still to set: League fee per Team, Friendly fee per match/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Card and cash" })).toHaveAttribute("aria-pressed", "true");
@@ -49,6 +50,7 @@ describe("ClubSettingsPage", () => {
       booking_hourly_fee: null,
       division_min_players: 6,
       payment_mode: "cash_only",
+      replacement_close_hours_before: 2,
     });
     expect(screen.getByText("Still to set: Field hire per hour.", { exact: false })).toBeInTheDocument();
   });

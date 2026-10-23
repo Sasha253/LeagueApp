@@ -189,6 +189,12 @@ class ConfigurableValues(models.Model):
         validators=[MinValueValidator(1)],
         help_text="Reminder and readiness check, this many hours before kick-off (FR-4, FR-5).",
     )
+    replacement_close_hours_before = models.PositiveSmallIntegerField(
+        help_text=(
+            "When one Team is out, the slot is offered to other Teams until this many hours "
+            "before kick-off (FR-15). Fewer than the readiness hours."
+        ),
+    )
     booking_payment_cutoff_hours = models.PositiveSmallIntegerField(
         validators=[MinValueValidator(1)],
         help_text="Booking payment is taken this many hours before kick-off (FR-34).",

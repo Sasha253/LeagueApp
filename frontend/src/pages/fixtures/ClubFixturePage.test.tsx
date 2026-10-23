@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { ADMIN_ME } from "../club/testing";
 import { openAs } from "../teams/testing";
-import { adminFixture } from "./testing";
+import { adminFixture, replacement } from "./testing";
 
 const DETAIL = "/api/v1/clubs/1/fixtures/30/";
 
@@ -90,5 +90,45 @@ describe("ClubFixturePage", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Friendly-eligible" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("can't change now");
+  });
+
+  it("shows nothing about a new opponent while no Team is out", async () => {
+    await openAs("/clubs/1/fixtures/30", { [`GET ${DETAIL}`]: { status: 200, body: adminFixture() } }, "Fixture", ADMIN_ME);
+
+    await screen.findByRole("article", { name: "Red Lions vs Old Boys" });
+    expect(screen.queryByRole("list", { name: "New opponent" })).not.toBeInTheDocument();
+  });
+
+  it("shows who the slot is offered to and until when", async () => {
+    const fixture = adminFixture({ status: "replacement_offered", replacements: [replacement()] });
+    await openAs("/clubs/1/fixtures/30", { [`GET ${DETAIL}`]: { status: 200, body: fixture } }, "Fixture", ADMIN_ME);
+
+    const row = within(await screen.findByRole("list", { name: "New opponent" })).getByRole("listitem");
+    expect(row).toHaveTextContent("Red Lions out");
+    expect(row).toHaveTextContent("Offered to Blue Bulls, Green Geckos until Tue 27 Oct · 17:40.");
+    expect(row).toHaveTextContent("Status: Offered");
+  });
+
+  it("shows which Team took the slot, and a search no Team answered", async () => {
+    const fixture = adminFixture({
+      status: "ready",
+      home_team: { id: 11, name: "Blue Bulls" },
+      replacements: [
+        replacement({ id: 3, status: "lapsed", offered_to: [] }),
+        replacement({
+          status: "accepted",
+          accepted_team: { id: 11, name: "Blue Bulls" },
+          accepted_by_name: "Bongi",
+          accepted_at: "2026-10-27T13:00:00Z",
+        }),
+      ],
+    });
+    await openAs("/clubs/1/fixtures/30", { [`GET ${DETAIL}`]: { status: 200, body: fixture } }, "Fixture", ADMIN_ME);
+
+    const rows = within(await screen.findByRole("list", { name: "New opponent" })).getAllByRole("listitem");
+    expect(rows[0]).toHaveTextContent("No other Team could take the slot.");
+    expect(rows[0]).toHaveTextContent("Status: No Team took it");
+    expect(rows[1]).toHaveTextContent("Blue Bulls took the slot (Bongi), Tue 27 Oct · 15:00.");
+    expect(rows[1]).toHaveTextContent("Status: Taken");
   });
 });

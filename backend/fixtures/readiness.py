@@ -143,11 +143,7 @@ def decide(readiness: TeamReadiness, admin, decision: str, note: str = "") -> Te
     """The Admin rules a waiting Team in ("play") or out ("out"). Once; 409 otherwise."""
     if decision not in DECISIONS:
         raise Conflict(f"Decide with one of: {', '.join(DECISIONS)}.")
-    fixture = (
-        Fixture.objects.select_for_update(of=("self",))
-        .select_related("home_team", "away_team", "division", "club")
-        .get(pk=readiness.fixture_id)
-    )
+    fixture = lifecycle.lock(readiness.fixture_id, "home_team", "away_team", "division", "club")
     readiness = (
         TeamReadiness.objects.select_for_update(of=("self",))
         .select_related("team")

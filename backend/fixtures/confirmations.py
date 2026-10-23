@@ -8,6 +8,9 @@ everything here, never the app:
   FR-1) and until the cutoff, `readiness_hours_before` kick-off (T-6h) from the Club's own
   settings. The Player can change their answer as often as they like until then.
 - Only a Player in one of the Fixture's Teams now can answer, for that Team.
+- A replacement opponent that took the slot after the cutoff (chunk 14, fixtures/
+  replacements.py) gets its Confirmations then: its Players answer while the match is
+  `ready`, until kick-off. Their answers decide nothing; the T-6h check has run.
 - One answer per Player, Fixture and kick-off (ConfirmationAnswer). The Player's
   Confirmation Notification for the match shows the same answer, whichever way it was
   given, so the inbox and the resend (FR-2) agree with the match screen.
@@ -33,8 +36,9 @@ from notifications.models import Kind, Notification
 from notifications.services import match_day, match_time, notification_answered
 from teams.models import Team, TeamMembership
 
+from . import lifecycle
 from .checkpoints import confirmation_cutoff
-from .models import ConfirmationAnswer, Fixture
+from .models import ConfirmationAnswer, Fixture, ReplacementCandidate, ReplacementOffer
 
 S = Fixture.Status
 Value = ConfirmationAnswer.Value
@@ -51,7 +55,27 @@ def cutoff(fixture: Fixture) -> datetime:
     return confirmation_cutoff(fixture, fixture.club.settings)
 
 
-def replies_open(fixture: Fixture, now: datetime) -> bool:
+def late_replacement(fixture: Fixture, team: Team | None) -> bool:
+    """`team` took this match's slot after the cutoff (chunk 14)."""
+    if team is None:
+        return False
+    return ReplacementOffer.objects.filter(
+        fixture=fixture,
+        kick_off=fixture.kick_off,
+        status=ReplacementOffer.Status.ACCEPTED,
+        accepted_team=team,
+        accepted_at__gte=cutoff(fixture),
+    ).exists()
+
+
+def answer_by(fixture: Fixture, team: Team | None = None) -> datetime:
+    """Until when `team`'s Players can answer: the cutoff, or kick-off for a late replacement."""
+    return fixture.kick_off if late_replacement(fixture, team) else cutoff(fixture)
+
+
+def replies_open(fixture: Fixture, now: datetime, team: Team | None = None) -> bool:
+    if late_replacement(fixture, team):
+        return fixture.status == S.READY and now < fixture.kick_off
     return fixture.status == S.CONFIRMING and now < cutoff(fixture)
 
 
@@ -70,7 +94,14 @@ def team_of(fixture: Fixture, player) -> Team | None:
     return membership.team if membership else None
 
 
-def _refuse_if_closed(fixture: Fixture, now: datetime) -> None:
+def _refuse_if_closed(fixture: Fixture, now: datetime, team: Team | None) -> None:
+    if late_replacement(fixture, team):
+        if fixture.status != S.READY:
+            raise Conflict(NOT_CONFIRMING)
+        if now >= fixture.kick_off:
+            kick_off = fixture.kick_off
+            raise Conflict(CLOSED.format(day=match_day(kick_off), time=match_time(kick_off)))
+        return
     if fixture.status == S.SCHEDULED:
         hours = fixture.club.settings.confirmation_hours_before
         raise Conflict(NOT_OPEN_YET.format(hours=hours))
@@ -86,14 +117,10 @@ def answer(fixture: Fixture, player, value: str, *, via: str) -> ConfirmationAns
     """Records (or changes) the Player's answer. 409 when replies are closed for them."""
     if value not in Value.values:
         raise Conflict(f"Answer with one of: {', '.join(Value.values)}.")
-    fixture = (
-        Fixture.objects.select_for_update(of=("self",))
-        .select_related("club__settings")
-        .get(pk=fixture.pk)
-    )
+    fixture = lifecycle.lock(fixture.pk, "club__settings")
     now = timezone.now()
-    _refuse_if_closed(fixture, now)
     team = team_of(fixture, player)
+    _refuse_if_closed(fixture, now, team)
     if team is None:
         raise Conflict(NOT_IN_TEAM)
     saved, _created = ConfirmationAnswer.objects.update_or_create(
@@ -123,6 +150,8 @@ def confirmation_answered(sender, notification: Notification, previous: str, **k
     """Answering the Confirmation Notification answers for the match (same transaction)."""
     if notification.kind != Kind.CONFIRMATION or notification.fixture_id is None:
         return
+    if ReplacementCandidate.objects.filter(notification_id=notification.pk).exists():
+        return  # A Captain's replacement offer: fixtures/replacements.py answers it.
     answer(notification.fixture, notification.recipient, notification.answer, via=Via.NOTIFICATION)
 
 
@@ -219,7 +248,7 @@ def squad(fixture: Fixture, team: Team, now: datetime | None = None) -> Squad:
         fixture=fixture,
         team=team,
         min_players=fixture.division.min_players,
-        answer_by=cutoff(fixture),
-        replies_open=replies_open(fixture, now),
+        answer_by=answer_by(fixture, team),
+        replies_open=replies_open(fixture, now, team),
         players=players,
     )

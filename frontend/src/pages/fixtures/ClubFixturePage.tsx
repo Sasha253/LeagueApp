@@ -1,12 +1,15 @@
 // A Fixture for the club's Admin (design/src/ds/Screens.md, Admin 2): kick-off, teams, pitch
 // and Referee, whether it may become a friendly, and every change of its status with who or
 // what made it. Whether the flag can still change is the API's decision (409 otherwise).
+// When one Team was out, the search for a new opponent (FR-13 to FR-16): who the slot was
+// offered to, until when, and who took it.
 
 import { useState } from "react";
 import { useParams } from "react-router";
 import { api, type Schemas } from "../../api/client";
 import { Banner } from "../../components/Banner";
 import { ChoiceChip } from "../../components/ChoiceChip";
+import { StatusChip, type Status } from "../../components/StatusChip";
 import { formatMoment } from "../../format";
 import { LoadState, send, useClub, useLoad } from "../club/shared";
 import { ScreenHeader } from "../teams/shared";
@@ -14,6 +17,25 @@ import { FIXTURE_STATUS, MatchCard } from "./shared";
 import { NOT_AN_ADMIN } from "./ClubFixturesPage";
 
 type Transition = Schemas["FixtureTransition"];
+type Replacement = Schemas["ReplacementOffer"];
+
+const REPLACEMENT_STATUS: Record<Replacement["status"], { status: Status; label: string }> = {
+  open: { status: "pending", label: "Offered" },
+  accepted: { status: "confirmed", label: "Taken" },
+  lapsed: { status: "cancelled", label: "No Team took it" },
+  withdrawn: { status: "info", label: "Withdrawn" },
+};
+
+function replacementDetail(r: Replacement): string {
+  const offered = r.offered_to.map((t) => t.name).join(", ");
+  if (r.status === "accepted" && r.accepted_team) {
+    const by = r.accepted_by_name ? ` (${r.accepted_by_name})` : "";
+    return `${r.accepted_team.name} took the slot${by}${r.accepted_at ? `, ${formatMoment(r.accepted_at)}` : ""}.`;
+  }
+  if (r.offered_to.length === 0) return "No other Team could take the slot.";
+  if (r.status === "open") return `Offered to ${offered} until ${formatMoment(r.closes_at)}.`;
+  return `Offered to ${offered}.`;
+}
 
 const CAUSES: Record<Transition["cause"], string> = {
   import: "Fixture import",
@@ -105,6 +127,27 @@ export function ClubFixturePage() {
               )}
               {error && <Banner status="cancelled" title={error} />}
             </section>
+
+            {match.replacements.length > 0 && (
+              <section className="la-stack-2" aria-labelledby="replacement">
+                <h2 id="replacement" className="la-overline">
+                  New opponent
+                </h2>
+                <ul className="la-group" aria-label="New opponent">
+                  {match.replacements.map((r) => (
+                    <li key={r.id} className="la-item">
+                      <span className="la-item__body">
+                        <span className="body-strong">{r.out_team.name} out</span>
+                        <span className="caption la-muted">{replacementDetail(r)}</span>
+                      </span>
+                      <StatusChip status={REPLACEMENT_STATUS[r.status].status}>
+                        {REPLACEMENT_STATUS[r.status].label}
+                      </StatusChip>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
 
             <section className="la-stack-2" aria-labelledby="history">
               <h2 id="history" className="la-overline">

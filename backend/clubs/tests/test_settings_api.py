@@ -44,6 +44,8 @@ def test_admin_sets_the_fees_as_decimals(admin_of, club_a):
         ({"readiness_hours_before": 36}, "readiness_hours_before"),
         ({"confirmation_resend_after_hours": 30}, "confirmation_resend_after_hours"),
         ({"booking_late_cancel_hours": 24}, "booking_late_cancel_hours"),
+        ({"replacement_close_hours_before": 6}, "replacement_close_hours_before"),
+        ({"readiness_hours_before": 2}, "replacement_close_hours_before"),
         ({"payment_mode": "bitcoin"}, "payment_mode"),
     ],
 )

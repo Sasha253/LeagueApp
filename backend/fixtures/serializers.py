@@ -9,7 +9,13 @@ from ledger.serializers import MONEY
 from teams.serializers import NamedSerializer
 
 from .imports import Action
-from .models import ConfirmationAnswer, Fixture, FixtureTransition, TeamReadiness
+from .models import (
+    ConfirmationAnswer,
+    Fixture,
+    FixtureTransition,
+    ReplacementOffer,
+    TeamReadiness,
+)
 from .readiness import Decision
 
 
@@ -106,11 +112,49 @@ class AdminFixtureSerializer(FixtureSerializer):
         read_only_fields = fields
 
 
+class ReplacementOfferSerializer(serializers.ModelSerializer):
+    """A search for a new opponent once one Team was out (FR-13 to FR-16), as the Admin sees it."""
+
+    out_team = NamedSerializer(read_only=True)
+    remaining_team = NamedSerializer(read_only=True)
+    accepted_team = NamedSerializer(read_only=True, allow_null=True)
+    accepted_by_name = serializers.CharField(
+        source="accepted_by.name", read_only=True, allow_null=True, default=None
+    )
+    offered_to = serializers.SerializerMethodField(help_text="The Teams the slot was offered to.")
+
+    class Meta:
+        model = ReplacementOffer
+        fields = [
+            "id",
+            "kick_off",
+            "status",
+            "slot",
+            "out_team",
+            "remaining_team",
+            "opened_at",
+            "closes_at",
+            "offered_to",
+            "accepted_team",
+            "accepted_by_name",
+            "accepted_at",
+            "ended_at",
+        ]
+        read_only_fields = fields
+
+    @extend_schema_field(NamedSerializer(many=True))
+    def get_offered_to(self, offer: ReplacementOffer) -> list[dict]:
+        return NamedSerializer([c.team for c in offer.candidates.all()], many=True).data
+
+
 class AdminFixtureDetailSerializer(AdminFixtureSerializer):
     transitions = FixtureTransitionSerializer(many=True, read_only=True)
+    replacements = ReplacementOfferSerializer(
+        many=True, read_only=True, help_text="Searches for a new opponent, oldest first."
+    )
 
     class Meta(AdminFixtureSerializer.Meta):
-        fields = [*AdminFixtureSerializer.Meta.fields, "transitions"]
+        fields = [*AdminFixtureSerializer.Meta.fields, "transitions", "replacements"]
 
 
 class FriendlyEligibleSerializer(serializers.Serializer):

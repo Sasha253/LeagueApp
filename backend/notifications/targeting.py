@@ -55,6 +55,12 @@ def fixture_players(fixture, teams: Iterable | None = None) -> QuerySet[User]:
     return _users(_in_team(teams) & opted_in(fixture.night))
 
 
+def opted_in_captains(teams: Iterable, night: Night) -> QuerySet[User]:
+    """The Captains of `teams` who opted into this Night (a replacement offer, FR-15)."""
+    captain_ids = [team.captain_id for team in teams if team.captain_id]
+    return _users(Q(pk__in=captain_ids) & opted_in(night))
+
+
 def players_outside(fixture, position: str | None = None) -> QuerySet[User]:
     """Players opted into the Fixture's Night who are in neither of its Teams (FR-11, FR-36).
 

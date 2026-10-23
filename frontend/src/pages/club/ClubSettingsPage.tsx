@@ -43,6 +43,11 @@ const WHOLE: { title: string; fields: { name: WholeName; label: string; help?: s
         label: "Reminder and squad check (hours before kick-off)",
         help: "Teams under their Division's minimum are out.",
       },
+      {
+        name: "replacement_close_hours_before",
+        label: "New opponent search closes (hours before kick-off)",
+        help: "When one Team is out, other Teams can take the slot until then.",
+      },
       { name: "division_min_players", label: "Minimum players for a new Division" },
     ],
   },

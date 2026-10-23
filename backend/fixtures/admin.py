@@ -5,6 +5,7 @@ from .models import (
     Fixture,
     FixtureCheckpoint,
     FixtureTransition,
+    ReplacementOffer,
     TeamReadiness,
 )
 
@@ -69,6 +70,30 @@ class TeamReadinessInline(admin.TabularInline):
         return False
 
 
+class ReplacementOfferInline(admin.TabularInline):
+    """Searches for a new opponent: made in the app (FR-13 to FR-16), only shown here."""
+
+    model = ReplacementOffer
+    extra = 0
+    can_delete = False
+    readonly_fields = [
+        "kick_off",
+        "out_team",
+        "remaining_team",
+        "slot",
+        "opened_at",
+        "closes_at",
+        "status",
+        "accepted_team",
+        "accepted_by",
+        "accepted_at",
+        "ended_at",
+    ]
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
 @admin.register(Fixture)
 class FixtureAdmin(admin.ModelAdmin):
     """Read-only: Fixtures change through the app, so every status move is logged."""
@@ -80,6 +105,7 @@ class FixtureAdmin(admin.ModelAdmin):
         FixtureCheckpointInline,
         ConfirmationAnswerInline,
         TeamReadinessInline,
+        ReplacementOfferInline,
     ]
 
     def has_add_permission(self, request):

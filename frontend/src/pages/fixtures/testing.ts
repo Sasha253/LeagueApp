@@ -39,6 +39,31 @@ export function adminFixture(overrides: object = {}) {
         note: "",
       },
     ],
+    replacements: [],
+    ...overrides,
+  };
+}
+
+/** A search for a new opponent, as the Admin's fixture detail sends it. */
+export function replacement(overrides: object = {}) {
+  return {
+    id: 4,
+    // 19:40 and its close time, 17:40, in South Africa.
+    kick_off: "2026-10-27T17:40:00Z",
+    status: "open" as const,
+    slot: "home" as const,
+    out_team: { id: 7, name: "Red Lions" },
+    remaining_team: { id: 8, name: "Old Boys" },
+    opened_at: "2026-10-27T11:40:00Z",
+    closes_at: "2026-10-27T15:40:00Z",
+    offered_to: [
+      { id: 11, name: "Blue Bulls" },
+      { id: 12, name: "Green Geckos" },
+    ],
+    accepted_team: null,
+    accepted_by_name: null,
+    accepted_at: null,
+    ended_at: null,
     ...overrides,
   };
 }

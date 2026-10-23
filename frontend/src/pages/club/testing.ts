@@ -18,6 +18,7 @@ export const SETTINGS = {
   confirmation_hours_before: 36,
   confirmation_resend_after_hours: 12,
   readiness_hours_before: 6,
+  replacement_close_hours_before: 2,
   booking_payment_cutoff_hours: 24,
   booking_late_cancel_hours: 6,
   booking_late_cancel_credit_percent: 50,

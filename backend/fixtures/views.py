@@ -25,7 +25,7 @@ from core.tables import TableError, read_table
 from teams.models import Team, TeamMembership
 
 from . import confirmations, imports, lifecycle, readiness
-from .models import Fixture, FixtureTransition, TeamReadiness
+from .models import Fixture, FixtureTransition, ReplacementOffer, TeamReadiness
 from .serializers import (
     AdminFixtureDetailSerializer,
     AdminFixtureSerializer,
@@ -196,7 +196,13 @@ class ClubFixtureViewSet(
         queryset = super().get_queryset()
         if self.action == "retrieve":
             return queryset.prefetch_related(
-                Prefetch("transitions", queryset=FixtureTransition.objects.select_related("actor"))
+                Prefetch("transitions", queryset=FixtureTransition.objects.select_related("actor")),
+                Prefetch(
+                    "replacements",
+                    queryset=ReplacementOffer.objects.select_related(
+                        "out_team", "remaining_team", "accepted_team", "accepted_by"
+                    ).prefetch_related("candidates__team"),
+                ),
             )
         if self.action != "list":
             return queryset

@@ -2,6 +2,34 @@
 
 Newest first. Each entry: the date, what was decided, and why.
 
+## 2026-10-23: One Team out: replacement opponent (chunk 14) (provisional, unattended run)
+
+Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 14: One Team out:
+replacement opponent".
+
+- **Eligible Teams (provisional, unattended run):** active, same Club, Season and Division,
+  not either Team of the match, owing nothing on the ledger, no other match that day, and
+  a Captain opted into the Night.
+- **The offer (provisional, unattended run):** when the T-6h check leaves one Team out, the
+  match moves to `replacement_offered` and each eligible Team's Captain gets a
+  Confirmation-kind offer, open until `replacement_close_hours_before` kick-off (new club
+  setting, default 2, fewer than the readiness hours). The first Captain to confirm wins;
+  the backend locks the match, so a second gets 409. `ReplacementOffer` and
+  `ReplacementCandidate` keep the record and are never deleted.
+- **After an accept (provisional, unattended run):** the Team takes the out Team's place in
+  the same Fixture; the match moves to `scheduled` (before T-36h, new move), `confirming`
+  (before T-6h) or `ready` (after). Its Players get Confirmations; after T-6h they can
+  answer until kick-off. Updates go to the remaining Team and to the Admins and Referee.
+- **Notifications (provisional, unattended run):** FR-13 General with "Find a match" to the
+  out Team; FR-14 Update to the remaining Team; FR-16 Update to the Night's Admins and the
+  pitch's Referee on opening and on accept.
+- **No Team (provisional, unattended run):** at the close time the offer lapses and
+  `replacement_lapsed` hands off to chunk 15; an offer for a match that moved on is
+  withdrawn.
+- **Locking (provisional, unattended run):** a Fixture is locked without joins
+  (`lifecycle.lock`), because PostgreSQL drops a joined locked row whose Team changed
+  while it waited.
+
 ## 2026-10-23: T-6h readiness (chunk 13) (provisional, unattended run)
 
 Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 13: T-6h readiness".

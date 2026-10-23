@@ -356,3 +356,52 @@ docs/DECISIONS.md under "2026-10-23: Teams (chunk 5)".
   any Fixture with a Team still waiting for a ruling. "At risk" (decided by the backend):
   a Team waits for a ruling, or the check is still to come and a Team is below the
   minimum or owes money. The money summary row and the Referee's Tonight come later.
+
+## Chunk 14: One Team out: replacement opponent
+
+- **What "eligible" means (FR-15).** Question: the PRD does not say which Teams the slot is
+  offered to. Choice: an active Team of the same Club, Season and Division, not either
+  Team of the match, that owes nothing on the ledger, has no other match that day (South
+  African date, not cancelled), and whose Captain has opted into the Night. Why: the same
+  Division keeps the match fair and keeps it a league match; owing nothing stands in for
+  FR-6, since a Team that takes the slot after T-6h gets no readiness check of its own;
+  one match a day avoids double-booking a Team; the opt-in is the targeting rule. If the
+  answer differs: widen to every Division of the Night (or of the Club) in
+  `fixtures/replacements.py` `eligible_teams` and `_why_not`; drop the money check to
+  let the Admin rule on an unpaid replacement instead.
+- **Who answers for a Team.** Choice: only its Captain gets the offer and can accept, by
+  "Confirm" on a Confirmation-kind notification ("Open slot: play {Team}"). Why: Captains
+  act for their Team everywhere else in the PRD; one answer per Team makes "the first
+  Team to accept" exact. Declining only records the answer; the Captain can still change
+  it to accept while the offer is open. If the answer differs: offer to every Player of
+  each eligible Team and count a Team in once N of them accept.
+- **How long the offer stays open.** Question: the PRD says only "if no replacement is
+  found". Choice: a new club setting, `replacement_close_hours_before`, default 2 hours
+  before kick-off, which must be fewer than the readiness hours. Why: configurable values
+  are data (FR-42); 2 hours leaves the new Team time to get to the pitch and the Admin
+  time for a friendly or cancellation. If the answer differs: change the default in
+  `SettingsDefaults` (Django admin) and each Club's settings.
+- **What happens to the Fixture.** Choice: the accepting Team takes the out Team's place
+  (home or away) in the same Fixture; the out Team, the remaining Team and who accepted
+  are kept on `ReplacementOffer` and in the Fixture's history. The match then moves to
+  `scheduled` (accepted before the T-36h Confirmations; a new allowed move), `confirming`
+  (before T-6h) or `ready` (after T-6h). Why: one Fixture per pitch and kick-off; every
+  screen that shows a match's Teams keeps working. Side effects: the out Team's Players
+  no longer see the match once replaced, and re-importing the original fixture row before
+  kick-off finds no match and reports a clash.
+- **Confirmations for a Team that takes the slot after T-6h (FR-15).** Choice: its Players
+  get Confirmations they can answer until kick-off (the match is `ready`). Their answers
+  only tell the Captain who is coming; the T-6h check has already run. Everyone else's
+  cutoff stays T-6h. If the answer differs: send them as Updates instead.
+- **Notifications.** Choice: FR-13 General ("{Team} is out of {match}", with "Find a
+  match") to the out Team's Players; FR-14 Update ("{Team} withdrew") to the remaining
+  Team's Players; FR-16 Update to the Night's Admins and the pitch's Referee when the
+  offer opens (how many Teams, until when) and again when a Team accepts; an Update to the
+  remaining Team naming its new opponent. Players only for the Nights they opted into.
+  Nothing is sent when the offer lapses: FR-17's notifications are chunk 15's.
+- **No Team accepts.** Choice: at the close time the offer lapses (checked every minute
+  with the checkpoints), the offers close, and `replacement_lapsed` is sent; the match
+  stays `replacement_offered` until chunk 15 makes it a friendly or cancels it. With no
+  eligible Team, or the close time already past, it lapses at once. An offer whose match
+  moved on (the Admin cancelled or rescheduled it) is withdrawn, with no hand-off.
+- **Both Teams out.** No replacement search: chunk 15 (FR-10 to FR-12).

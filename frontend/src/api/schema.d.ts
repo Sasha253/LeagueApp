@@ -1301,6 +1301,8 @@ export interface components {
             /** Format: date-time */
             readonly created_at: string;
             readonly transitions: components["schemas"]["FixtureTransition"][];
+            /** @description Searches for a new opponent, oldest first. */
+            readonly replacements: components["schemas"]["ReplacementOffer"][];
         };
         /** @description A Team as its Club's Admin sees it, with who asked, who decided and its Players. */
         AdminTeam: {
@@ -1426,6 +1428,8 @@ export interface components {
             confirmation_resend_after_hours: number;
             /** @description Reminder and readiness check, this many hours before kick-off (FR-4, FR-5). */
             readiness_hours_before: number;
+            /** @description When one Team is out, the slot is offered to other Teams until this many hours before kick-off (FR-15). Fewer than the readiness hours. */
+            replacement_close_hours_before: number;
             /** @description Booking payment is taken this many hours before kick-off (FR-34). */
             booking_payment_cutoff_hours: number;
             /** @description Cancelling closer to kick-off than this gives the no-show credit. */
@@ -1956,6 +1960,8 @@ export interface components {
             confirmation_resend_after_hours?: number;
             /** @description Reminder and readiness check, this many hours before kick-off (FR-4, FR-5). */
             readiness_hours_before?: number;
+            /** @description When one Team is out, the slot is offered to other Teams until this many hours before kick-off (FR-15). Fewer than the readiness hours. */
+            replacement_close_hours_before?: number;
             /** @description Booking payment is taken this many hours before kick-off (FR-34). */
             booking_payment_cutoff_hours?: number;
             /** @description Cancelling closer to kick-off than this gives the no-show credit. */
@@ -2082,6 +2088,57 @@ export interface components {
             readonly refresh: string;
             readonly user: components["schemas"]["Me"];
         };
+        /** @description A search for a new opponent once one Team was out (FR-13 to FR-16), as the Admin sees it. */
+        ReplacementOffer: {
+            readonly id: number;
+            /**
+             * Format: date-time
+             * @description The kick-off the slot was offered for.
+             */
+            readonly kick_off: string;
+            readonly status: components["schemas"]["ReplacementStatusEnum"];
+            /**
+             * @description The out Team's.
+             *
+             *     * `home` - Home
+             *     * `away` - Away
+             */
+            readonly slot: components["schemas"]["ReplacementSlotEnum"];
+            readonly out_team: components["schemas"]["Named"];
+            readonly remaining_team: components["schemas"]["Named"];
+            /** Format: date-time */
+            readonly opened_at: string;
+            /**
+             * Format: date-time
+             * @description No Team can accept after this.
+             */
+            readonly closes_at: string;
+            /** @description The Teams the slot was offered to. */
+            readonly offered_to: components["schemas"]["Named"][];
+            readonly accepted_team: components["schemas"]["Named"] | null;
+            readonly accepted_by_name: string | null;
+            /** Format: date-time */
+            readonly accepted_at: string | null;
+            /**
+             * Format: date-time
+             * @description When it was accepted, lapsed or withdrawn.
+             */
+            readonly ended_at: string | null;
+        };
+        /**
+         * @description * `home` - Home
+         *     * `away` - Away
+         * @enum {string}
+         */
+        ReplacementSlotEnum: "home" | "away";
+        /**
+         * @description * `open` - Offered
+         *     * `accepted` - Accepted
+         *     * `lapsed` - No Team accepted
+         *     * `withdrawn` - Withdrawn
+         * @enum {string}
+         */
+        ReplacementStatusEnum: "open" | "accepted" | "lapsed" | "withdrawn";
         /**
          * @description * `admin` - Admin
          *     * `referee` - Referee

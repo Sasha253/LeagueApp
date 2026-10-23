@@ -35,6 +35,8 @@ def test_cancelled_and_played_are_final():
         (S.CONFIRMING, S.ONE_TEAM_OUT),
         (S.ONE_TEAM_OUT, S.REPLACEMENT_OFFERED),
         (S.REPLACEMENT_OFFERED, S.CONFIRMING),
+        (S.REPLACEMENT_OFFERED, S.SCHEDULED),
+        (S.REPLACEMENT_OFFERED, S.READY),
         (S.ONE_TEAM_OUT, S.FRIENDLY),
         (S.FRIENDLY, S.PLAYED),
         (S.ONE_TEAM_OUT, S.CANCELLED),

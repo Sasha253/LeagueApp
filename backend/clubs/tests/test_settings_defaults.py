@@ -18,6 +18,7 @@ PRD = {
     "booking_club_cancel_credit_percent": 100,
     "booking_reschedule_window_days": 30,
     "booking_reschedules_allowed": 1,
+    "replacement_close_hours_before": 2,  # Not in the PRD: chunk 14, provisional.
     "payment_mode": "gateway",
     "payment_provider": "payfast",
 }

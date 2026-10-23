@@ -6,4 +6,7 @@ class FixturesConfig(AppConfig):
     verbose_name = "Fixtures"
 
     def ready(self) -> None:
-        from . import confirmations  # noqa: F401  Connects the Confirmation answer receiver.
+        from . import (
+            confirmations,  # noqa: F401  Connects the Confirmation answer receiver.
+            replacements,  # noqa: F401  Connects the replacement receivers.
+        )

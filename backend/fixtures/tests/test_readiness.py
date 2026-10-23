@@ -91,6 +91,11 @@ def status(fixture):
     return fixture.status
 
 
+def one_team_out(fixture):
+    """The move to one team out; chunk 14 then offers the slot at once."""
+    return fixture.transitions.get(to_status=S.ONE_TEAM_OUT)
+
+
 def reminders(fixture):
     return Notification.objects.filter(fixture=fixture, kind=Kind.REMINDER)
 
@@ -122,13 +127,13 @@ def test_a_team_below_the_minimum_is_out(confirming, clock, settled):
 
     at_t6h(fixture, clock)
 
-    assert status(fixture) == S.ONE_TEAM_OUT
+    assert status(fixture) == S.REPLACEMENT_OFFERED  # chunk 14 offers the slot at once
     found = rows(fixture)
     assert (found["Red Lions"].outcome, found["Red Lions"].reason) == (Outcome.OUT, Reason.SHORT)
     assert found["Red Lions"].confirmed == 1
     assert found["Old Boys"].outcome == Outcome.PLAYING
     assert settled == [(fixture.pk, S.ONE_TEAM_OUT, ["Red Lions"], None)]
-    assert "Red Lions below the minimum (1 of 2)" in fixture.transitions.last().note
+    assert "Red Lions below the minimum (1 of 2)" in one_team_out(fixture).note
     assert not reminders(fixture).exists()  # chunk 14 tells them what happens next
 
 
@@ -190,7 +195,7 @@ def test_a_short_team_is_out_whether_or_not_it_paid(confirming, clock):
 
     boys = rows(fixture)["Old Boys"]
     assert (boys.outcome, boys.reason) == (Outcome.OUT, Reason.SHORT)
-    assert status(fixture) == S.ONE_TEAM_OUT
+    assert one_team_out(fixture)
 
 
 def test_answers_for_an_old_kick_off_do_not_count(confirming, clock):
@@ -305,9 +310,9 @@ def test_the_admin_rules_an_unpaid_team_out(boys_unpaid, admin, settled):
 
     readiness.decide(boys, admin, "out")
 
-    assert status(fixture) == S.ONE_TEAM_OUT
+    assert status(fixture) == S.REPLACEMENT_OFFERED
     assert settled == [(fixture.pk, S.ONE_TEAM_OUT, ["Old Boys"], admin)]
-    assert "Old Boys ruled out" in fixture.transitions.last().note
+    assert "Old Boys ruled out" in one_team_out(fixture).note
 
 
 def test_a_ruling_is_made_once(boys_unpaid, admin):

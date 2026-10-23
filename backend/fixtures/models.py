@@ -279,3 +279,104 @@ class TeamReadiness(models.Model):
 
 READINESS_OUTCOMES = TeamReadiness.Outcome
 READINESS_REASONS = TeamReadiness.Reason
+
+
+class ReplacementOffer(models.Model):
+    """The search for a new opponent once one Team of a Fixture is out (FR-13 to FR-16).
+
+    The slot is offered to the Captains of eligible Teams (ReplacementCandidate) until
+    `closes_at`; the first to accept takes the out Team's place in the Fixture (FR-15). If
+    none does in time it lapses and chunk 15 decides between a friendly and a cancellation
+    (FR-17). A Fixture has at most one open offer. Only fixtures/replacements.py writes
+    these; they are never deleted.
+    """
+
+    class Status(models.TextChoices):
+        OPEN = "open", "Offered"
+        ACCEPTED = "accepted", "Accepted"
+        LAPSED = "lapsed", "No Team accepted"
+        WITHDRAWN = "withdrawn", "Withdrawn"
+
+    class Slot(models.TextChoices):
+        HOME = "home", "Home"
+        AWAY = "away", "Away"
+
+    fixture = models.ForeignKey(Fixture, on_delete=models.PROTECT, related_name="replacements")
+    kick_off = models.DateTimeField(help_text="The kick-off the slot was offered for.")
+    out_team = models.ForeignKey(Team, on_delete=models.PROTECT, related_name="+")
+    remaining_team = models.ForeignKey(Team, on_delete=models.PROTECT, related_name="+")
+    slot = models.CharField(max_length=4, choices=Slot.choices, help_text="The out Team's.")
+    opened_at = models.DateTimeField()
+    closes_at = models.DateTimeField(help_text="No Team can accept after this.")
+    status = models.CharField(max_length=10, choices=Status.choices)
+    accepted_team = models.ForeignKey(
+        Team, on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+    accepted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        help_text="The Captain who accepted.",
+    )
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    ended_at = models.DateTimeField(
+        null=True, blank=True, help_text="When it was accepted, lapsed or withdrawn."
+    )
+
+    class Meta:
+        ordering = ["opened_at", "pk"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["fixture"],
+                condition=models.Q(status="open"),
+                name="one_open_replacement_per_fixture",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(status="accepted") | models.Q(accepted_team__isnull=False),
+                name="accepted_replacement_has_team",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.fixture}: replacing {self.out_team} ({self.get_status_display()})"
+
+    def get_club_id(self) -> int:
+        return self.fixture.club_id
+
+    def delete(self, *args, **kwargs):
+        raise ValueError("A ReplacementOffer is never deleted.")
+
+
+class ReplacementCandidate(models.Model):
+    """A Team the slot was offered to, and its Captain's offer (a Confirmation Notification).
+
+    The Captain's "Confirm" on that Notification accepts for the Team (FR-15).
+    """
+
+    offer = models.ForeignKey(ReplacementOffer, on_delete=models.PROTECT, related_name="candidates")
+    team = models.ForeignKey(Team, on_delete=models.PROTECT, related_name="+")
+    notification = models.OneToOneField(
+        "notifications.Notification",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="replacement_candidate",
+    )
+
+    class Meta:
+        ordering = ["pk"]
+        constraints = [
+            models.UniqueConstraint(fields=["offer", "team"], name="one_candidate_per_offer_team"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.team} for {self.offer}"
+
+    def delete(self, *args, **kwargs):
+        raise ValueError("A ReplacementCandidate is never deleted.")
+
+
+REPLACEMENT_STATUSES = ReplacementOffer.Status
+REPLACEMENT_SLOTS = ReplacementOffer.Slot
