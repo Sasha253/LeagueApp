@@ -233,6 +233,8 @@ def charge_league_fee(team: Team, recorded_by: User | None = None) -> LedgerEntr
     fee = team.division.effective_league_fee
     if fee is None:
         raise Conflict(NO_LEAGUE_FEE)
+    if fee == 0:
+        return None  # A free league: nothing is owed, and an entry is never R 0.
     return charge(
         club=team.club,
         amount=fee,
@@ -306,6 +308,9 @@ def issue_credit(
         holder = (subject, team.pk if subject == Subject.TEAM else user.pk)
         if source.kind != Kind.PAYMENT or payer != holder:
             raise ValueError("Credit from a payment goes back to whoever paid it.")
+        # Checked under the lock, so a payment reversed meanwhile isn't also returned.
+        if LedgerEntry.objects.filter(reverses=source).exists():
+            raise Conflict(ALREADY_REVERSED)
         if amount > _credit_left_of(source):
             raise Conflict(MORE_THAN_PAID)
     if subject == Subject.TEAM:
@@ -338,12 +343,11 @@ def return_as_credit(
     """Returns (part of) a payment as credit to whoever paid it (FR-43, FR-52).
 
     A Player's own payment becomes that Player's credit; a payment for the whole Team
-    becomes Team credit. No more than the payment can be returned, in total.
+    becomes Team credit. No more than the payment can be returned, in total. A reversed
+    payment is refused (issue_credit checks it under the payment's lock).
     """
     if payment.kind != Kind.PAYMENT:
         raise ValueError("Only a payment can be returned as credit.")
-    if LedgerEntry.objects.filter(reverses=payment).exists():
-        raise Conflict(ALREADY_REVERSED)
     return issue_credit(
         club=payment.club,
         amount=payment.amount if amount is None else amount,

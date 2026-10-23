@@ -70,3 +70,30 @@ By hand: nothing. Review the provisional choices in docs/OPEN_QUESTIONS.md under
 
 Checks: make test 356 passed; make lint clean; npm test 126 passed (26 files);
 npm run build ok.
+
+## Review (independent, unattended run)
+
+Plan: compare commit 63e6bb3 with the chunk 8 prompt and CLAUDE.md rules, fix real
+defects, run the four checks.
+
+Checked and fine: money is Decimal throughout (floats refused, DB check amount > 0);
+append-only enforced in save, delete, queryset update/delete/bulk_update/update_or_create,
+read-only admin and read-only API; every entry has a Club and services refuse cross-club
+records; credit endpoints are Captain-only / Player-only, balance is Captain or that Club's
+Admins, others 404; league fee comes from Division/ClubSettings data, not a constant; no
+notifications or UI in this chunk; nothing from later chunks; `npm run gen:api` leaves the
+schema unchanged.
+
+Defects fixed:
+- A league fee of R 0 (allowed by ClubSettings/Division validators) made `confirm_team`
+  crash with a 500: `charge_league_fee` passed 0 to `_money`, which refuses zero. Now a
+  free league posts no charge and the Team is confirmed (same as the data migration,
+  which already skipped a zero fee). Tests added.
+- Race: `return_as_credit` checked "already reversed" before taking the payment's row
+  lock, so a concurrent `reverse` of the same payment could commit in between and the
+  money would be both reversed and returned as credit. The check now runs inside
+  `issue_credit` under the lock (which `reverse` also takes first), so it covers direct
+  `issue_credit(source=...)` calls too. Test added.
+
+Checks after the fixes: make test 359 passed; make lint clean; npm test 126 passed;
+npm run build ok.

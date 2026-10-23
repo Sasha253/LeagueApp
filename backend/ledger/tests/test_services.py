@@ -83,6 +83,29 @@ def test_no_league_fee_means_no_charge(lions, club_a):
 
 
 @pytest.mark.django_db
+def test_a_free_league_charges_nothing(lions, club_a):
+    club_a.settings.league_fee = D("0")
+    club_a.settings.save()
+
+    assert league_fee(lions) is None
+    assert services.team_balance(lions).due == D("0.00")
+
+
+@pytest.mark.django_db
+def test_admin_confirms_a_team_in_a_free_league(make_team, people, cashier, club_a):
+    team = make_team("Old Boys", people["lerato"], status=Team.Status.REQUESTED)
+    club_a.settings.league_fee = D("0")
+    club_a.settings.save()
+    from teams import rules
+
+    rules.confirm_team(team, cashier)
+
+    team.refresh_from_db()
+    assert team.status == Team.Status.ACTIVE
+    assert not LedgerEntry.objects.filter(team=team).exists()
+
+
+@pytest.mark.django_db
 def test_a_reversed_league_fee_can_be_charged_again(lions, cashier):
     first = league_fee(lions)
     services.reverse(first, reason="Wrong fee", recorded_by=cashier)
@@ -423,3 +446,19 @@ def test_a_reversed_payment_is_not_returned_as_credit(lions, people, cashier):
 def test_entries_never_mix_clubs(lions, club_b):
     with pytest.raises(ValueError):
         services.charge(club=club_b, amount=D("10"), category="league", reason="Fee", team=lions)
+
+
+@pytest.mark.django_db
+def test_credit_from_a_reversed_payment_is_refused(lions, people, cashier, club_a):
+    payment = pay(lions, "100", cashier, player=people["sipho"])
+    services.reverse(payment, reason="Recorded twice", recorded_by=cashier)
+
+    with pytest.raises(Conflict):
+        services.issue_credit(
+            club=club_a,
+            amount=D("100"),
+            reason="Cancelled",
+            recorded_by=None,
+            user=people["sipho"],
+            source=payment,
+        )
