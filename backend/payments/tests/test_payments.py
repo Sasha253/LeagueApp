@@ -61,6 +61,7 @@ def test_a_player_in_the_team_sees_what_to_pay(owing, people, signed_in):
         "is_paid": False,
         "card_enabled": True,
         "minimum_card_amount": "5.00",
+        "suggested_amount": "175.00",
         "my_credit": "0.00",
         "team_credit": None,
     }

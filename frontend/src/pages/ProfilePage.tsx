@@ -211,6 +211,13 @@ export function ProfilePage() {
                     </Link>
                     <Link
                       className="la-btn la-btn--secondary la-btn--sm"
+                      to={`/clubs/${role.club_id}/payments`}
+                      aria-label={`Payments at ${role.club_name}`}
+                    >
+                      Payments
+                    </Link>
+                    <Link
+                      className="la-btn la-btn--secondary la-btn--sm"
                       to={`/clubs/${role.club_id}/setup`}
                       aria-label={`Club setup for ${role.club_name}`}
                     >

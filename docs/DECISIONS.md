@@ -2,6 +2,26 @@
 
 Newest first. Each entry: the date, what was decided, and why.
 
+## 2026-10-23: Payments UI (chunk 19) (provisional, unattended run)
+
+Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 19: Payments (UI)".
+
+- **Opening PayFast (provisional, unattended run):** `frontend/src/native/browser.ts`
+  `openCheckout(url)`: the in-app browser (@capacitor/browser) in the installed app, then
+  the result screen once it is closed; in a browser the tab goes to PayFast and returns to
+  `/payments/done` or `/payments/cancelled?payment=<reference>` (`PAYMENT_RETURN_URL`,
+  `PAYMENT_CANCEL_URL`). No universal links / app links yet.
+- **Pay my share (provisional, unattended run):** starts at `suggested_amount` from the
+  backend: the fee over the Team's current Players, rounded up to the cent, less what the
+  Player has paid, capped at what is owed. Credit first is a choice (none, my credit, Team
+  credit for the Captain). The backend checks every amount.
+- **Who has paid (provisional, unattended run):** `GET /api/v1/teams/{id}/payments/summary/`
+  for the Captain and the club's Admins: what each Player has paid (net of refunds and
+  reversals, leavers included), what was paid for the whole Team, Team credit for the
+  Captain only (FR-21, FR-52).
+- **Admin payments (provisional, unattended run):** Profile, Payments per club: the
+  club's active Teams, unpaid first; each opens who has paid and Record cash (FR-22).
+
 ## 2026-10-23: PayFast payments (chunk 18) (provisional, unattended run)
 
 Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 18: PayFast payments

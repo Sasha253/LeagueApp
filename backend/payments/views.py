@@ -8,6 +8,8 @@
   before anything is recorded.
 """
 
+from decimal import Decimal
+
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -35,7 +37,10 @@ from .serializers import (
     PaymentSerializer,
     StartPaymentSerializer,
     TeamPaymentStatusSerializer,
+    TeamPaymentSummarySerializer,
 )
+
+ZERO = Decimal("0.00")
 
 
 def team_or_404(team_id: int) -> Team:
@@ -67,12 +72,65 @@ class PaymentOptionsView(APIView):
             "is_paid": balance.is_paid,
             "card_enabled": card_enabled,
             "minimum_card_amount": minimum if card_enabled else None,
+            "suggested_amount": services.suggested_amount(team, request.user),
             "my_credit": ledger.player_credit(team.club, request.user),
             "team_credit": (
                 ledger.team_credit(team) if team.captain_id == request.user.pk else None
             ),
         }
         return Response(PaymentOptionsSerializer(data).data)
+
+
+class TeamPaymentSummaryView(APIView):
+    """Who has paid towards a Team (FR-21): its Captain and the Admins of its Club.
+    Anyone else gets 404."""
+
+    @extend_schema(responses=TeamPaymentSummarySerializer)
+    def get(self, request, team_id: int):
+        team = team_or_404(team_id)
+        user = request.user
+        is_captain = user.is_player and team.captain_id == user.pk
+        is_admin = user.club_roles.filter(club_id=team.club_id, role=ClubRole.Role.ADMIN).exists()
+        if not (is_captain or is_admin):
+            raise NotFound()
+        balance = ledger.team_balance(team)
+        paid = ledger.paid_by_payer(team)
+        members = team.current_memberships().select_related("player").order_by("player__name")
+        players = [
+            {
+                "player_id": m.player_id,
+                "name": m.player.name,
+                "is_captain": m.player_id == team.captain_id,
+                "in_team": True,
+                "paid": paid.get(m.player_id, ZERO),
+                "has_paid": paid.get(m.player_id, ZERO) > 0,
+            }
+            for m in members
+        ]
+        current = {m.player_id for m in members}
+        leavers = [pk for pk in paid if pk is not None and pk not in current]
+        for leaver in User.objects.filter(pk__in=leavers).order_by("name"):
+            players.append(
+                {
+                    "player_id": leaver.pk,
+                    "name": leaver.name,
+                    "is_captain": False,
+                    "in_team": False,
+                    "paid": paid[leaver.pk],
+                    "has_paid": paid[leaver.pk] > 0,
+                }
+            )
+        data = {
+            "team": team,
+            "due": balance.due,
+            "paid": balance.paid,
+            "outstanding": balance.outstanding,
+            "is_paid": balance.is_paid,
+            "players": players,
+            "paid_for_team": paid.get(None, ZERO),
+            "team_credit": ledger.team_credit(team) if is_captain else None,
+        }
+        return Response(TeamPaymentSummarySerializer(data).data)
 
 
 class StartPaymentView(APIView):

@@ -194,6 +194,36 @@ def team_balances(teams: QuerySet[Team]) -> dict[int, TeamBalance]:
     return balances
 
 
+def paid_by_payer(team: Team) -> dict[int | None, Decimal]:
+    """What each payer has paid towards the Team, net of refunds and reversals: the same
+    sums as `team_balance`'s `paid`, split by Player id (None: paid for the whole Team).
+    Payers with nothing left paid are left out."""
+    sums = {}
+    for kind in (Kind.PAYMENT, Kind.REFUND):
+        sums[kind] = Q(kind=kind)
+        sums[f"{kind}_reversed"] = Q(kind=Kind.REVERSAL, reverses__kind=kind)
+    rows = (
+        LedgerEntry.objects.filter(team=team)
+        .values("user_id")
+        .annotate(
+            **{
+                name: Coalesce(
+                    Sum("amount", filter=where), Value(ZERO), output_field=DecimalField()
+                )
+                for name, where in sums.items()
+            }
+        )
+    )
+    paid = {}
+    for row in rows:
+        payments = row[Kind.PAYMENT] - row[f"{Kind.PAYMENT}_reversed"]
+        refunds = row[Kind.REFUND] - row[f"{Kind.REFUND}_reversed"]
+        amount = (payments - refunds).quantize(CENT)
+        if amount != 0:
+            paid[row["user_id"]] = amount
+    return paid
+
+
 def team_credit(team: Team) -> Decimal:
     """The Team's own credit: issued to it, less what its Captain has spent."""
     entries = LedgerEntry.objects.filter(subject=Subject.TEAM, team=team)

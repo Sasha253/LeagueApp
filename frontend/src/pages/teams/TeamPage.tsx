@@ -1,6 +1,7 @@
 // A Team (design/src/ds/Screens.md, Captain 1 and 3): who is in it and, for its Captain,
 // the Players asking to join with Accept and Decline. A Player who isn't its Captain can
-// leave it. Squad replies per match and payments come with the Fixtures and payment chunks.
+// leave it. Players in the Team pay their share from here; the Captain also sees who has
+// paid (pages/payments/TeamPayments.tsx).
 
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
@@ -10,6 +11,7 @@ import { Banner } from "../../components/Banner";
 import { StatusChip } from "../../components/StatusChip";
 import { formatDate, localDate } from "../../format";
 import { ConfirmButton, LoadState, send, useLoad } from "../club/shared";
+import { TeamPayments } from "../payments/TeamPayments";
 import { playersLine, POSITION_LABELS, ScreenHeader, TeamStatus, teamLine, type JoinRequest, type Team } from "./shared";
 
 export function TeamPage() {
@@ -91,6 +93,8 @@ export function TeamPage() {
                   </Banner>
                 )}
               </section>
+
+              {isMember && data.status === "active" && <TeamPayments teamId={data.id} isCaptain={isCaptain} />}
 
               {error && <Banner status="cancelled" title={error} />}
               {isMember && !isCaptain && (

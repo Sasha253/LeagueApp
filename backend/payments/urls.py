@@ -11,6 +11,11 @@ urlpatterns = [
         views.PaymentOptionsView.as_view(),
         name="team-payment-options",
     ),
+    path(
+        "teams/<int:team_id>/payments/summary/",
+        views.TeamPaymentSummaryView.as_view(),
+        name="team-payment-summary",
+    ),
     path("teams/<int:team_id>/payments/", views.StartPaymentView.as_view(), name="team-payments"),
     path(
         "teams/<int:team_id>/cash-payments/",

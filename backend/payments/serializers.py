@@ -95,6 +95,12 @@ class PaymentOptionsSerializer(serializers.Serializer):
         read_only=True, help_text="Whether the club takes card payments now."
     )
     minimum_card_amount = serializers.DecimalField(**MONEY, allow_null=True)
+    suggested_amount = serializers.DecimalField(
+        **MONEY,
+        allow_null=True,
+        help_text="Where the amount starts: this Player's share less what they have paid, "
+        "up to what is owed. Empty when nothing is owed.",
+    )
     my_credit = serializers.DecimalField(**MONEY)
     team_credit = serializers.DecimalField(
         **MONEY, allow_null=True, help_text="The Team's credit; only its Captain sees it."
@@ -119,6 +125,34 @@ class TeamPaymentStatusSerializer(serializers.Serializer):
     paid = serializers.DecimalField(**MONEY)
     outstanding = serializers.DecimalField(**MONEY)
     is_paid = serializers.BooleanField(read_only=True)
+
+
+class PlayerPaidSerializer(serializers.Serializer):
+    player_id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(read_only=True)
+    is_captain = serializers.BooleanField(read_only=True)
+    in_team = serializers.BooleanField(
+        read_only=True, help_text="False for a Player who paid and has since left."
+    )
+    paid = serializers.DecimalField(**MONEY, help_text="Net of refunds and reversals.")
+    has_paid = serializers.BooleanField(read_only=True)
+
+
+class TeamPaymentSummarySerializer(serializers.Serializer):
+    """Who has paid towards a Team (FR-21), for its Captain and its club's Admins."""
+
+    team = NamedSerializer(read_only=True)
+    due = serializers.DecimalField(**MONEY)
+    paid = serializers.DecimalField(**MONEY)
+    outstanding = serializers.DecimalField(**MONEY)
+    is_paid = serializers.BooleanField(read_only=True)
+    players = PlayerPaidSerializer(many=True, read_only=True)
+    paid_for_team = serializers.DecimalField(
+        **MONEY, help_text="Paid for the whole Team: Team credit, or cash for the Team."
+    )
+    team_credit = serializers.DecimalField(
+        **MONEY, allow_null=True, help_text="The Team's credit; only its Captain sees it."
+    )
 
 
 class GatewayNotificationFieldsSerializer(serializers.Serializer):

@@ -13,7 +13,7 @@ Amounts are decided here, never by the app.
 
 import uuid
 from collections.abc import Callable
-from decimal import Decimal
+from decimal import ROUND_UP, Decimal
 
 from django.db import IntegrityError, transaction
 from django.utils import timezone
@@ -41,6 +41,9 @@ NO_CREDIT = "There is no credit to use."
 ONLY_CAPTAIN_TEAM_CREDIT = "Only the Team's Captain can spend its credit."
 CASH_ONLY = "This club takes cash only. Pay an Admin of the club."
 CARD_NOT_SET_UP = "Card payments aren't set up for this club yet."
+
+CENT = Decimal("0.01")
+ZERO = Decimal("0.00")
 
 
 def _rand(amount: Decimal) -> str:
@@ -82,6 +85,22 @@ def card_options(team: Team) -> tuple[bool, Decimal | None]:
         return False, None
     gateway = gateway_for(club_settings.payment_provider)
     return gateway.merchant_id_for(team.club) is not None, gateway.minimum_amount
+
+
+def suggested_amount(team: Team, player: User) -> Decimal | None:
+    """Where "Pay my share" starts (Screens.md Player 3): the per-player share (what is
+    due over the Team's current Players, rounded up to the cent) less what this Player
+    has paid already, never more than the Team still owes. Once the Player has paid their
+    share, the share again (still capped). None when nothing is owed."""
+    balance = ledger.team_balance(team)
+    if balance.outstanding <= 0:
+        return None
+    players = team.current_memberships().count()
+    if players == 0 or balance.due <= 0:
+        return balance.outstanding
+    share = (balance.due / players).quantize(CENT, rounding=ROUND_UP)
+    left = share - ledger.paid_by_payer(team).get(player.pk, ZERO)
+    return min(left if left > 0 else share, balance.outstanding)
 
 
 @transaction.atomic

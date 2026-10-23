@@ -26,6 +26,10 @@ import { FindTeamPage } from "./pages/teams/FindTeamPage";
 import { MyTeamsPage } from "./pages/teams/MyTeamsPage";
 import { RequestTeamPage } from "./pages/teams/RequestTeamPage";
 import { TeamPage } from "./pages/teams/TeamPage";
+import { ClubPaymentsPage } from "./pages/payments/ClubPaymentsPage";
+import { ClubTeamPaymentPage } from "./pages/payments/ClubTeamPaymentPage";
+import { PaymentResultPage } from "./pages/payments/PaymentResultPage";
+import { PayPage } from "./pages/payments/PayPage";
 import { InboxPage } from "./pages/inbox/InboxPage";
 import { NotificationPage } from "./pages/inbox/NotificationPage";
 import { PushBridge } from "./push/PushBridge";
@@ -62,6 +66,8 @@ const screens: RouteObject[] = [
       { path: "/clubs/:clubId/fixtures/import", element: <ImportFixturesPage /> },
       { path: "/clubs/:clubId/fixtures/:fixtureId", element: <ClubFixturePage /> },
       { path: "/clubs/:clubId/requests", element: <ClubRequestsPage /> },
+      { path: "/clubs/:clubId/payments", element: <ClubPaymentsPage /> },
+      { path: "/clubs/:clubId/payments/:teamId", element: <ClubTeamPaymentPage /> },
       { path: "/fixtures", element: <MyFixturesPage /> },
       { path: "/fixtures/:fixtureId", element: <FixturePage /> },
       { path: "/fixtures/:fixtureId/request", element: <FixtureRequestPage /> },
@@ -70,6 +76,10 @@ const screens: RouteObject[] = [
       { path: "/teams/find", element: <FindTeamPage /> },
       { path: "/teams/new", element: <RequestTeamPage /> },
       { path: "/teams/:teamId", element: <TeamPage /> },
+      { path: "/teams/:teamId/pay", element: <PayPage /> },
+      // PayFast sends the Player back here (PAYMENT_RETURN_URL, PAYMENT_CANCEL_URL).
+      { path: "/payments/done", element: <PaymentResultPage /> },
+      { path: "/payments/cancelled", element: <PaymentResultPage left /> },
       { path: "/inbox", element: <InboxPage /> },
       { path: "/inbox/:notificationId", element: <NotificationPage /> },
     ],

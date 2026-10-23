@@ -1563,6 +1563,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/teams/{team_id}/payments/summary/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Who has paid towards a Team (FR-21): its Captain and the Admins of its Club.
+         *     Anyone else gets 404.
+         */
+        get: operations["teams_payments_summary_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2677,6 +2697,11 @@ export interface components {
             readonly card_enabled: boolean;
             /** Format: decimal */
             readonly minimum_card_amount: string | null;
+            /**
+             * Format: decimal
+             * @description Where the amount starts: this Player's share less what they have paid, up to what is owed. Empty when nothing is owed.
+             */
+            readonly suggested_amount: string | null;
             /** Format: decimal */
             readonly my_credit: string;
             /**
@@ -2698,6 +2723,19 @@ export interface components {
          * @enum {string}
          */
         PaymentStatusEnum: "pending" | "complete" | "failed" | "cancelled";
+        PlayerPaid: {
+            readonly player_id: number;
+            readonly name: string;
+            readonly is_captain: boolean;
+            /** @description False for a Player who paid and has since left. */
+            readonly in_team: boolean;
+            /**
+             * Format: decimal
+             * @description Net of refunds and reversals.
+             */
+            readonly paid: string;
+            readonly has_paid: boolean;
+        };
         PlayerProfile: {
             position: components["schemas"]["PositionEnum"];
             /** @description The Nights to get notifications for. */
@@ -3066,6 +3104,28 @@ export interface components {
             /** Format: decimal */
             readonly outstanding: string;
             readonly is_paid: boolean;
+        };
+        /** @description Who has paid towards a Team (FR-21), for its Captain and its club's Admins. */
+        TeamPaymentSummary: {
+            readonly team: components["schemas"]["Named"];
+            /** Format: decimal */
+            readonly due: string;
+            /** Format: decimal */
+            readonly paid: string;
+            /** Format: decimal */
+            readonly outstanding: string;
+            readonly is_paid: boolean;
+            readonly players: components["schemas"]["PlayerPaid"][];
+            /**
+             * Format: decimal
+             * @description Paid for the whole Team: Team credit, or cash for the Team.
+             */
+            readonly paid_for_team: string;
+            /**
+             * Format: decimal
+             * @description The Team's credit; only its Captain sees it.
+             */
+            readonly team_credit: string | null;
         };
         /** @description What the T-6h check decided for a Team, and the Admin's ruling if it waited for one. */
         TeamReadiness: {
@@ -5572,6 +5632,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PaymentOptions"];
+                };
+            };
+        };
+    };
+    teams_payments_summary_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamPaymentSummary"];
                 };
             };
         };

@@ -632,3 +632,42 @@ docs/DECISIONS.md under "2026-10-23: Teams (chunk 5)".
   `?payment=<reference>`, so the app can show the result with
   `GET /api/v1/payments/{reference}/`. The ITN, not the return, records the payment.
   Chunk 19 decides the URLs (a deep link or a web page).
+
+## Chunk 19: Payments (UI)
+
+- **Return from PayFast to the app.** Question: should PayFast's return page reopen the
+  installed app by itself (universal links / app links), or is closing the in-app browser
+  enough? Choice: no deep links yet. The installed app opens PayFast in the in-app browser
+  (@capacitor/browser, `frontend/src/native/browser.ts`); when the Player closes it, the
+  app shows the payment's result screen. In a browser the tab goes to PayFast and comes
+  back to `PAYMENT_RETURN_URL` / `PAYMENT_CANCEL_URL`, which are the app's
+  `/payments/done` and `/payments/cancelled` (with `?payment=<reference>`). Why: works
+  with the chunk 18 URLs and needs no store-side configuration; the ITN, not the return,
+  records the payment either way. If the answer differs: add @capacitor/app's
+  `appUrlOpen`, an apple-app-site-association and assetlinks.json for the web host, and
+  close the in-app browser on return. No API change.
+- **Where "Pay my share" starts.** Question: Screens.md says the amount "defaults to the
+  per-player share"; what is the share? Choice: what the Team owes (its fee) divided by
+  its current Players, rounded up to the cent, less what this Player has already paid,
+  never more than the Team still owes. Once the Player has paid their share, the share is
+  suggested again (still capped). Computed by the backend
+  (`payments.services.suggested_amount`, `suggested_amount` on the payment options). The
+  Player can change it. Why: the PRD lets each Player choose (FR-19) and has no per-player
+  fee; the frontend must not compute money. If the answer differs: change
+  `suggested_amount` only (for example the Division minimum instead of the squad size).
+- **What the Captain sees of who has paid (FR-21).** Question: amounts per Player, or only
+  paid / unpaid? Choice: what each Player has paid, net of refunds and reversals, and
+  "Unpaid" for nothing; Players who paid and have since left are listed as such, and what
+  was paid for the whole Team (Team credit, cash for the Team) is its own line. New
+  endpoint `GET /api/v1/teams/{id}/payments/summary/` for the Captain and the Admins of
+  the Team's Club (404 for anyone else); Team credit in it only for the Captain. Why: the
+  design's PaymentProgress rows show an amount per Player, and the sums must come from the
+  backend. If the answer differs: drop `paid` from `PlayerPaid` and keep `has_paid`.
+- **Who sees "Pay my share".** Choice: every Player in an active Team, the Captain too,
+  even when the Team has paid (the pay screen then says there is nothing left to pay).
+  Why: one place to pay; the backend refuses anything over what is owed.
+- **Admin cash screen.** Choice: Payments, opened from Profile per club, lists the club's
+  active Teams (unpaid first, from chunk 18's endpoint); a Team opens who has paid and a
+  Record cash form (amount, the whole Team or one current Player, optional note). No
+  Season filter yet. If the answer differs: add the `season` filter the endpoint already
+  takes.
