@@ -2,6 +2,35 @@
 
 Newest first. Each entry: the date, what was decided, and why.
 
+## 2026-10-23: Accounts, roles and token auth (chunk 2)
+
+Decided by @Sasha while building chunk 2. Closes open questions 3 and 4.
+
+- **One account, any club (Q3):** an account is app-wide. One Player can play for Teams at
+  more than one club, and can opt into any club's Nights. Only Admin and Referee are held
+  per Club (`ClubRole`).
+- **New clubs are set up by us (Q4):** clubs do not sign up in the app. We create the Club
+  and its first Admin in the Django admin. Giving Admin and Referee roles in the app comes
+  with chunk 3.
+- **Login:** email and password only, with the email matched in any case. Phone is asked
+  at sign-up (optional) for contact, not for login. Phone login can come later.
+- **Roles at sign-up:** the user picks "I play" (a Player, then a position: outfield,
+  goalkeeper or both), "I hire a field" (a Booking User), or both. Both can be changed in
+  Profile. At least one is required.
+- **Captain** is not a stored role: a Player is a Captain of the Team they captain
+  (chunk 5).
+- **Tokens:** JWT (djangorestframework-simplejwt). The access token lasts 15 minutes and
+  the refresh token 60 days. Every refresh hands out a new refresh token and blacklists
+  the old one. Logout blacklists it too. The API accepts no session cookies; the Django
+  admin keeps its own session login.
+- **Token storage:** Capacitor Preferences in the installed app, localStorage in the
+  browser (`frontend/src/native/storage.ts`). Preferences is not the iOS Keychain or
+  Android Keystore. Moving the refresh token to secure storage is listed for before store
+  release.
+- **Proposed components** (not in the design system yet, built from its tokens in
+  `frontend/src/styles/proposed.css`, recipes from the key-moments draft): TextField,
+  ChoiceChip, Banner, ListGroup and ListRow, and a screen layout (`la-screen`).
+
 ## 2026-10-23: One app for every club; Capacitor setup
 
 Decided by @Sasha while building chunk 1.
@@ -86,9 +115,8 @@ Raised while drawing the key moments; the PRD does not answer them.
 2. Is the Captain notified when a Player or Goalkeeper Request fills? The PRD names no
    notification for it.
 
-Raised by the multi-club decision (2026-10-23); settle in chunks 2 and 3.
+Raised by the multi-club decision (2026-10-23). Questions 3 and 4 were answered in chunk 2
+(see the entry above).
 
-3. Can one Player play for Teams at more than one club, with one account?
-4. How does a new club join: does it sign up in the app, or do we set it up?
 5. Does each club take card payments into its own PayFast merchant account?
 6. Does a Player's credit (FR-52) belong to one club, or can it be spent at any club?

@@ -5,6 +5,7 @@ development they can live in a git-ignored .env file at the repo root; real envi
 variables always take precedence over it.
 """
 
+from datetime import timedelta
 from pathlib import Path
 
 import environ
@@ -30,8 +31,11 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "corsheaders",
     "rest_framework",
+    "rest_framework_simplejwt.token_blacklist",
     "drf_spectacular",
     "core",
+    "clubs",
+    "accounts",
 ]
 
 MIDDLEWARE = [
@@ -64,6 +68,7 @@ TEMPLATES = [
 ]
 
 DATABASES = {"default": env.db("DATABASE_URL")}
+AUTH_USER_MODEL = "accounts.User"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -82,10 +87,26 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = BACKEND_DIR / "staticfiles"
 
+# The app authenticates with tokens, not session cookies (CLAUDE.md). The Django admin
+# still uses its own session login.
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ],
+    "DEFAULT_THROTTLE_RATES": {"auth": env("AUTH_THROTTLE_RATE", default="20/min")},
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
+}
+
+# A short-lived access token, and a refresh token that keeps the phone signed in. Each
+# refresh hands out a new refresh token and blacklists the old one; logout blacklists it.
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=60),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "UPDATE_LAST_LOGIN": True,
 }
 
 SPECTACULAR_SETTINGS = {
@@ -94,6 +115,8 @@ SPECTACULAR_SETTINGS = {
     "bookings and finances. See docs/PRD.md.",
     "VERSION": "0.1.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    # Separate request schemas, so read-only fields (ids, issued tokens) aren't asked for.
+    "COMPONENT_SPLIT_REQUEST": True,
     "ENUM_NAME_OVERRIDES": {"HealthStateEnum": "core.views.HEALTH_STATES"},
 }
 

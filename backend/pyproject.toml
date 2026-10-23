@@ -27,6 +27,7 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "config/settings/*" = ["F403", "F405"]  # settings layer with `from .base import *`
 "**/tests/**" = ["S101", "S105", "S106"]  # asserts and test passwords
+"conftest.py" = ["S105"]  # the test password
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings.local"

@@ -3,7 +3,7 @@
 
 export type Status = "confirmed" | "pending" | "cancelled" | "info";
 
-const ICON_PATHS: Record<Status, string> = {
+export const ICON_PATHS: Record<Status, string> = {
   confirmed: "M20 6 9 17l-5-5",
   pending: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l3 2",
   cancelled: "M18 6 6 18M6 6l12 12",
