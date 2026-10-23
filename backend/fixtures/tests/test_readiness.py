@@ -450,6 +450,23 @@ def test_a_ruling_needs_play_or_out(boys_unpaid, admin_of, club_a):
     assert response.status_code == 400
 
 
+def test_tonight_drops_a_waiting_match_that_has_moved_on(
+    boys_unpaid, admin, admin_of, club_a, time_machine
+):
+    fixture, _ = boys_unpaid
+    client = admin_of(club_a)
+    time_machine.move_to(fixture.kick_off + dt.timedelta(days=1), tick=False)
+    [match] = client.get(tonight_url(club_a)).json()  # still waiting the next day
+    assert (match["waiting"], match["at_risk"]) == (True, True)
+
+    lifecycle.transition(fixture, S.CANCELLED, cause="admin", actor=admin)
+
+    assert client.get(tonight_url(club_a)).json() == []
+    time_machine.move_to(fixture.kick_off, tick=False)  # on the day it is still listed
+    [match] = client.get(tonight_url(club_a)).json()
+    assert (match["waiting"], match["at_risk"]) == (False, False)
+
+
 def test_another_clubs_admin_cannot_rule(boys_unpaid, admin_of, club_a, club_b):
     _, boys = boys_unpaid
     other = admin_of(club_b)

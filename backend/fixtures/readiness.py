@@ -209,8 +209,11 @@ class TonightFixture:
 
     @property
     def waiting(self) -> bool:
-        """A Team waits for the Admin's ruling."""
-        return any(t.readiness and t.readiness.outcome == Outcome.PENDING for t in self.teams)
+        """A Team waits for the Admin's ruling, and the match can still be ruled on (once it
+        has moved on, for example cancelled, `decide()` refuses, so nothing waits)."""
+        return self.fixture.status in CHECKED_STATUSES and any(
+            t.readiness and t.readiness.outcome == Outcome.PENDING for t in self.teams
+        )
 
     @property
     def at_risk(self) -> bool:
@@ -246,7 +249,7 @@ def tonight_fixture(fixture: Fixture) -> TonightFixture:
 
 def tonight(club, now: datetime | None = None) -> list[TonightFixture]:
     """The Club's Fixtures kicking off today (South African date), and any Fixture with a
-    Team still waiting for the Admin's ruling, by kick-off."""
+    Team still waiting for the Admin's ruling (while it can still be ruled on), by kick-off."""
     now = now or timezone.now()
     start = timezone.localtime(now).replace(hour=0, minute=0, second=0, microsecond=0)
     end = start + timedelta(days=1)  # South Africa has no daylight saving.
@@ -255,7 +258,10 @@ def tonight(club, now: datetime | None = None) -> list[TonightFixture]:
     )
     fixtures = (
         Fixture.objects.filter(club=club)
-        .filter(Q(kick_off__gte=start, kick_off__lt=end) | Q(Exists(waiting)))
+        .filter(
+            Q(kick_off__gte=start, kick_off__lt=end)
+            | Q(Exists(waiting), status__in=CHECKED_STATUSES)
+        )
         .select_related("club", "season", "division__night", "pitch__referee")
         .select_related("home_team", "away_team", "friendly_eligible_changed_by")
         .order_by("kick_off", "pitch__name", "pk")

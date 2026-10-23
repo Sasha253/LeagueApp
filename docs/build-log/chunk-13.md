@@ -88,3 +88,35 @@ By hand: run `make migrate` (new table, new statuses).
 
 Checks: make test (505 passed), make lint (passed), npm test (178 passed), npm run build
 (passed).
+
+## Review (fix: chunk 13 review)
+
+Plan: compare 03f9a47 with the chunk 13 prompt and the CLAUDE.md rules, run the four
+checks, fix real defects only.
+
+Checked and found sound:
+- Money: `outstanding`, `due`, `paid` are Decimal end to end (model DecimalField, MONEY
+  serializer fields); the screen shows them with `formatRand`.
+- Club isolation: both endpoints use `ClubAdminMixin` (IsClubAdmin on the URL's club);
+  the ruling's queryset is filtered by `fixture__club` (other club 404, not an Admin 403,
+  tested); `tonight()` filters `club=club`.
+- Configurable values: the minimum is `Division.min_players`, the cutoff is
+  `ClubSettings.readiness_hours_before`; nothing hard-coded.
+- Ledger untouched: "Let them play" moves no money (tested). TeamReadiness rows are
+  never deleted and a ruling is made once.
+- Notifications: none added (chunks 14 and 15 connect to `readiness_settled`); the
+  readiness check runs before the Reminder so a match that is out is not reminded.
+- UI: only `la-` classes and tokens; the two new classes are copied from
+  design/src/proposed.css and listed in docs/DECISIONS.md.
+- Tests cover every rule, permission and the screen; schema.d.ts matches the API
+  (`npm run gen:api` gives no diff). Nothing from later chunks was built.
+
+Defect fixed:
+- A Team left "waiting for the Admin" on a match that later moved on (for example the
+  Admin cancelled it, or later a Captain's cancellation) stayed on Tonight as "At risk"
+  forever, on every day, with "Let them play" and "Rule out" buttons that could only
+  answer 409. `tonight()` now lists a waiting match from another day only while it is
+  still `scheduled` or `confirming`, and `waiting` / `at_risk` are false once the match
+  has moved on. Test: `test_tonight_drops_a_waiting_match_that_has_moved_on`.
+
+No new PRD questions.
