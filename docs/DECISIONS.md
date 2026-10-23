@@ -13,7 +13,9 @@ Decided by @Sasha while building chunk 4 (FR-39).
   screen, and its second sheet explains the columns.
 - **Matching:** a Division is matched on its Night and its name, ignoring case and outer
   spaces, so re-importing a file creates nothing twice. A Night the Club doesn't have yet
-  is created.
+  is created. Names are unique per Night only as typed, so if a Night has Divisions whose
+  names differ only in case, a row takes the one with exactly its name, and a row that
+  matches several only ignoring case is an error (chunk 4 review).
 - **Re-importing updates:** an existing Division takes the file's Min players and League
   fee. A blank cell keeps the value it has. For a new Division, a blank Min players means
   the club's minimum, and a blank League fee means the club's fee.

@@ -136,12 +136,17 @@ def parse_fee(text: str) -> Decimal:
 
 def plan(club: Club, rows: list[Row]) -> Plan:
     nights = {night.weekday: night for night in club.nights.all()}
-    divisions = {
-        (division.night.weekday, division.name.strip().casefold()): division
-        for division in Division.objects.filter(night__club=club).select_related("night")
-    }
+    # A Division's name is unique per Night only as typed, so two can differ only in case.
+    # A row takes the Division with exactly its name, else the one that matches ignoring
+    # case; if several match ignoring case, the row is an error rather than a guess.
+    exact: dict[tuple[int, str], Division] = {}
+    loose: dict[tuple[int, str], list[Division]] = {}
+    for division in Division.objects.filter(night__club=club).select_related("night"):
+        weekday, name = division.night.weekday, division.name.strip()
+        exact[(weekday, name)] = division
+        loose.setdefault((weekday, name.casefold()), []).append(division)
     default_min = club.settings.division_min_players
-    seen: dict[tuple[int, str], int] = {}
+    seen: dict[tuple, int] = {}  # A matched Division by id, a new one by its name.
     planned = []
 
     for row in rows:
@@ -176,13 +181,26 @@ def plan(club: Club, rows: list[Row]) -> Plan:
 
         if result.errors:
             continue
-        key = (result.night, result.division.casefold())
+        existing = exact.get((result.night, result.division))
+        if existing is None:
+            matches = loose.get((result.night, result.division.casefold()), [])
+            if len(matches) > 1:
+                names = ", ".join(sorted(f'"{match.name}"' for match in matches))
+                result.errors.append(
+                    f"Division matches {names}. Write the name exactly as the club has it."
+                )
+                continue
+            existing = matches[0] if matches else None
+        key = (
+            (result.night, result.division.casefold())
+            if existing is None
+            else ("division", existing.pk)
+        )
         if key in seen:
             result.errors.append(f"This Division is already on row {seen[key]}.")
             continue
         seen[key] = row.number
 
-        existing = divisions.get(key)
         result.existing = existing
         result.new_night = result.night not in nights
         if existing is None:

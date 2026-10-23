@@ -324,3 +324,25 @@ def test_the_template_downloads_as_xlsx_or_csv_and_imports_cleanly(admin_of, clu
     template = SimpleUploadedFile("template.xlsx", xlsx.content)
     assert upload(client, club_a, "preview", template).json()["summary"]["errors"] == 0
     assert admin_of(club_b).get(url(club_a, "template")).status_code == 403
+
+
+@pytest.mark.django_db
+def test_divisions_differing_only_in_case_are_matched_exactly_or_refused(admin_of, club_a):
+    night = Night.objects.create(club=club_a, weekday=Night.Weekday.TUESDAY)
+    Division.objects.create(night=night, name="Division A", min_players=5)
+    Division.objects.create(night=night, name="division a", min_players=8)
+    client = admin_of(club_a)
+
+    answer = upload(
+        client,
+        club_a,
+        "commit",
+        csv_file(("Tuesday", "division a", "9", ""), ("Tuesday", "Division A", "", "")),
+    )
+    assert answer.status_code == 200, answer.json()
+    assert divisions(club_a) == [(1, "Division A", 5, None), (1, "division a", 9, None)]
+
+    preview = upload(client, club_a, "preview", csv_file(("Tuesday", "DIVISION A", "7", "")))
+    assert preview.json()["rows"][0]["errors"] == [
+        'Division matches "Division A", "division a". Write the name exactly as the club has it.'
+    ]
