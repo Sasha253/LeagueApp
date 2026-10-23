@@ -1,7 +1,7 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import { ME } from "../../test/fakeApi";
+import { json, ME } from "../../test/fakeApi";
 import { joinRequest, LIONS, member, openAs } from "./testing";
 
 const TEAM = "GET /api/v1/teams/7/";
@@ -97,6 +97,32 @@ describe("TeamPage", () => {
     await user.click(await screen.findByRole("button", { name: "Accept Sipho Dlamini" }));
 
     expect(await screen.findByText("This Player joined another Team in this Division first.")).toBeInTheDocument();
+  });
+
+  it("sends an answer once, even on a double tap", async () => {
+    let finish: (response: Response) => void = () => {};
+    const { calls } = await openAs(
+      "/teams/7",
+      {
+        [TEAM]: { status: 200, body: LIONS },
+        [MEMBERS]: { status: 200, body: [member()] },
+        "GET /api/v1/teams/7/join-requests/": { status: 200, body: [joinRequest()] },
+        "POST /api/v1/join-requests/40/accept/": () => new Promise<Response>((resolve) => (finish = resolve)),
+      },
+      "Red Lions",
+      CAPTAIN,
+    );
+    const user = userEvent.setup();
+
+    const accept = await screen.findByRole("button", { name: "Accept Sipho Dlamini" });
+    await user.click(accept);
+    expect(accept).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Decline Sipho Dlamini" })).toBeDisabled();
+    await user.click(accept);
+    finish(json(200, joinRequest({ status: "accepted" })));
+
+    await screen.findByRole("button", { name: "Accept Sipho Dlamini" });
+    expect(calls.filter((c) => c.method === "POST")).toHaveLength(1);
   });
 
   it("tells the Captain a new Team waits for the Admin", async () => {

@@ -118,14 +118,19 @@ function JoinRequests({ team, onChange }: { team: Team; onChange: () => void }) 
     `team-join-requests-${team.id}`,
   );
   const [error, setError] = useState<string | null>(null);
+  // The request being answered: its buttons are off until the API answers, so a double tap
+  // doesn't send it twice.
+  const [busy, setBusy] = useState<number | null>(null);
 
   async function answer(request: JoinRequest, verb: "accept" | "decline") {
     const path = { params: { path: { id: request.id } } };
+    setBusy(request.id);
     const failed = await send(() =>
       verb === "accept"
         ? api.POST("/api/v1/join-requests/{id}/accept/", path)
         : api.POST("/api/v1/join-requests/{id}/decline/", path),
     );
+    setBusy(null);
     setError(failed?.general ?? null);
     reload();
     if (!failed && verb === "accept") onChange();
@@ -157,6 +162,7 @@ function JoinRequests({ team, onChange }: { team: Team; onChange: () => void }) 
                       type="button"
                       className="la-btn la-btn--secondary la-btn--sm"
                       aria-label={`Accept ${request.player_name}`}
+                      disabled={busy === request.id}
                       onClick={() => void answer(request, "accept")}
                     >
                       Accept
@@ -165,6 +171,7 @@ function JoinRequests({ team, onChange }: { team: Team; onChange: () => void }) 
                       type="button"
                       className="la-btn la-btn--quiet la-btn--sm"
                       aria-label={`Decline ${request.player_name}`}
+                      disabled={busy === request.id}
                       onClick={() => void answer(request, "decline")}
                     >
                       Decline

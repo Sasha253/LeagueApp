@@ -42,6 +42,9 @@ export function FindTeamPage() {
   const [divisions, setDivisions] = useState<Named[]>([]);
   const [sent, setSent] = useState<Team | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // The Team being asked: its button is off until the API answers, so a double tap doesn't
+  // send the request twice.
+  const [asking, setAsking] = useState<number | null>(null);
 
   // The Division chips are the Divisions of the chosen Night's Teams, so they come from a
   // search filtered by Night only.
@@ -60,7 +63,9 @@ export function FindTeamPage() {
 
   async function join(team: Team) {
     setSent(null);
+    setAsking(team.id);
     const failed = await send(() => api.POST("/api/v1/teams/{id}/join/", { params: { path: { id: team.id } } }));
+    setAsking(null);
     setError(failed?.general ?? null);
     if (!failed) {
       setSent(team);
@@ -165,6 +170,7 @@ export function FindTeamPage() {
                         type="button"
                         className="la-btn la-btn--secondary la-btn--sm"
                         aria-label={`Ask to join ${team.name}`}
+                        disabled={asking === team.id}
                         onClick={() => void join(team)}
                       >
                         Ask to join

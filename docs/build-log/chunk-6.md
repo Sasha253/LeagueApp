@@ -55,3 +55,39 @@ By hand: nothing. Review the provisional choices in docs/OPEN_QUESTIONS.md.
 
 Checks: make test 161 passed; make lint clean; npm test 101 passed (21 files);
 npm run build ok.
+
+## Review (fix: chunk 6 review)
+
+Independent review of 38b7ae2 against the chunk 6 prompt and CLAUDE.md.
+
+Checked and fine:
+- Scope: frontend only, no backend or API change, `npm run gen:api` not needed; nothing from
+  later chunks (no tab bar, notifications, fixtures or payments).
+- Club isolation: Admin screens call `/api/v1/clubs/{club_id}/teams/...`, which the API scopes
+  to the Admin's Club; a 403 shows "Only this club's Admins can see its Teams." Profile only
+  links Admins to their own Clubs' Team requests.
+- Captain and membership checks compare `captain_id` and `player_id` with `me.id`; both are
+  user ids in the chunk 5 API, so they match.
+- Money: the league fee is the API's Decimal string, shown with `formatRand` ("R 350").
+  Whether a Division takes Teams (`is_open`) comes from the API.
+- Dates: UTC moments are turned into South African dates with `localDate` before `formatDate`.
+- UI: `la-` components and tokens only; SelectableRow is listed as a proposed component.
+- Tests: a Vitest file for every new screen, plus Profile links and `localDate`.
+
+Fixed:
+- Double taps sent a change twice. Accept and Decline (Captain), Ask to join (Find a team)
+  and Withdraw (Teams) stayed live while the request was in flight, so a second tap sent a
+  second POST and the API's refusal of it showed as an error after the first one worked.
+  Those buttons are now off until the API answers. Test: TeamPage "sends an answer once,
+  even on a double tap".
+
+Noted, not changed:
+- The "Full" / "Not open yet" label on a closed Division is read from `is_open` and
+  `effective_league_fee`, the same rule the API documents for `is_open`. If more reasons
+  appear, the API should send the reason itself.
+- `useLoad` keeps the last result while a new key loads, so for a moment after a new Night
+  is picked in Find a team, the old Night's results and Division chips still show. Harmless
+  (the results refresh), left as is to keep `useLoad` unchanged for the club setup screens.
+
+Checks after the fix: make test 161 passed; make lint clean; npm test 102 passed (21 files);
+npm run build ok.

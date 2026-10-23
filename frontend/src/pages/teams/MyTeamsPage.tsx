@@ -15,11 +15,14 @@ export function MyTeamsPage() {
   const [teams, reloadTeams] = useLoad(() => api.GET("/api/v1/me/teams/"), "my-teams");
   const [requests, reloadRequests] = useLoad(() => api.GET("/api/v1/me/join-requests/"), "my-join-requests");
   const [error, setError] = useState<string | null>(null);
+  const [withdrawing, setWithdrawing] = useState<number | null>(null);
 
   async function withdraw(request: JoinRequest) {
+    setWithdrawing(request.id);
     const failed = await send(() =>
       api.POST("/api/v1/join-requests/{id}/withdraw/", { params: { path: { id: request.id } } }),
     );
+    setWithdrawing(null);
     setError(failed?.general ?? null);
     if (!failed) reloadRequests();
   }
@@ -94,6 +97,7 @@ export function MyTeamsPage() {
                                 type="button"
                                 className="la-btn la-btn--quiet la-btn--sm"
                                 aria-label={`Withdraw request to join ${request.team.name}`}
+                                disabled={withdrawing === request.id}
                                 onClick={() => void withdraw(request)}
                               >
                                 Withdraw
