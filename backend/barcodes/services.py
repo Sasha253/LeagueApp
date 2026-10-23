@@ -577,7 +577,16 @@ def _at_the_gate(barcode: Barcode, fixture: Fixture | None) -> tuple[Status, Fix
             match,
         )
     if team is None:  # A friendly's Barcode: no Team to be ruled out.
-        earlier = _admitted(barcode, match)
+        # Once per friendly, not per Barcode: a new Captain's Barcode doesn't let it in again.
+        earlier = (
+            BarcodeScan.objects.filter(
+                barcode__friendly_id=barcode.friendly_id,
+                fixture=match,
+                result=BarcodeScan.Result.PAID,
+            )
+            .select_related("scanned_by")
+            .first()
+        )
         if earlier is not None:
             return Status(State.USED, _used_reason(earlier)), match
         return Status(State.VALID), match

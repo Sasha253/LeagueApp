@@ -108,3 +108,33 @@ gate single use, Team Barcode refused at a friendly). Vitest: `FriendlyFees.test
 - make lint: ruff check and format clean
 - npm test: 276 passed
 - npm run build: built
+
+## Review (independent, unattended)
+
+Checked against the chunk prompt and CLAUDE.md: money is Decimal (serializers, service
+checks, ledger `_money`), every endpoint is club-scoped (`ClubAdminMixin`) or limited to the
+Captain / the club's Admins (404 otherwise), the default fee comes from club settings,
+friendly payments are new append-only ledger entries in the `friendly` category, only the
+Captain is notified, the UI uses `la-` components and tokens only, `gen:api` output is in
+the commit, nothing from later chunks (PayFast for friendlies, Finances lines) was built.
+
+Fixed:
+- Gate: a friendly was let in once per Barcode, not once per friendly. After the Captain
+  was changed (old Barcode revoked, new one issued) the new Captain's Barcode passed the
+  gate again for the same match. `_at_the_gate` now checks for an earlier paid scan of any
+  Barcode of that friendly (NFR Barcode integrity). Test added.
+- Friendly fee screen decided whether cash could be recorded from `Number(outstanding)`;
+  it now uses the backend's `settled` flag.
+- Added a test that an Admin can revoke a friendly's Barcode through the existing revoke
+  endpoint (no Team on it).
+
+Noted, not changed:
+- A Captain stays Captain if they later leave the remaining Team; the Admin can change it.
+- The payment list shows the raw method ("cash"); only cash exists for friendlies now.
+
+Review results: make test, make lint, npm test and npm run build all pass (see below).
+
+- make test: 831 passed
+- make lint: ruff check and format clean
+- npm test: 276 passed
+- npm run build: built

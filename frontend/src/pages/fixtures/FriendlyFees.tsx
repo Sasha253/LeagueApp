@@ -121,7 +121,7 @@ export function FriendlyFeeSection({ clubId, fixtureId }: { clubId: number; fixt
         </ul>
       )}
 
-      {friendly.is_on && friendly.payers.length > 0 && Number(friendly.outstanding) > 0 && (
+      {friendly.is_on && friendly.payers.length > 0 && !friendly.settled && (
         <FriendlyCashForm clubId={clubId} fixtureId={fixtureId} friendly={friendly} onRecorded={changed} />
       )}
     </section>

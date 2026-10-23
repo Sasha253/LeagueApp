@@ -416,3 +416,31 @@ def test_a_teams_next_match_skips_a_friendly(match, at):
     _friendly(fixture, Cause.BOTH_TEAMS_OUT)
     assert barcodes.next_match(fixture.home_team) is None
     assert timezone.now() < fixture.kick_off
+
+
+def test_an_admin_can_revoke_a_friendly_barcode(both_out, admin):
+    fixture, people = both_out
+    terms(fixture, admin, payer=Payer.CLUB, captain=people["zola"])
+    barcode = live(fixture).get()
+    url = reverse("api-v1:barcode-revoke", kwargs={"barcode_id": barcode.pk})
+    response = client_for(admin).post(url, {"reason": "Lost phone"})
+    assert response.status_code == 200, response.content
+    data = response.json()
+    assert (data["team"], data["holder"], data["state"]) == (
+        None,
+        "Friendly: Red Lions vs Old Boys",
+        "revoked",
+    )
+    assert not live(fixture).exists()
+
+
+def test_a_new_captains_barcode_doesnt_let_the_friendly_in_twice(both_out, admin, at_the_gate):
+    fixture, people = both_out
+    terms(fixture, admin, payer=Payer.CLUB, captain=people["zola"])
+    at_the_gate(fixture)
+    first = barcodes.scan(live(fixture).get().code, club=fixture.club, by=admin, method="manual")
+    assert first.paid, first.status
+    terms(fixture, admin, payer=Payer.CLUB, captain=people["nomsa"])
+    again = barcodes.scan(live(fixture).get().code, club=fixture.club, by=admin, method="manual")
+    assert not again.paid
+    assert again.status.state == "used"
