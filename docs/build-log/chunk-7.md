@@ -86,3 +86,33 @@ under "Chunk 7".
 
 Checks: make test 301 passed; make lint clean; npm test 126 passed (26 files);
 npm run build ok.
+
+## Review (independent, unattended run)
+
+Reviewed 11ab159 against the chunk 7 prompt and CLAUDE.md.
+
+- Club isolation: the Admin views use `ClubAdminMixin` (queryset filtered by `club_id`,
+  `IsClubAdmin`); the import looks up Divisions, pitches, Teams and clashes only in the
+  chosen Club and Season, and the Season must be the Club's. Player views show only
+  Fixtures of the Player's current active Teams; anyone else gets 404. Tests cover other
+  clubs' Admins, Referees, Players and strangers.
+- State machine: one `TRANSITIONS` table, `transition()` locks the row, refuses other moves
+  with 409, needs friendly-eligible for a friendly, and logs every move with actor and
+  cause. `FixtureTransition` refuses save-after-create and delete. Every pair is tested.
+- Import: same preview/commit/template flow as chunk 4, commit in one transaction under a
+  Club row lock, idempotent re-import, all or nothing, clashes in the file and with the
+  database, the DB unique constraint on pitch and kick-off. Kick-offs are made from South
+  African local time and stored in UTC.
+- Money, ledger, notifications: none touched in this chunk (correct). No configurable
+  value is hard-coded. Nothing from later chunks was built.
+- UI: only `la-` classes from the design system bundle and `proposed.css`; the one new
+  class (`.la-card-link`) is logged as a proposed component. Times use
+  Africa/Johannesburg, 24-hour, dates as "Tue 27 Oct". Every screen has a Vitest file.
+- `npm run gen:api` re-run: `schema.d.ts` unchanged, so it was current.
+
+Defects fixed: none found. Notes, not changed: an invalid `status` filter on the Admin
+list returns an empty list rather than 400; a row matching a cancelled Fixture is reported
+"unchanged" rather than re-creating it (conservative, as logged in OPEN_QUESTIONS).
+
+Checks after review: make test 301 passed; make lint clean; npm test 126 passed
+(26 files); npm run build ok.
