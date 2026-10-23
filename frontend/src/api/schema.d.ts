@@ -734,6 +734,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/credit/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The signed-in Player's credit at each Club where they have any. */
+        get: operations["me_credit_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/fixtures/": {
         parameters: {
             query?: never;
@@ -966,6 +983,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/teams/{team_id}/balance/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description What a Team owes, has paid and still owes, with every line on its account. */
+        get: operations["teams_balance_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/{team_id}/credit/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description A Team's own credit. Only its Captain sees it. */
+        get: operations["teams_credit_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1080,6 +1131,13 @@ export interface components {
          * @enum {string}
          */
         CauseEnum: "import" | "admin" | "captain" | "checkpoint" | "system";
+        ClubCredit: {
+            /** Format: decimal */
+            readonly balance: string;
+            /** @description Credits, credit spent, and their reversals. */
+            readonly entries: components["schemas"]["LedgerEntry"][];
+            readonly club: components["schemas"]["ClubSummary"];
+        };
         /**
          * @description Invites an email to be an Admin or Referee of the Club in the URL.
          *
@@ -1426,6 +1484,70 @@ export interface components {
          * @enum {string}
          */
         JoinRequestStatusEnum: "pending" | "accepted" | "declined" | "withdrawn";
+        /**
+         * @description * `league` - League
+         *     * `friendly` - Friendly
+         *     * `booking` - Booking
+         * @enum {string}
+         */
+        LedgerCategoryEnum: "league" | "friendly" | "booking";
+        /** @description One ledger line. Amounts are rand, above zero; `kind` says which way it goes. */
+        LedgerEntry: {
+            readonly id: number;
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly kind: components["schemas"]["LedgerKindEnum"];
+            /**
+             * @description Card, cash or credit for payments and refunds; empty otherwise.
+             *
+             *     * `card` - Card
+             *     * `cash` - Cash
+             *     * `credit` - Credit
+             */
+            readonly method: components["schemas"]["LedgerMethodEnum"] | components["schemas"]["BlankEnum"];
+            readonly category: components["schemas"]["LedgerCategoryEnum"];
+            /** Format: decimal */
+            readonly amount: string;
+            /**
+             * @description Whose money or credit this is: the Team, a Player or a Booking User.
+             *
+             *     * `team` - Team
+             *     * `player` - Player
+             *     * `booking_user` - Booking User
+             */
+            readonly subject: components["schemas"]["LedgerSubjectEnum"];
+            readonly team: components["schemas"]["Named"] | null;
+            /** @description The Player or Booking User. */
+            readonly player: components["schemas"]["Named"] | null;
+            readonly fixture_id: number | null;
+            readonly reverses_id: number | null;
+            readonly reason: string;
+            /** @description Empty when the app recorded it. */
+            readonly recorded_by_name: string | null;
+        };
+        /**
+         * @description * `charge` - Charge
+         *     * `payment` - Payment
+         *     * `credit` - Credit
+         *     * `refund` - Refund
+         *     * `reversal` - Reversal
+         * @enum {string}
+         */
+        LedgerKindEnum: "charge" | "payment" | "credit" | "refund" | "reversal";
+        /**
+         * @description * `card` - Card
+         *     * `cash` - Cash
+         *     * `credit` - Credit
+         * @enum {string}
+         */
+        LedgerMethodEnum: "card" | "cash" | "credit";
+        /**
+         * @description * `team` - Team
+         *     * `player` - Player
+         *     * `booking_user` - Booking User
+         * @enum {string}
+         */
+        LedgerSubjectEnum: "team" | "player" | "booking_user";
         /** @description The signed-in user. `player` is null when the user is not a Player. */
         Me: {
             readonly id: number;
@@ -1502,6 +1624,14 @@ export interface components {
         };
         /** @enum {unknown} */
         NullEnum: null;
+        PaidByMethod: {
+            /** Format: decimal */
+            readonly card: string;
+            /** Format: decimal */
+            readonly cash: string;
+            /** Format: decimal */
+            readonly credit: string;
+        };
         PatchedClubSettingsRequest: {
             /**
              * Format: decimal
@@ -1672,6 +1802,33 @@ export interface components {
             /** @description Players in the Team now. */
             readonly players: number;
             status: components["schemas"]["TeamStatusEnum"];
+        };
+        TeamBalance: {
+            readonly team: components["schemas"]["Named"];
+            /**
+             * Format: decimal
+             * @description Charges, less their reversals.
+             */
+            readonly due: string;
+            /**
+             * Format: decimal
+             * @description Payments, less refunds and reversals.
+             */
+            readonly paid: string;
+            /**
+             * Format: decimal
+             * @description Due less paid. Below zero when the Team has paid more.
+             */
+            readonly outstanding: string;
+            readonly paid_by_method: components["schemas"]["PaidByMethod"];
+            readonly entries: components["schemas"]["LedgerEntry"][];
+        };
+        TeamCredit: {
+            /** Format: decimal */
+            readonly balance: string;
+            /** @description Credits, credit spent, and their reversals. */
+            readonly entries: components["schemas"]["LedgerEntry"][];
+            readonly team: components["schemas"]["Named"];
         };
         /** @description A Captain's request for a new Team. */
         TeamRequestRequest: {
@@ -3002,6 +3159,25 @@ export interface operations {
             };
         };
     };
+    me_credit_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClubCredit"][];
+                };
+            };
+        };
+    };
     me_fixtures_list: {
         parameters: {
             query?: {
@@ -3283,6 +3459,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Member"][];
+                };
+            };
+        };
+    };
+    teams_balance_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamBalance"];
+                };
+            };
+        };
+    };
+    teams_credit_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamCredit"];
                 };
             };
         };

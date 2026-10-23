@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "accounts",
     "teams",
     "fixtures",
+    "ledger",
 ]
 
 MIDDLEWARE = [
@@ -127,6 +128,10 @@ SPECTACULAR_SETTINGS = {
         "FixtureStatusEnum": "fixtures.models.FIXTURE_STATUSES",
         "ImportActionEnum": "clubs.imports.Action",
         "FixtureImportActionEnum": "fixtures.imports.Action",
+        "LedgerKindEnum": "ledger.models.LEDGER_KINDS",
+        "LedgerMethodEnum": "ledger.models.LEDGER_METHODS",
+        "LedgerSubjectEnum": "ledger.models.LEDGER_SUBJECTS",
+        "LedgerCategoryEnum": "ledger.models.LEDGER_CATEGORIES",
     },
 }
 

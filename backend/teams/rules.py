@@ -12,6 +12,7 @@ from rest_framework.exceptions import ValidationError
 
 from clubs.models import Division, Season
 from core.exceptions import Conflict
+from ledger import services as ledger
 
 from .models import JoinRequest, Team, TeamMembership
 
@@ -125,6 +126,7 @@ def confirm_team(team: Team, admin) -> Team:
     team.decided_by = admin
     team.decided_at = timezone.now()
     team.save(update_fields=["status", "decided_by", "decided_at"])
+    ledger.charge_league_fee(team, recorded_by=admin)
     return team
 
 

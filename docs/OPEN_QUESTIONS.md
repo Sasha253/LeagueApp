@@ -90,3 +90,47 @@ docs/DECISIONS.md under "2026-10-23: Teams (chunk 5)".
   offered. After that the answer is 409. The flag can also be set by the import. Who set it
   and when is kept. Why: once a match is a friendly, cancelled or played, changing the flag
   means nothing. If the answer differs: change `FLAG_OPEN` in `lifecycle.py`.
+
+## Chunk 8: Ledger and credit
+
+- **Is Player credit per club? (open question 6 in DECISIONS.md)** Question: can credit
+  issued at one club be spent at another? Choice: no. Every entry belongs to one Club, and
+  a Player's credit is counted and spent per Club; `GET /api/v1/me/credit/` lists it per
+  Club. Why: CLAUDE.md says every club's data is its own, and each club may take payments
+  into its own merchant account (open question 5), so one club can't spend another's
+  money. If the answer differs: drop the `club` filter in `ledger.services.user_credit` and
+  let `spend_credit` use credit from any Club (and settle between clubs).
+- **When the league fee becomes "due".** Question: is a Team's amount due computed live
+  from the fee, or fixed when charged? Choice: a charge entry is posted when the Admin
+  confirms the Team (`teams.rules.confirm_team`), at the Division's effective fee then;
+  a data migration charged Teams already active. A later fee change doesn't rewrite what a
+  Team owes; the Admin reverses the charge and the fee is charged again. Confirming a Team
+  with no league fee set is refused (409). Why: a ledger is history; a live figure would
+  change paid-up Teams' balances whenever the fee is edited. If the answer differs: compute
+  `due` from `Division.effective_league_fee` in `team_balance` and drop the charge.
+- **Who sees a Team's balance.** Question: the prompt says "Team balance" without naming
+  who reads it. Choice: the Team's Captain and the Admins of its Club; everyone else gets
+  404 (Players of the Team too). Why: FR-21 names Captains and Admins; Players' view of
+  who paid is not in the PRD. If the answer differs: let current members in, in
+  `ledger/views.py` `TeamBalanceView`.
+- **Who may spend credit.** Question: can an Admin (or the app) spend a Player's or a Team's
+  credit for them? Choice: only the Player spends Player credit, and only the Team's
+  Captain spends Team credit (FR-52), on a Team that is active, never more than held or
+  than the Team still owes. Why: FR-52 says only the Captain manages Team credit, and
+  credit is the holder's money. If the answer differs: widen the `spent_by` check in
+  `spend_credit` (FR-46 automatic use for bookings will need the app to spend it).
+- **Does returning a payment as credit change what the Team has paid?** Question: when a
+  paid match is cancelled (FR-43), does the Team's "paid" drop? Choice: no. Credit is a
+  separate entry in the holder's wallet; the payment stays paid. At most the payment's
+  amount can be returned as credit, in total, and a payment can't be reversed while credit
+  returned from it stands. Why: the league fee is per Season, so the Team has still paid
+  its fee; how much of a payment a cancelled match is worth is chunk 15's decision. If the
+  answer differs: chunk 15 can also post a charge or reversal on the Team account.
+- **Booking User credit.** Question: is a Booking User's credit (FR-46) the same wallet as
+  their Player credit? Choice: no, kept apart by subject (`user_credit(club, user,
+  subject)`). Why: conservative; bookings come in chunk 23. If the answer differs: count
+  both subjects in one wallet.
+- **Correcting entries.** Question: what can be reversed? Choice: any entry except a
+  reversal, at most once, with a reason. Spent credit can't be reversed. To undo a
+  mistaken reversal, record the entry again. Why: FR-50; keeps every balance from going
+  below zero. If the answer differs: change the checks in `ledger.services.reverse`.

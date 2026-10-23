@@ -2,6 +2,31 @@
 
 Newest first. Each entry: the date, what was decided, and why.
 
+## 2026-10-23: Ledger and credit (chunk 8) (provisional, unattended run)
+
+Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 8: Ledger and credit".
+
+- **LedgerEntry (provisional, unattended run):** append-only (FR-50). Club, kind (charge,
+  payment, credit, refund, reversal), method (card, cash, credit, or empty), category
+  (league, friendly, booking, for FR-49), amount (Decimal rand, always above 0; the kind
+  gives the direction), subject (Team, Player, Booking User) with its Team and user, related
+  Fixture, the entry a reversal undoes, the payment a credit came from, reason, recorded
+  by, created at. The ORM, the Django admin and the API never change or delete one.
+  Writes go only through `ledger/services.py`; balances are computed from entries.
+- **Credit is per club (provisional, unattended run):** a Player's credit is spent only at
+  the Club that issued it. Answers open question 6 below, provisionally.
+- **League fee charged on confirmation (provisional, unattended run):** confirming a Team
+  posts its league fee as a charge, fixed at that moment; no fee, no confirmation.
+- **Who sees and spends (provisional, unattended run):** a Team's balance: its Captain and
+  its Club's Admins. Team credit: its Captain only. Player credit: the Player only, on a
+  Team they are in now. Never more than held, or than the Team still owes.
+- **Credit back to whoever paid (provisional, unattended run):** a Player's payment returns
+  as Player credit, a whole-Team payment as Team credit, never more than the payment. The
+  Team's paid amount is unchanged. Booking User credit is a separate wallet.
+- **Reversals (provisional, unattended run):** any entry but a reversal, once, with a
+  reason; spent credit can't be reversed; a payment can't be reversed while credit
+  returned from it stands.
+
 ## 2026-10-23: Fixtures and Admin fixture import (chunk 7) (provisional, unattended run)
 
 Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 7: Fixtures and Admin

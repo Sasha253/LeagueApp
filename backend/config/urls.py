@@ -14,6 +14,7 @@ api_v1 = [
     path("clubs/<int:club_id>/", include("clubs.urls")),
     path("clubs/<int:club_id>/", include(club_team_urls)),
     path("clubs/<int:club_id>/", include(club_fixture_urls)),
+    path("", include("ledger.urls")),
     path("", include("fixtures.urls")),
     path("", include("teams.urls")),
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
