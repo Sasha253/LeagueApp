@@ -23,8 +23,14 @@ export function ticketText(barcode: Barcode): { kicker: string; status: string }
       status: "Paid · valid for this match only",
     };
   }
+  if (barcode.booking) {
+    return {
+      kicker: `${formatMoment(barcode.booking.starts_at)} · ${barcode.booking.field.name}`,
+      status: "Paid · valid for this booking only",
+    };
+  }
   return {
-    kicker: `${barcode.season.name} Season`,
+    kicker: `${barcode.season?.name ?? ""} Season`,
     status: `Paid · valid until ${formatDate(barcode.valid_until)}`,
   };
 }

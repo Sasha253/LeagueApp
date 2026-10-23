@@ -173,6 +173,15 @@ class ConfigurableValues(models.Model):
     booking_hourly_fee = models.DecimalField(
         **MONEY, null=True, blank=True, help_text="Field hire price per hour (FR-33)."
     )
+    match_length_minutes = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(600)],
+        help_text=(
+            "How long a league match holds its pitch from kick-off. A booking can't overlap "
+            "it (FR-28). Empty until the Admin sets it."
+        ),
+    )
     division_min_players = models.PositiveSmallIntegerField(
         validators=[MinValueValidator(1)],
         help_text="Minimum Players a new Division starts with (FR-5).",
@@ -256,7 +265,14 @@ class ClubSettings(ConfigurableValues):
         related_name="+",
     )
 
-    REQUIRED_BEFORE_USE = ("league_fee", "friendly_fee", "booking_hourly_fee")
+    REQUIRED_BEFORE_USE = (
+        "league_fee",
+        "friendly_fee",
+        "booking_hourly_fee",
+        "match_length_minutes",
+    )
+    # What bookings can't be taken without (FR-28, FR-33).
+    REQUIRED_FOR_BOOKINGS = ("booking_hourly_fee", "match_length_minutes")
 
     class Meta:
         verbose_name_plural = "club settings"
@@ -276,3 +292,8 @@ class ClubSettings(ConfigurableValues):
     def missing(self) -> list[str]:
         """Values the Admin still has to set."""
         return [name for name in self.REQUIRED_BEFORE_USE if getattr(self, name) is None]
+
+    @property
+    def takes_bookings(self) -> bool:
+        """Whether the Admin has set what bookings need."""
+        return all(getattr(self, name) is not None for name in self.REQUIRED_FOR_BOOKINGS)

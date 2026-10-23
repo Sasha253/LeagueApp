@@ -33,6 +33,10 @@ import { FriendlyBarcodePage } from "./pages/payments/FriendlyBarcodePage";
 import { PaymentResultPage } from "./pages/payments/PaymentResultPage";
 import { PayPage } from "./pages/payments/PayPage";
 import { ScanPage } from "./pages/payments/ScanPage";
+import { BookingPage } from "./pages/bookings/BookingPage";
+import { BookPage } from "./pages/bookings/BookPage";
+import { ClubBookingsPage } from "./pages/bookings/ClubBookingsPage";
+import { MyBookingsPage } from "./pages/bookings/MyBookingsPage";
 import { InboxPage } from "./pages/inbox/InboxPage";
 import { NotificationPage } from "./pages/inbox/NotificationPage";
 import { PushBridge } from "./push/PushBridge";
@@ -72,6 +76,10 @@ const screens: RouteObject[] = [
       { path: "/clubs/:clubId/payments", element: <ClubPaymentsPage /> },
       { path: "/clubs/:clubId/payments/:teamId", element: <ClubTeamPaymentPage /> },
       { path: "/clubs/:clubId/scan", element: <ScanPage /> },
+      { path: "/clubs/:clubId/bookings", element: <ClubBookingsPage /> },
+      { path: "/book", element: <BookPage /> },
+      { path: "/bookings", element: <MyBookingsPage /> },
+      { path: "/bookings/:bookingId", element: <BookingPage /> },
       { path: "/fixtures", element: <MyFixturesPage /> },
       { path: "/fixtures/:fixtureId", element: <FixturePage /> },
       { path: "/fixtures/:fixtureId/request", element: <FixtureRequestPage /> },

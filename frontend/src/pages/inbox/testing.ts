@@ -12,7 +12,8 @@ export function notification(overrides: object = {}) {
     title: "Can you make Tuesday's match?",
     body: "Red Lions vs Old Boys · Tue 27 Oct · 19:40 · Pitch 3",
     club_id: 1,
-    fixture_id: 30,
+    fixture_id: 30 as number | null,
+    booking_id: null as number | null,
     // Mon 26 Oct 07:40 in South Africa.
     created_at: "2026-10-26T05:40:00Z",
     read_at: null,

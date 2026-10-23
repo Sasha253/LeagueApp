@@ -11,15 +11,18 @@ import { LoadState, NO_ERRORS, send, SetupHeader, useClub, useLoad } from "./sha
 
 type Settings = Schemas["ClubSettings"];
 type MoneyName = "league_fee" | "friendly_fee" | "booking_hourly_fee";
+/** Whole numbers that start empty until the Admin sets them. */
+type OptionalName = "match_length_minutes";
 type WholeName = Exclude<
   keyof Settings,
-  MoneyName | "payment_mode" | "payment_provider" | "missing" | "updated_at" | "updated_by_name"
+  MoneyName | OptionalName | "payment_mode" | "payment_provider" | "missing" | "updated_at" | "updated_by_name"
 >;
 
 export const SETTING_LABELS: Record<string, string> = {
   league_fee: "League fee per Team",
   friendly_fee: "Friendly fee per match",
   booking_hourly_fee: "Field hire per hour",
+  match_length_minutes: "Match length",
 };
 
 const MONEY: { name: MoneyName; help: string }[] = [
@@ -69,11 +72,12 @@ const WHOLE: { title: string; fields: { name: WholeName; label: string; help?: s
   },
 ];
 
-type Draft = Record<MoneyName | WholeName, string> & { payment_mode: Settings["payment_mode"] };
+type Draft = Record<MoneyName | OptionalName | WholeName, string> & { payment_mode: Settings["payment_mode"] };
 
 function draftOf(settings: Settings): Draft {
   const draft = { payment_mode: settings.payment_mode } as Draft;
   for (const { name } of MONEY) draft[name] = settings[name] ?? "";
+  draft.match_length_minutes = settings.match_length_minutes == null ? "" : String(settings.match_length_minutes);
   for (const group of WHOLE) for (const { name } of group.fields) draft[name] = String(settings[name]);
   return draft;
 }
@@ -81,6 +85,8 @@ function draftOf(settings: Settings): Draft {
 function bodyOf(draft: Draft): Schemas["PatchedClubSettingsRequest"] {
   const body: Schemas["PatchedClubSettingsRequest"] = { payment_mode: draft.payment_mode };
   for (const { name } of MONEY) body[name] = draft[name].trim() || null;
+  const length = draft.match_length_minutes.trim();
+  body.match_length_minutes = length ? Number(length) : null;
   for (const group of WHOLE) for (const { name } of group.fields) body[name] = Number(draft[name]);
   return body;
 }
@@ -139,7 +145,7 @@ function SettingsForm({ clubId, settings }: { clubId: number; settings: Settings
   return (
     <>
       {saved.missing.length > 0 && (
-        <Banner status="pending" title="Set your fees">
+        <Banner status="pending" title="Set your fees and match length">
           Teams and bookings need them. Still to set:{" "}
           {saved.missing.map((name) => SETTING_LABELS[name] ?? name).join(", ")}.
         </Banner>
@@ -158,6 +164,18 @@ function SettingsForm({ clubId, settings }: { clubId: number; settings: Settings
             error={errors.fields[name]}
           />
         ))}
+      </fieldset>
+
+      <fieldset className="la-fieldset la-stack">
+        <legend className="la-overline">Pitches</legend>
+        <TextField
+          label={`${SETTING_LABELS.match_length_minutes} (minutes)`}
+          inputMode="numeric"
+          value={draft.match_length_minutes}
+          onChange={(event) => change({ match_length_minutes: event.target.value })}
+          help="How long a league match holds its pitch from kick-off. Bookings can't overlap it."
+          error={errors.fields.match_length_minutes}
+        />
       </fieldset>
 
       <fieldset className="la-fieldset la-stack-2">

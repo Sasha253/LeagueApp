@@ -127,6 +127,21 @@ describe("NotificationPage", () => {
     expect(screen.getByRole("link", { name: "Open the match" })).toHaveAttribute("href", "/clubs/1/fixtures/30");
   });
 
+  it("opens the booking for its Booking User", async () => {
+    const accepted = { ...UPDATE, fixture_id: null, booking_id: 70, title: "Booking accepted: Pitch 3" };
+    await open(accepted);
+
+    expect(screen.getByRole("link", { name: "Open the booking" })).toHaveAttribute("href", "/bookings/70");
+    expect(screen.queryByRole("link", { name: "Open the match" })).not.toBeInTheDocument();
+  });
+
+  it("opens the club's bookings for an Admin", async () => {
+    const cancelled = { ...UPDATE, fixture_id: null, booking_id: 70, title: "Booking cancelled: Pitch 3" };
+    await open(cancelled, {}, { ...ME, club_roles: [{ club_id: 1, club_name: "Club A", role: "admin" }] });
+
+    expect(screen.getByRole("link", { name: "Open the booking" })).toHaveAttribute("href", "/clubs/1/bookings");
+  });
+
   it("says when the notification can't be found", async () => {
     await openAs("/inbox/99", { [`GET ${path(99)}`]: () => json(404, { detail: "Not found." }) }, "Notification");
 

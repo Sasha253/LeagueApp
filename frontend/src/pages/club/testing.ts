@@ -14,6 +14,7 @@ export const SETTINGS = {
   league_fee: null,
   friendly_fee: null,
   booking_hourly_fee: null,
+  match_length_minutes: null,
   division_min_players: 5,
   confirmation_hours_before: 36,
   confirmation_resend_after_hours: 12,
@@ -28,7 +29,7 @@ export const SETTINGS = {
   booking_reschedules_allowed: 1,
   payment_mode: "gateway",
   payment_provider: "payfast",
-  missing: ["league_fee", "friendly_fee", "booking_hourly_fee"],
+  missing: ["league_fee", "friendly_fee", "booking_hourly_fee", "match_length_minutes"],
   updated_at: "2026-10-23T10:00:00Z",
   updated_by_name: null,
 };

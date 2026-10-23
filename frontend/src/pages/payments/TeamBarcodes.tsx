@@ -24,12 +24,13 @@ const STATE_CHIPS: Record<AdminBarcode["state"], { status: Status; label: string
   no_match: { status: "info", label: "No match" },
   not_found: { status: "cancelled", label: "Not found" },
   no_captain: { status: "pending", label: "No Captain" },
+  not_accepted: { status: "info", label: "Booking not accepted" },
 };
 
 function validFor(barcode: AdminBarcode): string {
   return barcode.fixture
     ? `Match ${formatMoment(barcode.fixture.kick_off)}`
-    : `${barcode.season.name} Season, until ${formatDate(barcode.valid_until)}`;
+    : `${barcode.season?.name ?? ""} Season, until ${formatDate(barcode.valid_until)}`;
 }
 
 type Props = {

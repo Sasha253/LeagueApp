@@ -20,6 +20,12 @@ Admin assigned once the friendly's fee is settled (paid, free, or paid by the cl
 for that match while it is still a friendly. A new Captain revokes the old one. A Team's
 own Barcode doesn't let it into a match that has become a friendly.
 
+A Booking's Barcode (FR-30) is tied to the Booking: issued to the Booking User when an
+Admin accepts it, revoked when it is cancelled or rescheduled. It is valid while the Booking
+is accepted, not over, and paid (until chunk 24 takes Booking payments, only a R 0 Booking
+is paid). At the gate it counts on the Booking's day only, once per Booking, and only an
+Admin of the club checks it (PRD roles: Referees check Teams).
+
 Everything here is decided by the backend; the app only shows it.
 """
 
@@ -31,7 +37,9 @@ from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.utils import timezone
 
-from accounts.models import User
+from accounts.models import ClubRole, User
+from bookings import money as booking_money
+from bookings.models import Booking
 from clubs.models import Club, PaymentMode
 from core.exceptions import Conflict
 from fixtures.models import Fixture, FriendlyFee, ReplacementOffer, TeamReadiness
@@ -78,6 +86,9 @@ class State:
     FRIENDLY = "friendly"
     # A friendly's Barcode only:
     NO_CAPTAIN = "no_captain"
+    # A Booking's Barcode only:
+    NOT_ACCEPTED = "not_accepted"
+    ADMINS_ONLY = "admins_only"
 
     choices = [
         (VALID, "Valid"),
@@ -89,6 +100,7 @@ class State:
         (NO_MATCH, "No match coming up"),
         (NOT_FOUND, "No such Barcode"),
         (NO_CAPTAIN, "No Captain assigned"),
+        (NOT_ACCEPTED, "Booking not accepted"),
     ]
     # A scan at the gate answers any of the above, or one of these.
     scan_choices = [
@@ -100,6 +112,7 @@ class State:
         (RULED_OUT, "Team ruled out"),
         (USED, "Already scanned"),
         (FRIENDLY, "Match is now a friendly"),
+        (ADMINS_ONLY, "Only an Admin checks bookings"),
     ]
 
 
@@ -159,6 +172,8 @@ def status_of(barcode: Barcode) -> Status:
         return Status(State.REVOKED, f"This Barcode was revoked: {barcode.revoke_reason}")
     if barcode.friendly_id is not None:
         return _friendly_status(barcode)
+    if barcode.booking_id is not None:
+        return _booking_status(barcode.booking)
     team = barcode.team
     if team.status != Team.Status.ACTIVE:
         return Status(State.INACTIVE, NOT_ACTIVE)
@@ -200,14 +215,22 @@ def _create(
     fixture: Fixture | None,
     by: User | None,
     friendly: FriendlyFee | None = None,
+    booking: Booking | None = None,
 ) -> Barcode:
+    if booking is not None:
+        club, season = booking.club, None
+    elif team is None:
+        club, season = fixture.club, fixture.season
+    else:
+        club, season = team.club, team.season
     for _ in range(ATTEMPTS):
         barcode = Barcode(
-            club=fixture.club if team is None else team.club,
+            club=club,
             team=team,
             friendly=friendly,
+            booking=booking,
             mode=mode,
-            season=fixture.season if team is None else team.season,
+            season=season,
             fixture=fixture,
             nonce=signing.new_nonce(),
             issued_by=by,
@@ -475,6 +498,64 @@ def current_for_friendly(friendly: FriendlyFee) -> Current:
     return _shown(barcode, status_of(barcode))
 
 
+# Bookings (FR-30)
+
+BOOKING_OVER = "This booking is over."
+
+
+def _booking_not_on(booking: Booking) -> str:
+    if booking.status == Booking.Status.PENDING:
+        return "This booking is waiting for an Admin."
+    if booking.status == Booking.Status.DECLINED:
+        return "This booking was declined."
+    return "This booking was cancelled."
+
+
+def _booking_status(booking: Booking) -> Status:
+    if booking.status != Booking.Status.ACCEPTED:
+        return Status(State.NOT_ACCEPTED, _booking_not_on(booking))
+    if booking.ends_at <= timezone.now():
+        return Status(State.EXPIRED, BOOKING_OVER)
+    outstanding = booking_money.outstanding(booking)
+    if outstanding > 0:
+        return Status(State.UNPAID, f"The booking still owes {_rand(outstanding)}.")
+    return Status(State.VALID)
+
+
+def _live_booking(booking: Booking):
+    return Barcode.objects.filter(booking=booking, revoked_at__isnull=True)
+
+
+def issue_for_booking(booking: Booking) -> Barcode:
+    """The accepted Booking's Barcode (FR-30). Call in the accept's transaction, with the
+    Booking locked. A live one left from before is revoked first."""
+    for live in _live_booking(booking).select_for_update():
+        live.revoked_at, live.revoke_reason = timezone.now(), REISSUED
+        live.save(update_fields=["revoked_at", "revoke_reason"])
+    return _create(None, Mode.BOOKING, None, None, booking=booking)
+
+
+def revoke_for_booking(booking: Booking, *, by: User | None, reason: str) -> None:
+    """A cancelled or rescheduled Booking's Barcode no longer counts."""
+    now = timezone.now()
+    for live in _live_booking(booking).select_for_update():
+        live.revoked_at, live.revoked_by, live.revoke_reason = now, by, reason[:300]
+        live.save(update_fields=["revoked_at", "revoked_by", "revoke_reason"])
+
+
+def current_for_booking(booking: Booking) -> tuple[Barcode | None, Status]:
+    """The Booking's live Barcode and whether it counts at the gate now; the Booking User
+    sees it as soon as the Booking is accepted (FR-30), paid or not."""
+    live = _live_booking(booking).select_related("booking__user", "booking__field").first()
+    if live is None:
+        if booking.status == Booking.Status.ACCEPTED:
+            latest = Barcode.objects.filter(booking=booking).first()
+            if latest is not None:  # Revoked by an Admin.
+                return None, status_of(latest)
+        return None, _booking_status(booking)
+    return live, status_of(live)
+
+
 # Scanning
 
 
@@ -537,6 +618,8 @@ def _at_the_gate(barcode: Barcode, fixture: Fixture | None) -> tuple[Status, Fix
     """Whether a valid `barcode` lets its Team in now, for which match. `fixture` is the
     match the gate is checking for, when it says."""
     team = barcode.team
+    if barcode.booking_id is not None:
+        return _booking_at_the_gate(barcode, fixture), fixture
     if barcode.mode == Mode.MATCH:
         match = barcode.fixture
         if fixture is not None and fixture.pk != match.pk:
@@ -611,6 +694,33 @@ def _at_the_gate(barcode: Barcode, fixture: Fixture | None) -> tuple[Status, Fix
     return Status(State.VALID), match
 
 
+def _booking_at_the_gate(barcode: Barcode, fixture: Fixture | None) -> Status:
+    booking = barcode.booking
+    starts_on = timezone.localdate(booking.starts_at)
+    if fixture is not None:
+        return Status(
+            State.WRONG_MATCH, f"This Barcode is for a booking on {_day(starts_on)}, not a match."
+        )
+    if starts_on != _today():
+        return Status(
+            State.NOT_TODAY, f"This Barcode is for {_day(starts_on)}. It isn't valid today."
+        )
+    # Once per Booking, not per Barcode: a reissued Barcode doesn't let it in again.
+    earlier = (
+        BarcodeScan.objects.filter(barcode__booking_id=booking.pk, result=BarcodeScan.Result.PAID)
+        .select_related("scanned_by")
+        .first()
+    )
+    if earlier is not None:
+        at = timezone.localtime(earlier.scanned_at)
+        return Status(
+            State.USED,
+            f"Already scanned at {at:%H:%M} by {earlier.scanned_by.name}. "
+            "A booking's Barcode lets it in once.",
+        )
+    return Status(State.VALID)
+
+
 def _used_reason(earlier: BarcodeScan | None) -> str:
     if earlier is None:
         return "Already scanned. A Barcode lets its Team in once per match."
@@ -650,12 +760,17 @@ def scan(
         barcode = (
             Barcode.objects.select_for_update(of=("self",))
             .filter(club=club, code=code)
-            .select_related("team", "season", "fixture")
+            .select_related("team", "season", "fixture", "booking__user", "booking__field")
             .first()
         )
     match = fixture
     if barcode is None:
         status = Status(State.NOT_FOUND, "No Barcode has this code.")
+    elif (
+        barcode.booking_id is not None
+        and not by.club_roles.filter(club=club, role=ClubRole.Role.ADMIN).exists()
+    ):
+        status = Status(State.ADMINS_ONLY, "Only an Admin checks a booking's Barcode.")
     else:
         status = status_of(barcode)
         if status.valid:

@@ -104,6 +104,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/bookings/availability/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description FR-28: each field's free start times on a day for a number of hours, and the price.
+         *     409 when the club isn't taking bookings.
+         */
+        get: operations["bookings_availability_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/bookings/clubs/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Clubs taking bookings: their Admin has set the hourly fee and match length, and they
+         *     have a field. Club names, fees and field names only.
+         */
+        get: operations["bookings_clubs_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/captain-requests/{id}/withdraw/": {
         parameters: {
             query?: never;
@@ -118,6 +158,80 @@ export interface paths {
          * @description Only while it waits for the Admin: 409 once decided.
          */
         post: operations["captain_requests_withdraw_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/bookings/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The club's Bookings, soonest first, for its Admins (filter by `status`). */
+        get: operations["clubs_bookings_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/bookings/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The club's Bookings, soonest first, for its Admins (filter by `status`). */
+        get: operations["clubs_bookings_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/bookings/{id}/accept/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept a booking
+         * @description FR-29, FR-30: a waiting Booking still to come that clashes with nothing. The Booking User gets the Barcode. 409 otherwise.
+         */
+        post: operations["clubs_bookings_accept_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/bookings/{id}/decline/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decline a booking
+         * @description FR-29: a waiting Booking. The user is told, with the reason if given.
+         */
+        post: operations["clubs_bookings_decline_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1234,6 +1348,104 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/bookings/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The signed-in user's own Bookings, soonest first. */
+        get: operations["me_bookings_list"];
+        put?: never;
+        /**
+         * Request a booking
+         * @description FR-28: waits for an Admin of the club, who is notified (FR-29). 400 for a time not on the hour, past, or ending after midnight; 409 when the field is taken or the club isn't taking bookings.
+         */
+        post: operations["me_bookings_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/bookings/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The signed-in user's own Bookings, soonest first. */
+        get: operations["me_bookings_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/bookings/{id}/barcode/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The booking's Barcode
+         * @description The signed-in user's own Bookings, soonest first.
+         */
+        get: operations["me_bookings_barcode_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/bookings/{id}/cancel/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel a booking
+         * @description FR-31: before it starts. Its Barcode no longer counts. 409 otherwise.
+         */
+        post: operations["me_bookings_cancel_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/bookings/{id}/reschedule/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reschedule a booking
+         * @description FR-31: another field, time or number of hours at the same club, before it starts. It waits for an Admin again.
+         */
+        post: operations["me_bookings_reschedule_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/credit/": {
         parameters: {
             query?: never;
@@ -1769,12 +1981,15 @@ export interface components {
             readonly mode: components["schemas"]["BarcodeModeEnum"];
             /** @description Empty for a friendly's Barcode. */
             readonly team: components["schemas"]["Named"] | null;
-            /** @description Who it lets in: the Team's name, or "Friendly: Red Lions vs Old Boys". */
+            /** @description Who it lets in: the Team's name, "Friendly: Red Lions vs Old Boys" or "Booking: Sipho Dlamini". */
             readonly holder: string;
-            readonly season: components["schemas"]["BarcodeSeason"];
+            /** @description Empty for a Booking's Barcode. */
+            readonly season: components["schemas"]["BarcodeSeason"] | null;
             /** @description The match a per-match Barcode is for. */
             readonly fixture: components["schemas"]["BarcodeMatch"] | null;
-            /** @description The last day it is valid on (South African date): its match's, or the Season's last day. */
+            /** @description The Booking a Booking's Barcode is for. */
+            readonly booking: components["schemas"]["BarcodeBooking"] | null;
+            /** @description The last day it is valid on (South African date): its match's or Booking's, or the Season's last day. */
             readonly valid_until: string;
             /** Format: date-time */
             readonly issued_at: string;
@@ -1898,6 +2113,19 @@ export interface components {
             /** @description The user id of a Player in the Team. */
             player: number;
         };
+        Availability: {
+            /** Format: date */
+            readonly date: string;
+            readonly hours: number;
+            /** Format: decimal */
+            readonly hourly_fee: string;
+            /**
+             * Format: decimal
+             * @description Hourly fee times hours (FR-33).
+             */
+            readonly price: string;
+            readonly fields: components["schemas"]["FieldSlots"][];
+        };
         /** @description A Payment Barcode, as its Captain shows it at the gate. */
         Barcode: {
             readonly id: number;
@@ -1908,15 +2136,30 @@ export interface components {
             readonly mode: components["schemas"]["BarcodeModeEnum"];
             /** @description Empty for a friendly's Barcode. */
             readonly team: components["schemas"]["Named"] | null;
-            /** @description Who it lets in: the Team's name, or "Friendly: Red Lions vs Old Boys". */
+            /** @description Who it lets in: the Team's name, "Friendly: Red Lions vs Old Boys" or "Booking: Sipho Dlamini". */
             readonly holder: string;
-            readonly season: components["schemas"]["BarcodeSeason"];
+            /** @description Empty for a Booking's Barcode. */
+            readonly season: components["schemas"]["BarcodeSeason"] | null;
             /** @description The match a per-match Barcode is for. */
             readonly fixture: components["schemas"]["BarcodeMatch"] | null;
-            /** @description The last day it is valid on (South African date): its match's, or the Season's last day. */
+            /** @description The Booking a Booking's Barcode is for. */
+            readonly booking: components["schemas"]["BarcodeBooking"] | null;
+            /** @description The last day it is valid on (South African date): its match's or Booking's, or the Season's last day. */
             readonly valid_until: string;
             /** Format: date-time */
             readonly issued_at: string;
+        };
+        BarcodeBooking: {
+            readonly id: number;
+            /**
+             * Format: date-time
+             * @description Stored in UTC; sent with its offset. Show it in Africa/Johannesburg.
+             */
+            readonly starts_at: string;
+            /** Format: date-time */
+            readonly ends_at: string;
+            readonly hours: number;
+            readonly field: components["schemas"]["Named"];
         };
         BarcodeMatch: {
             readonly id: number;
@@ -1932,9 +2175,10 @@ export interface components {
         /**
          * @description * `match` - Valid for one match (payment gateway)
          *     * `season` - Valid for the rest of the Season (cash, confirmed by an Admin)
+         *     * `booking` - Valid for one Booking
          * @enum {string}
          */
-        BarcodeModeEnum: "match" | "season";
+        BarcodeModeEnum: "match" | "season" | "booking";
         /**
          * @description * `camera` - Scanned with the camera
          *     * `manual` - Code typed in
@@ -1951,6 +2195,7 @@ export interface components {
          *     * `no_match` - No match coming up
          *     * `not_found` - No such Barcode
          *     * `no_captain` - No Captain assigned
+         *     * `not_accepted` - Booking not accepted
          *     * `wrong_match` - Not for this match
          *     * `not_today` - Not for today
          *     * `no_match_today` - No match today
@@ -1958,9 +2203,10 @@ export interface components {
          *     * `ruled_out` - Team ruled out
          *     * `used` - Already scanned
          *     * `friendly` - Match is now a friendly
+         *     * `admins_only` - Only an Admin checks bookings
          * @enum {string}
          */
-        BarcodeScanStateEnum: "valid" | "not_genuine" | "revoked" | "expired" | "unpaid" | "inactive" | "no_match" | "not_found" | "no_captain" | "wrong_match" | "not_today" | "no_match_today" | "match_off" | "ruled_out" | "used" | "friendly";
+        BarcodeScanStateEnum: "valid" | "not_genuine" | "revoked" | "expired" | "unpaid" | "inactive" | "no_match" | "not_found" | "no_captain" | "not_accepted" | "wrong_match" | "not_today" | "no_match_today" | "match_off" | "ruled_out" | "used" | "friendly" | "admins_only";
         BarcodeSeason: {
             readonly id: number;
             readonly name: string;
@@ -1977,11 +2223,97 @@ export interface components {
          *     * `no_match` - No match coming up
          *     * `not_found` - No such Barcode
          *     * `no_captain` - No Captain assigned
+         *     * `not_accepted` - Booking not accepted
          * @enum {string}
          */
-        BarcodeStateEnum: "valid" | "not_genuine" | "revoked" | "expired" | "unpaid" | "inactive" | "no_match" | "not_found" | "no_captain";
+        BarcodeStateEnum: "valid" | "not_genuine" | "revoked" | "expired" | "unpaid" | "inactive" | "no_match" | "not_found" | "no_captain" | "not_accepted";
         /** @enum {unknown} */
         BlankEnum: "";
+        /** @description A Booking as its Booking User sees it. What may be done now is decided here. */
+        Booking: {
+            readonly id: number;
+            readonly club: components["schemas"]["ClubSummary"];
+            readonly field: components["schemas"]["Named"];
+            /**
+             * Format: date-time
+             * @description Stored in UTC; sent with its offset. Show it in Africa/Johannesburg.
+             */
+            readonly starts_at: string;
+            /**
+             * Format: date-time
+             * @description Stored in UTC; sent with its offset. Show it in Africa/Johannesburg.
+             */
+            readonly ends_at: string;
+            readonly hours: number;
+            /**
+             * Format: decimal
+             * @description The club's hourly fee when the booking was requested.
+             */
+            readonly hourly_fee: string;
+            /**
+             * Format: decimal
+             * @description Hourly fee times hours (FR-33).
+             */
+            readonly price: string;
+            readonly status: components["schemas"]["BookingStatusEnum"];
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly decided_at: string | null;
+            readonly decline_reason: string;
+            /** Format: date-time */
+            readonly cancelled_at: string | null;
+            /** @description It has ended. */
+            readonly is_over: boolean;
+            /** @description It can be cancelled now. */
+            readonly can_cancel: boolean;
+            /** @description It can be rescheduled now. */
+            readonly can_reschedule: boolean;
+        };
+        /** @description The Booking's Barcode (FR-30), and whether it counts at the gate now and why not. */
+        BookingBarcode: {
+            readonly state: components["schemas"]["BarcodeStateEnum"];
+            /** @description Why it doesn't count now. */
+            readonly reason: string;
+            /** @description Empty until an Admin accepts the Booking. */
+            readonly barcode: components["schemas"]["Barcode"] | null;
+        };
+        /** @description A club taking bookings, for a Booking User choosing where to play. */
+        BookingClub: {
+            readonly id: number;
+            name: string;
+            /**
+             * Format: decimal
+             * @description Rand per hour (FR-33).
+             */
+            readonly hourly_fee: string;
+            readonly fields: components["schemas"]["Named"][];
+        };
+        BookingRequestRequest: {
+            field: number;
+            /**
+             * Format: date-time
+             * @description On the hour, South African time.
+             */
+            starts_at: string;
+            hours: number;
+            club: number;
+        };
+        /**
+         * @description * `pending` - Waiting for an Admin
+         *     * `accepted` - Accepted
+         *     * `declined` - Declined
+         *     * `cancelled` - Cancelled
+         * @enum {string}
+         */
+        BookingStatusEnum: "pending" | "accepted" | "declined" | "cancelled";
+        BookingUser: {
+            readonly id: number;
+            readonly name: string;
+            /** Format: email */
+            readonly email: string;
+            readonly phone: string;
+        };
         BorrowedPlayer: {
             readonly id: number;
             readonly name: string;
@@ -2073,6 +2405,47 @@ export interface components {
         CheckoutField: {
             readonly name: string;
             readonly value: string;
+        };
+        /** @description A Booking as an Admin of its club sees it. */
+        ClubBooking: {
+            readonly id: number;
+            readonly club: components["schemas"]["ClubSummary"];
+            readonly field: components["schemas"]["Named"];
+            /**
+             * Format: date-time
+             * @description Stored in UTC; sent with its offset. Show it in Africa/Johannesburg.
+             */
+            readonly starts_at: string;
+            /**
+             * Format: date-time
+             * @description Stored in UTC; sent with its offset. Show it in Africa/Johannesburg.
+             */
+            readonly ends_at: string;
+            readonly hours: number;
+            /**
+             * Format: decimal
+             * @description The club's hourly fee when the booking was requested.
+             */
+            readonly hourly_fee: string;
+            /**
+             * Format: decimal
+             * @description Hourly fee times hours (FR-33).
+             */
+            readonly price: string;
+            readonly status: components["schemas"]["BookingStatusEnum"];
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly decided_at: string | null;
+            readonly decline_reason: string;
+            /** Format: date-time */
+            readonly cancelled_at: string | null;
+            /** @description It has ended. */
+            readonly is_over: boolean;
+            readonly user: components["schemas"]["BookingUser"];
+            readonly decided_by: components["schemas"]["Named"] | null;
+            /** @description It is waiting for an Admin and still to come. */
+            readonly can_decide: boolean;
         };
         /** @description A Captain's request as the club's Admin sees it in the requests list. */
         ClubCaptainRequest: {
@@ -2176,6 +2549,8 @@ export interface components {
              * @description Field hire price per hour (FR-33).
              */
             booking_hourly_fee?: string | null;
+            /** @description How long a league match holds its pitch from kick-off. A booking can't overlap it (FR-28). Empty until the Admin sets it. */
+            match_length_minutes?: number | null;
             /** @description Minimum Players a new Division starts with (FR-5). */
             division_min_players: number;
             /** @description Confirmations go out this many hours before kick-off (FR-1). */
@@ -2224,6 +2599,13 @@ export interface components {
             /** @description Why there is no valid Barcode. */
             readonly reason: string;
             readonly barcode: components["schemas"]["Barcode"] | null;
+        };
+        DeclineRequest: {
+            /**
+             * @description Told to the user.
+             * @default
+             */
+            reason: string;
         };
         DeclineTeamRequest: {
             reason?: string;
@@ -2322,6 +2704,11 @@ export interface components {
             name: string;
             /** @description A user holding the Referee role at this club. */
             referee?: number | null;
+        };
+        FieldSlots: {
+            readonly field: components["schemas"]["Named"];
+            /** @description Free start times for the hours asked. Stored in UTC; sent with its offset. Show it in Africa/Johannesburg. */
+            readonly starts: string[];
         };
         /** @description A Fixture as a Player in one of its Teams sees it. */
         Fixture: {
@@ -2888,6 +3275,7 @@ export interface components {
             readonly body: string;
             readonly club_id: number;
             readonly fixture_id: number | null;
+            readonly booking_id: number | null;
             /** Format: date-time */
             readonly created_at: string;
             /** Format: date-time */
@@ -2956,6 +3344,8 @@ export interface components {
              * @description Field hire price per hour (FR-33).
              */
             booking_hourly_fee?: string | null;
+            /** @description How long a league match holds its pitch from kick-off. A booking can't overlap it (FR-28). Empty until the Admin sets it. */
+            match_length_minutes?: number | null;
             /** @description Minimum Players a new Division starts with (FR-5). */
             division_min_players?: number;
             /** @description Confirmations go out this many hours before kick-off (FR-1). */
@@ -3356,8 +3746,10 @@ export interface components {
             readonly display_code: string | null;
             /** @description Empty when none matched, or a friendly's. */
             readonly team: components["schemas"]["Named"] | null;
-            /** @description Who the Barcode lets in: the Team, or "Friendly: …"; null when none matched. */
+            /** @description Who the Barcode lets in: the Team, "Friendly: …" or "Booking: …"; null when none matched. */
             readonly holder: string | null;
+            /** @description The Booking a Booking's Barcode is for. */
+            readonly booking: components["schemas"]["BarcodeBooking"] | null;
             /** @description The match the scan was checked against. */
             readonly fixture: components["schemas"]["BarcodeMatch"] | null;
             readonly mode: (components["schemas"]["BarcodeModeEnum"] | components["schemas"]["NullEnum"]) | null;
@@ -3368,7 +3760,7 @@ export interface components {
             readonly valid_until: string | null;
             /**
              * Format: decimal
-             * @description What the Team (or the friendly) has paid, in rand; only on a Paid result.
+             * @description What the Team (the friendly, the Booking) has paid, in rand; only on a Paid result.
              */
             readonly paid_amount: string | null;
             /** @description How the Team paid (card, cash, credit); only on a Paid result. */
@@ -3399,6 +3791,15 @@ export interface components {
             starts_on: string;
             /** Format: date */
             ends_on: string;
+        };
+        SlotRequest: {
+            field: number;
+            /**
+             * Format: date-time
+             * @description On the hour, South African time.
+             */
+            starts_at: string;
+            hours: number;
         };
         /** @description The signed-in Player's Team for one Fixture: who is playing (FR-38). */
         Squad: {
@@ -3834,6 +4235,50 @@ export interface operations {
             };
         };
     };
+    bookings_availability_retrieve: {
+        parameters: {
+            query: {
+                booking?: number;
+                club: number;
+                /** @description 2026-10-27 */
+                date: string;
+                hours: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Availability"];
+                };
+            };
+        };
+    };
+    bookings_clubs_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingClub"][];
+                };
+            };
+        };
+    };
     captain_requests_withdraw_create: {
         parameters: {
             query?: never;
@@ -3852,6 +4297,104 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CaptainRequest"];
+                };
+            };
+        };
+    };
+    clubs_bookings_list: {
+        parameters: {
+            query?: {
+                status?: string;
+            };
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClubBooking"][];
+                };
+            };
+        };
+    };
+    clubs_bookings_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+                /** @description A unique integer value identifying this booking. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClubBooking"];
+                };
+            };
+        };
+    };
+    clubs_bookings_accept_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+                /** @description A unique integer value identifying this booking. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClubBooking"];
+                };
+            };
+        };
+    };
+    clubs_bookings_decline_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+                /** @description A unique integer value identifying this booking. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["DeclineRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["DeclineRequest"];
+                "multipart/form-data": components["schemas"]["DeclineRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClubBooking"];
                 };
             };
         };
@@ -5698,6 +6241,144 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JoinRequest"];
+                };
+            };
+        };
+    };
+    me_bookings_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Booking"][];
+                };
+            };
+        };
+    };
+    me_bookings_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BookingRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["BookingRequestRequest"];
+                "multipart/form-data": components["schemas"]["BookingRequestRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Booking"];
+                };
+            };
+        };
+    };
+    me_bookings_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this booking. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Booking"];
+                };
+            };
+        };
+    };
+    me_bookings_barcode_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this booking. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingBarcode"];
+                };
+            };
+        };
+    };
+    me_bookings_cancel_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this booking. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Booking"];
+                };
+            };
+        };
+    };
+    me_bookings_reschedule_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this booking. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SlotRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SlotRequest"];
+                "multipart/form-data": components["schemas"]["SlotRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Booking"];
                 };
             };
         };

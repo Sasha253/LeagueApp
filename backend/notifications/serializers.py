@@ -24,6 +24,7 @@ class NotificationSerializer(serializers.ModelSerializer):
         help_text="It can be answered (or the answer changed) now."
     )
     fixture_id = serializers.IntegerField(read_only=True, allow_null=True)
+    booking_id = serializers.IntegerField(read_only=True, allow_null=True)
     club_id = serializers.IntegerField(read_only=True)
     answer = serializers.ChoiceField(choices=Answer.choices, allow_blank=True, read_only=True)
 
@@ -36,6 +37,7 @@ class NotificationSerializer(serializers.ModelSerializer):
             "body",
             "club_id",
             "fixture_id",
+            "booking_id",
             "created_at",
             "read_at",
             "answer",

@@ -126,6 +126,42 @@ describe("ScanPage in a browser", () => {
     expect(within(card).getByText("Red Lions vs Old Boys · 19:40 · Pitch 3")).toBeInTheDocument();
   });
 
+  it("shows a booking's Barcode with its field and time", async () => {
+    const booking = result({
+      team: null,
+      holder: "Booking: Hannah Hirer",
+      fixture: null,
+      mode: "booking",
+      booking: {
+        id: 70,
+        starts_at: "2026-10-27T16:00:00Z",
+        ends_at: "2026-10-27T18:00:00Z",
+        hours: 2,
+        field: { id: 3, name: "Pitch 3" },
+      },
+      paid_amount: "0.00",
+      paid_methods: [],
+    });
+    await openAs("/clubs/1/scan", { [SCANS]: { status: 201, body: booking } }, "Scan", REFEREE);
+
+    await userEvent.type(screen.getByLabelText("Barcode code"), "BK24100815");
+    await userEvent.click(screen.getByRole("button", { name: "Check code" }));
+    const card = await screen.findByRole("region", { name: "Scan result" });
+    expect(within(card).getByText("Booking: Hannah Hirer")).toBeInTheDocument();
+    expect(within(card).getByText("Tue 27 Oct · 18:00 to 20:00 · Pitch 3")).toBeInTheDocument();
+    expect(within(card).getByText("This booking only")).toBeInTheDocument();
+  });
+
+  it("tells a Referee to ask an Admin for a booking", async () => {
+    const refused = result({ ...NOT_PAID, state: "admins_only", reason: "Only an Admin checks a booking's Barcode." });
+    await openAs("/clubs/1/scan", { [SCANS]: { status: 201, body: refused } }, "Scan", REFEREE);
+
+    await userEvent.type(screen.getByLabelText("Barcode code"), "BK24100815");
+    await userEvent.click(screen.getByRole("button", { name: "Check code" }));
+    const card = await screen.findByRole("region", { name: "Scan result" });
+    expect(within(card).getByText("Ask an Admin of the club to scan this booking.")).toBeInTheDocument();
+  });
+
   it("explains a 403 to someone who isn't the club's Admin or Referee", async () => {
     await openAs("/clubs/1/scan", { [SCANS]: { status: 403, body: { detail: "No." } } }, "Scan", ME);
 

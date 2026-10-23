@@ -137,3 +137,23 @@
 .la-kv { display: flex; justify-content: space-between; gap: var(--space-3); align-items: baseline; }
 .la-kv > span:first-child { color: var(--ink-muted); }
 .la-kv > span:last-child { text-align: right; font-weight: 600; }
+
+/* Booking a field (chunk 23), copied from design/src/proposed.css (design/src/screens/
+   f15-booking.mjs): the day picker, the start-time slots and the hours stepper. The day row
+   scrolls sideways here, where the design shows a clipped row. */
+.la-days { display: flex; gap: var(--space-2); overflow-x: auto; padding-bottom: var(--space-1); }
+.la-day { flex: none; width: 60px; min-height: 68px; border-radius: var(--radius-md); border: 1.5px solid var(--line-strong); background: transparent; color: var(--ink); display: grid; align-content: center; justify-items: center; gap: 0; padding: 0; cursor: pointer; font-family: var(--font-sans); }
+.la-day span { font: 500 13px/18px var(--font-sans); color: var(--ink-muted); }
+.la-day b { font: 700 24px/28px var(--font-display); font-variant-numeric: tabular-nums; }
+.la-day[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent-ink); color: var(--accent-ink); }
+.la-day[aria-pressed="true"] span { color: var(--accent-ink); }
+.la-day:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.la-slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); }
+.la-choice--slot { min-width: 0; padding: 0 var(--space-2); border-radius: var(--radius-sm); }
+.la-stepper { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); background: var(--surface-sunken); border-radius: var(--radius-md); padding: var(--space-2); }
+.la-stepper__btn { width: var(--tap-min); height: var(--tap-min); border-radius: var(--radius-sm); border: 1.5px solid var(--line-strong); background: var(--surface); color: var(--ink); display: grid; place-items: center; cursor: pointer; padding: 0; }
+.la-stepper__btn svg { width: var(--icon-md); height: var(--icon-md); }
+.la-stepper__btn[disabled] { opacity: .4; }
+.la-stepper__btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.la-stepper__val { flex: 1; text-align: center; font-family: var(--font-display); font-size: 32px; line-height: 36px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.la-stepper__unit { display: block; font-family: var(--font-sans); font-size: 13px; line-height: 18px; font-weight: 500; color: var(--ink-muted); }

@@ -21,6 +21,7 @@ from rest_framework.views import APIView
 
 from accounts.models import ClubRole
 from accounts.permissions import IsClubAdminOrReferee
+from bookings import money as booking_money
 from clubs.models import Club
 from fixtures.models import FriendlyFee
 from ledger import services as ledger
@@ -58,6 +59,8 @@ def _barcodes(team: Team):
         .select_related(
             "team",
             "season",
+            "booking__user",
+            "booking__field",
             "fixture__home_team",
             "fixture__away_team",
             "fixture__pitch",
@@ -132,6 +135,7 @@ def _scan_answer(result: services.ScanResult) -> dict:
         "team": None,
         "holder": None,
         "fixture": result.match,
+        "booking": None,
         "mode": None,
         "valid_until": None,
         "paid_amount": None,
@@ -142,12 +146,16 @@ def _scan_answer(result: services.ScanResult) -> dict:
         answer["team"] = barcode.team
         answer["holder"] = barcode.holder_name
         answer["mode"] = barcode.mode
-        answer["valid_until"] = (
-            timezone.localdate(barcode.fixture.kick_off)
-            if barcode.fixture is not None
-            else barcode.season.ends_on
-        )
-    if result.paid and barcode.friendly_id is not None:
+        answer["booking"] = barcode.booking
+        if barcode.booking is not None:
+            answer["valid_until"] = timezone.localdate(barcode.booking.starts_at)
+        elif barcode.fixture is not None:
+            answer["valid_until"] = timezone.localdate(barcode.fixture.kick_off)
+        else:
+            answer["valid_until"] = barcode.season.ends_on
+    if result.paid and barcode.booking_id is not None:
+        answer["paid_amount"] = booking_money.paid(barcode.booking)
+    elif result.paid and barcode.friendly_id is not None:
         answer["paid_amount"] = ledger.friendly_paid(barcode.fixture)
         answer["paid_methods"] = sorted(
             {

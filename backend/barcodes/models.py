@@ -1,9 +1,10 @@
 """Payment Barcodes (PRD "Barcode authorisation", NFR Barcode integrity).
 
 A Barcode proves at the gate that its subject has paid. It is tied to one subject: a Team,
-or a friendly (FR-24: the friendly's fee is paid and its Captain shows the Barcode); a
-Booking once Bookings exist (chunks 23 and 24 add it as another, exclusive subject). How
-long it is valid depends on the club's payment mode when it was issued:
+a friendly (FR-24: the friendly's fee is paid and its Captain shows the Barcode), or a
+Booking (FR-30: issued to the Booking User when an Admin accepts it, valid for that
+Booking only, mode `booking`, no Season). How long a Team's is valid depends on the club's
+payment mode when it was issued:
 
 - gateway mode: issued automatically when the Team is paid, valid for one match (the
   `fixture`);
@@ -21,6 +22,7 @@ which is never changed or deleted.
 from django.conf import settings
 from django.db import models
 
+from bookings.models import Booking
 from clubs.models import Club, Season
 from fixtures.models import Fixture, FriendlyFee
 from teams.models import Team
@@ -54,6 +56,7 @@ class Barcode(models.Model):
     class Mode(models.TextChoices):
         MATCH = "match", "Valid for one match (payment gateway)"
         SEASON = "season", "Valid for the rest of the Season (cash, confirmed by an Admin)"
+        BOOKING = "booking", "Valid for one Booking"
 
     club = models.ForeignKey(Club, on_delete=models.PROTECT, related_name="barcodes")
     team = models.ForeignKey(
@@ -72,8 +75,23 @@ class Barcode(models.Model):
         related_name="barcodes",
         help_text="The friendly it is for (FR-24); empty for a Team's Barcode.",
     )
-    mode = models.CharField(max_length=6, choices=Mode.choices)
-    season = models.ForeignKey(Season, on_delete=models.PROTECT, related_name="barcodes")
+    booking = models.ForeignKey(
+        Booking,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="barcodes",
+        help_text="The Booking it is for (FR-30); empty for a Team's or a friendly's.",
+    )
+    mode = models.CharField(max_length=8, choices=Mode.choices)
+    season = models.ForeignKey(
+        Season,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="barcodes",
+        help_text="Empty only for a Booking's Barcode.",
+    )
     fixture = models.ForeignKey(
         Fixture,
         on_delete=models.PROTECT,
@@ -115,7 +133,8 @@ class Barcode(models.Model):
         constraints = [
             models.CheckConstraint(
                 condition=models.Q(mode="match", fixture__isnull=False)
-                | models.Q(mode="season", fixture__isnull=True),
+                | models.Q(mode="season", fixture__isnull=True)
+                | models.Q(mode="booking", fixture__isnull=True),
                 name="barcode_match_names_its_fixture",
             ),
             models.CheckConstraint(
@@ -128,9 +147,32 @@ class Barcode(models.Model):
                 name="one_live_barcode_per_team_and_match",
             ),
             models.CheckConstraint(
-                condition=models.Q(team__isnull=False, friendly__isnull=True)
-                | models.Q(team__isnull=True, friendly__isnull=False, mode="match"),
+                condition=models.Q(
+                    team__isnull=False,
+                    friendly__isnull=True,
+                    booking__isnull=True,
+                    season__isnull=False,
+                )
+                | models.Q(
+                    team__isnull=True,
+                    friendly__isnull=False,
+                    booking__isnull=True,
+                    mode="match",
+                    season__isnull=False,
+                )
+                | models.Q(
+                    team__isnull=True,
+                    friendly__isnull=True,
+                    booking__isnull=False,
+                    mode="booking",
+                    season__isnull=True,
+                ),
                 name="barcode_has_one_subject",
+            ),
+            models.UniqueConstraint(
+                fields=["booking"],
+                condition=models.Q(revoked_at__isnull=True),
+                name="one_live_barcode_per_booking",
             ),
             models.UniqueConstraint(
                 fields=["friendly"],
@@ -149,9 +191,12 @@ class Barcode(models.Model):
 
     @property
     def holder_name(self) -> str:
-        """Who it lets in: the Team, or the friendly ("Friendly: Red Lions vs Old Boys")."""
+        """Who it lets in: the Team, the friendly ("Friendly: Red Lions vs Old Boys") or the
+        Booking ("Booking: Sipho Dlamini")."""
         if self.team_id is not None:
             return self.team.name
+        if self.booking_id is not None:
+            return f"Booking: {self.booking.user.name}"
         fixture = self.fixture
         return f"Friendly: {fixture.home_team.name} vs {fixture.away_team.name}"
 
@@ -210,6 +255,12 @@ class BarcodeScan(models.Model):
                 fields=["barcode", "fixture"],
                 condition=models.Q(result="paid"),
                 name="one_paid_scan_per_barcode_and_match",
+            ),
+            # A Booking's Barcode (no match) lets its Booking User in once.
+            models.UniqueConstraint(
+                fields=["barcode"],
+                condition=models.Q(result="paid", fixture__isnull=True),
+                name="one_paid_scan_per_barcode_without_match",
             ),
         ]
 

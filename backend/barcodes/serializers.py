@@ -28,6 +28,17 @@ class BarcodeMatchSerializer(serializers.Serializer):
     pitch = NamedSerializer(read_only=True)
 
 
+class BarcodeBookingSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    starts_at = serializers.DateTimeField(
+        read_only=True,
+        help_text="Stored in UTC; sent with its offset. Show it in Africa/Johannesburg.",
+    )
+    ends_at = serializers.DateTimeField(read_only=True)
+    hours = serializers.IntegerField(read_only=True)
+    field = NamedSerializer(read_only=True)
+
+
 class BarcodeSerializer(serializers.ModelSerializer):
     """A Payment Barcode, as its Captain shows it at the gate."""
 
@@ -37,9 +48,15 @@ class BarcodeSerializer(serializers.ModelSerializer):
     holder = serializers.CharField(
         source="holder_name",
         read_only=True,
-        help_text='Who it lets in: the Team\'s name, or "Friendly: Red Lions vs Old Boys".',
+        help_text='Who it lets in: the Team\'s name, "Friendly: Red Lions vs Old Boys" or '
+        '"Booking: Sipho Dlamini".',
     )
-    season = BarcodeSeasonSerializer(read_only=True)
+    season = BarcodeSeasonSerializer(
+        read_only=True, allow_null=True, help_text="Empty for a Booking's Barcode."
+    )
+    booking = BarcodeBookingSerializer(
+        read_only=True, allow_null=True, help_text="The Booking a Booking's Barcode is for."
+    )
     fixture = BarcodeMatchSerializer(
         read_only=True, allow_null=True, help_text="The match a per-match Barcode is for."
     )
@@ -47,8 +64,8 @@ class BarcodeSerializer(serializers.ModelSerializer):
         help_text='The code as printed under the barcode: "RK 2710 4419".'
     )
     valid_until = serializers.SerializerMethodField(
-        help_text="The last day it is valid on (South African date): its match's, or the "
-        "Season's last day."
+        help_text="The last day it is valid on (South African date): its match's or "
+        "Booking's, or the Season's last day."
     )
 
     class Meta:
@@ -62,6 +79,7 @@ class BarcodeSerializer(serializers.ModelSerializer):
             "holder",
             "season",
             "fixture",
+            "booking",
             "valid_until",
             "issued_at",
         ]
@@ -71,6 +89,8 @@ class BarcodeSerializer(serializers.ModelSerializer):
         return signing.display(barcode.code)
 
     def get_valid_until(self, barcode: Barcode) -> str:
+        if barcode.booking is not None:
+            return timezone.localdate(barcode.booking.starts_at).isoformat()
         if barcode.fixture is not None:
             return timezone.localdate(barcode.fixture.kick_off).isoformat()
         return barcode.season.ends_on.isoformat()
@@ -169,7 +189,11 @@ class ScanResultSerializer(serializers.Serializer):
     holder = serializers.CharField(
         read_only=True,
         allow_null=True,
-        help_text='Who the Barcode lets in: the Team, or "Friendly: …"; null when none matched.',
+        help_text='Who the Barcode lets in: the Team, "Friendly: …" or "Booking: …"; null '
+        "when none matched.",
+    )
+    booking = BarcodeBookingSerializer(
+        read_only=True, allow_null=True, help_text="The Booking a Booking's Barcode is for."
     )
     fixture = BarcodeMatchSerializer(
         read_only=True, allow_null=True, help_text="The match the scan was checked against."
@@ -185,7 +209,8 @@ class ScanResultSerializer(serializers.Serializer):
         decimal_places=2,
         read_only=True,
         allow_null=True,
-        help_text="What the Team (or the friendly) has paid, in rand; only on a Paid result.",
+        help_text="What the Team (the friendly, the Booking) has paid, in rand; only on a Paid "
+        "result.",
     )
     paid_methods = serializers.ListField(
         child=serializers.ChoiceField(choices=LEDGER_METHODS.choices),

@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "notifications",
     "payments",
     "barcodes",
+    "bookings",
 ]
 
 MIDDLEWARE = [
@@ -165,6 +166,7 @@ SPECTACULAR_SETTINGS = {
         "BarcodeStateEnum": "barcodes.services.State.choices",
         "BarcodeScanMethodEnum": "barcodes.models.SCAN_METHODS",
         "BarcodeScanStateEnum": "barcodes.services.State.scan_choices",
+        "BookingStatusEnum": "bookings.models.BOOKING_STATUSES",
     },
 }
 

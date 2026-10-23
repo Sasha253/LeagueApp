@@ -3,6 +3,7 @@ from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from barcodes.urls import club_urlpatterns as club_barcode_urls
+from bookings.urls import club_urlpatterns as club_booking_urls
 from clubs.views import NightListView
 from core.views import HealthView
 from fixtures.urls import club_urlpatterns as club_fixture_urls
@@ -18,9 +19,11 @@ api_v1 = [
     path("clubs/<int:club_id>/", include(club_fixture_urls)),
     path("clubs/<int:club_id>/", include(club_payment_urls)),
     path("clubs/<int:club_id>/", include(club_barcode_urls)),
+    path("clubs/<int:club_id>/", include(club_booking_urls)),
     path("", include("ledger.urls")),
     path("", include("payments.urls")),
     path("", include("barcodes.urls")),
+    path("", include("bookings.urls")),
     path("", include("notifications.urls")),
     path("", include("fixtures.urls")),
     path("", include("teams.urls")),

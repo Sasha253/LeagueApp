@@ -844,3 +844,66 @@ docs/DECISIONS.md under "2026-10-23: Teams (chunk 5)".
   payers aren't sent the fee. Why: the PRD names no notification for it, and the
   targeting rules say to send only what it names. If the answer differs: an Update to the
   payers in `friendlies.set_terms`.
+
+## Chunk 23: Bookings
+
+- **How long a league match holds its pitch.** Question: "no clash with Fixtures" needs a
+  match length; the PRD gives none (chunk 7 compared kick-offs only). Choice: a new club
+  setting `match_length_minutes`, empty until the Admin sets it (like the fees), counted
+  from kick-off. Bookings aren't taken until it and the booking hourly fee are set; Setup
+  lists both as missing. Why: a guessed default would be a constant in disguise, and an
+  overlap can't be judged without it. If the answer differs (a default, or per Division):
+  seed `SettingsDefaults.match_length_minutes`, or move it to `Division`, and read it in
+  `bookings/services.match_length`.
+- **Which start times are offered.** Question: the PRD says "available fields and times"
+  but gives no opening hours. Choice: whole hours (South African time), still to come, for
+  1 to 24 whole hours, ending by midnight of the day it starts; any hour of the day, since
+  every booking is approved by an Admin anyway. Why: no opening hours are configured, and
+  inventing them would be a constant. If the answer differs: add opening and closing hours
+  to ClubSettings and filter in `availability` and `check_slot`.
+- **What holds a field.** Choice: pending and accepted Bookings, and every Fixture that
+  isn't cancelled. A declined or cancelled Booking frees it. Accepting re-checks Fixtures,
+  so a Fixture imported after the request blocks the accept (409). Why: holding pending
+  requests is the only way two Admins can't accept two overlapping ones. If the answer
+  differs: let only accepted Bookings hold a field and check again on accept.
+- **Fixtures over a booked field.** Question: should a Fixture import or a reschedule onto
+  an accepted Booking be refused? Choice: not in this chunk; the booking side is checked
+  only. Why: chunk 23 is about bookings, and refusing fixtures changes chunk 7 and 16. If
+  the answer differs: check `bookings.services.clashing_bookings` in `fixtures/imports.py`
+  and `fixtures/reschedules.py`.
+- **Who is asked, and what an answer does.** Choice: every Admin of the club gets the
+  Booking Notification (Confirm / Decline), answerable until the booking starts; the first
+  answer decides it and closes every Admin's copy. The Booking User gets an Update when it
+  is accepted or declined (with the reason if given); the Admins get an Update when an
+  accepted booking is cancelled. Referees are not told. Why: the PRD's Booking row names
+  Admins only; "a Night's Admin" doesn't apply to a booking. If the answer differs: change
+  `targeting.booking_recipients`.
+- **Rescheduling.** Question: does a reschedule need the Admin again? Choice: yes. It moves
+  the booking in place to the new field, time and hours (same club), it waits for an Admin
+  again, and its Barcode is revoked until then; the old time is released at once. The
+  price is the hourly fee it was first booked at times the new hours. Why: an Admin
+  approves each booking (FR-29), so a new slot is approved too. If the answer differs
+  (the original time kept until the new one is accepted, or no new approval): keep the old
+  slot in a separate change request, or skip `_ask_admins` and keep the status in
+  `bookings.services.reschedule`.
+- **The hourly fee.** Choice: fixed on the booking when requested (`hourly_fee`), so the
+  price doesn't change if the club changes its fee later. Why: the user saw that price.
+  If the answer differs: read the club's fee at payment time in chunk 24.
+- **Is a Booking's Barcode "paid" before payments exist?** Question: FR-30 sends the
+  Barcode on acceptance, but payment comes with chunk 24. Choice: the Barcode is issued
+  on accept and shown to the Booking User, but it counts at the gate only when the booking
+  owes nothing: until chunk 24 takes booking payments, only a R 0 booking is let in; any
+  other scans as "Not paid" with what is owed. Why: the gate never lets in what hasn't been
+  paid. If the answer differs: chunk 24's `bookings/money.paid` fills it in.
+- **Who checks a booking at the gate.** Question: the PRD's roles say Admins scan "Team
+  and Booking User payment", Referees "a Team". Choice: only the club's Admins; a Referee
+  scanning a booking's Barcode gets "Only an Admin checks a booking's Barcode". Valid on the
+  booking's day only, once per booking. Why: least access the PRD allows. If the answer
+  differs: drop the Admin check in `barcodes.services.scan`.
+- **Barcode subject.** Choice: `Barcode.booking` is a third exclusive subject, mode
+  `booking`, with no Season (`season` is now nullable, but only for a booking's Barcode),
+  signed over the booking. Why: chunk 20's note planned it. If the answer differs: nothing
+  to change.
+- **What the cancellation costs.** Not decided here: the policy outcome (free, 50% credit,
+  none) and showing it before confirming come with chunk 24. In this chunk nothing is paid,
+  so nothing is returned.

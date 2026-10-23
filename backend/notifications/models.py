@@ -81,6 +81,14 @@ class Notification(models.Model):
         blank=True,
         related_name="notifications",
     )
+    booking = models.ForeignKey(
+        "bookings.Booking",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="notifications",
+        help_text="The Booking it is about (a Booking Notification, FR-29).",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     read_at = models.DateTimeField(null=True, blank=True)
     answer = models.CharField(max_length=10, choices=Answer.choices, blank=True)

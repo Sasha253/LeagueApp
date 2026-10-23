@@ -39,6 +39,10 @@ function nextStep(state: State): string {
       return "The Team can pay in the app, or pay cash to an Admin.";
     case "friendly":
       return "Ask for the Barcode the friendly's Captain was given.";
+    case "admins_only":
+      return "Ask an Admin of the club to scan this booking.";
+    case "not_accepted":
+      return "The booking isn't accepted. Check the club's bookings.";
     default:
       return "Ask an Admin of the club.";
   }
@@ -46,7 +50,10 @@ function nextStep(state: State): string {
 
 /** "vs Old Boys · 19:40 · Pitch 3", with the date when the match isn't today. */
 function matchLine(result: ScanResult): string | null {
-  const { fixture, team } = result;
+  const { fixture, team, booking } = result;
+  if (booking) {
+    return `${formatMoment(booking.starts_at)} to ${formatTime(booking.ends_at)} · ${booking.field.name}`;
+  }
   if (!fixture) return null;
   const opponent = team?.id === fixture.away_team.id ? fixture.home_team : fixture.away_team;
   const today = localDate(new Date().toISOString());
@@ -57,6 +64,7 @@ function matchLine(result: ScanResult): string | null {
 
 function validFor(result: ScanResult): string | null {
   if (!result.mode || !result.valid_until) return null;
+  if (result.mode === "booking") return "This booking only";
   return result.mode === "match" ? "This match only" : `Until ${formatDate(result.valid_until)}`;
 }
 

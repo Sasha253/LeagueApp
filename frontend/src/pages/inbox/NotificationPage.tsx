@@ -95,6 +95,8 @@ function Detail({ initial }: { initial: Notification }) {
   const showButtons = n.can_answer && answerButtons.length > 0 && (!n.answer || changing);
   const isAdmin =
     state.status === "signedIn" && state.me.club_roles.some((r) => r.club_id === n.club_id && r.role === "admin");
+  const bookingPath =
+    n.booking_id === null ? null : isAdmin ? `/clubs/${n.club_id}/bookings` : `/bookings/${n.booking_id}`;
   const matchPath = n.fixture_id === null ? null : isAdmin ? `/clubs/${n.club_id}/fixtures/${n.fixture_id}` : `/fixtures/${n.fixture_id}`;
 
   return (
@@ -180,6 +182,11 @@ function Detail({ initial }: { initial: Notification }) {
       {matchPath && (
         <Link className="la-btn la-btn--secondary" to={matchPath}>
           Open the match
+        </Link>
+      )}
+      {bookingPath && (
+        <Link className="la-btn la-btn--secondary" to={bookingPath}>
+          Open the booking
         </Link>
       )}
     </>

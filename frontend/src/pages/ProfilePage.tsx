@@ -174,6 +174,27 @@ export function ProfilePage() {
         </ul>
       )}
 
+      {me.is_booking_user && (
+        <ul className="la-group">
+          <li>
+            <Link className="la-item la-item--link" to="/book">
+              <span className="la-item__body">
+                <span className="body-strong">Book a field</span>
+                <span className="caption la-muted">Pick a day, field, time and hours</span>
+              </span>
+            </Link>
+          </li>
+          <li>
+            <Link className="la-item la-item--link" to="/bookings">
+              <span className="la-item__body">
+                <span className="body-strong">My bookings</span>
+                <span className="caption la-muted">Your bookings and their entry Barcodes</span>
+              </span>
+            </Link>
+          </li>
+        </ul>
+      )}
+
       {me.club_roles.length > 0 && (
         <section className="la-stack-2" aria-labelledby="club-roles">
           <h2 id="club-roles" className="la-overline">
@@ -226,6 +247,13 @@ export function ProfilePage() {
                       aria-label={`Team requests for ${role.club_name}`}
                     >
                       Team requests
+                    </Link>
+                    <Link
+                      className="la-btn la-btn--secondary la-btn--sm"
+                      to={`/clubs/${role.club_id}/bookings`}
+                      aria-label={`Bookings at ${role.club_name}`}
+                    >
+                      Bookings
                     </Link>
                     <Link
                       className="la-btn la-btn--secondary la-btn--sm"

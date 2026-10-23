@@ -45,6 +45,7 @@ describe("ClubSettingsPage", () => {
     expect(await screen.findByText("Saved")).toBeInTheDocument();
     const body = calls.find((c) => c.method === "PATCH")!.body as Record<string, unknown>;
     expect(body).toMatchObject({
+      match_length_minutes: null,
       league_fee: "350",
       friendly_fee: "70.50",
       booking_hourly_fee: null,
@@ -53,6 +54,18 @@ describe("ClubSettingsPage", () => {
       replacement_close_hours_before: 2,
     });
     expect(screen.getByText("Still to set: Field hire per hour.", { exact: false })).toBeInTheDocument();
+  });
+
+  it("saves the match length as a number", async () => {
+    const { calls } = await open((request) => request.json().then((body) => json(200, { ...SETTINGS, ...body })));
+    const user = userEvent.setup();
+
+    await user.type(screen.getByLabelText("Match length (minutes)"), "60");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByText("Saved")).toBeInTheDocument();
+    const body = calls.find((c) => c.method === "PATCH")!.body as Record<string, unknown>;
+    expect(body.match_length_minutes).toBe(60);
   });
 
   it("shows the API's reason next to a value it refuses", async () => {

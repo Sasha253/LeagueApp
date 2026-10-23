@@ -64,6 +64,7 @@ def notify(
     title: str,
     body: str = "",
     fixture=None,
+    booking=None,
     answer_by=None,
 ) -> list[Notification]:
     """One Notification per recipient (each at most once), pushed after commit."""
@@ -71,6 +72,8 @@ def notify(
         raise ValueError(f"Unknown notification kind {kind!r}.")
     if fixture is not None and fixture.club_id != club.pk:
         raise ValueError("The Fixture belongs to another Club.")
+    if booking is not None and booking.club_id != club.pk:
+        raise ValueError("The Booking belongs to another Club.")
     seen: set[int] = set()
     notifications = []
     for user in recipients:
@@ -85,6 +88,7 @@ def notify(
                 title=title,
                 body=body,
                 fixture=fixture,
+                booking=booking,
                 answer_by=answer_by,
             )
         )
@@ -120,6 +124,8 @@ def push_data(notification: Notification) -> dict[str, str]:
     data = {"notification_id": str(notification.pk), "kind": notification.kind}
     if notification.fixture_id:
         data["fixture_id"] = str(notification.fixture_id)
+    if notification.booking_id:
+        data["booking_id"] = str(notification.booking_id)
     return data
 
 
@@ -184,11 +190,16 @@ def mark_read(notification: Notification) -> Notification:
 def answer(notification: Notification, value: str) -> Notification:
     """Records the recipient's answer. They may change it while it is still answerable.
 
-    A Notification about a Fixture locks the Fixture first: every path that changes both
+    A Notification about a Fixture (or a Booking) locks it first: every path that changes both
     (answers from the match screen, the resend) locks in that order, so none deadlock.
     """
     if notification.fixture_id is not None:
         list(Fixture.objects.select_for_update().filter(pk=notification.fixture_id))
+    if notification.booking_id is not None:
+        # Same order as the bookings screens: the Booking first, then its Notifications.
+        from bookings.models import Booking
+
+        list(Booking.objects.select_for_update().filter(pk=notification.booking_id))
     notification = Notification.objects.select_for_update().get(pk=notification.pk)
     if not notification.answers:
         raise Conflict("This notification has nothing to answer.")

@@ -2,6 +2,31 @@
 
 Newest first. Each entry: the date, what was decided, and why.
 
+## 2026-10-23: Bookings (chunk 23) (provisional, unattended run)
+
+Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 23: Bookings".
+
+- **Match length (provisional, unattended run):** a club setting `match_length_minutes`,
+  empty until the Admin sets it; a league match holds its pitch that long from kick-off.
+  Bookings need it and the booking hourly fee.
+- **Slots (provisional, unattended run):** a Booking starts on the hour (South African
+  time), still to come, for 1 to 24 whole hours, and ends by midnight. Pending and
+  accepted Bookings and Fixtures that aren't cancelled hold a field; nothing may overlap
+  them. The hourly fee is fixed on the Booking when requested; price = fee x hours.
+- **Deciding (provisional, unattended run):** every Admin of the club gets the Booking
+  Notification; the first answer (or the club's Bookings screen) decides it. The Booking
+  User is told of the decision; the Admins of a cancelled accepted booking.
+- **Cancel and reschedule (provisional, unattended run):** the Booking User cancels or
+  reschedules before it starts; a reschedule waits for an Admin again and its Barcode is
+  revoked until then. The policy outcomes are chunk 24.
+- **A Booking's Barcode (provisional, unattended run):** a third exclusive subject (mode
+  `booking`, no Season), issued on accept, revoked on cancel or reschedule. It counts at
+  the gate only when nothing is owed (no booking payments until chunk 24), on its day,
+  once, and only an Admin checks it.
+- **Proposed components:** the day picker (`.la-days`, `.la-day`), start-time slots
+  (`.la-slots`) and the hours stepper (`.la-stepper`), copied from design/src/proposed.css
+  into `frontend/src/styles/proposed.css`.
+
 ## 2026-10-23: Friendly fees (chunk 22) (provisional, unattended run)
 
 Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 22: Friendly fees".

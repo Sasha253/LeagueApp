@@ -57,12 +57,17 @@ def test_changing_the_defaults_changes_new_clubs_only(club_a):
 
 @pytest.mark.django_db
 def test_the_fees_are_missing_until_the_admin_sets_them(club_a):
-    assert club_a.settings.missing == ["league_fee", "friendly_fee", "booking_hourly_fee"]
+    assert club_a.settings.missing == [
+        "league_fee",
+        "friendly_fee",
+        "booking_hourly_fee",
+        "match_length_minutes",
+    ]
 
     ClubSettings.objects.filter(club=club_a).update(league_fee=Decimal("350"))
     club_a.settings.refresh_from_db()
 
-    assert club_a.settings.missing == ["friendly_fee", "booking_hourly_fee"]
+    assert club_a.settings.missing == ["friendly_fee", "booking_hourly_fee", "match_length_minutes"]
 
 
 @pytest.mark.django_db

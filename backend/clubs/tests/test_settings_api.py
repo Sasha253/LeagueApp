@@ -14,7 +14,12 @@ def test_admin_reads_the_settings_with_what_is_missing(admin_of, club_a):
     body = response.json()
     assert body["league_fee"] is None
     assert body["confirmation_hours_before"] == 36
-    assert body["missing"] == ["league_fee", "friendly_fee", "booking_hourly_fee"]
+    assert body["missing"] == [
+        "league_fee",
+        "friendly_fee",
+        "booking_hourly_fee",
+        "match_length_minutes",
+    ]
 
 
 @pytest.mark.django_db
@@ -30,7 +35,11 @@ def test_admin_sets_the_fees_as_decimals(admin_of, club_a):
     assert response.status_code == 200
     body = response.json()
     assert (body["league_fee"], body["friendly_fee"]) == ("350.00", "70.50")
+    assert body["missing"] == ["match_length_minutes"]
+
+    body = client.patch(url(club_a), {"match_length_minutes": 60}, format="json").json()
     assert body["missing"] == []
+    assert club_a.settings.__class__.objects.get(club=club_a).takes_bookings
     assert body["updated_by_name"] == client.user.name
 
 
