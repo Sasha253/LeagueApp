@@ -119,3 +119,10 @@
 .la-team-line__name { flex: 1; font: 600 16px/24px var(--font-sans); }
 .la-team-line__count { font: 500 13px/18px var(--font-sans); color: var(--ink-muted); font-variant-numeric: tabular-nums; }
 .la-item__time { flex: none; width: 56px; font-family: var(--font-display); font-size: 24px; line-height: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* PaymentTicket parts the design draws with inline styles (design/src/ui.mjs ticket()):
+   the status line under the Team name and the two notches on the cut. */
+.la-ticket__status { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 15px; }
+.la-ticket__status svg { width: 20px; height: 20px; }
+.la-ticket__notch--left { left: -12px; }
+.la-ticket__notch--right { right: -12px; }

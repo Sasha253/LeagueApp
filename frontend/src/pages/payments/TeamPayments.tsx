@@ -1,6 +1,6 @@
 // Payments on the Team screen: "Pay my share" for a Player in the Team and, for its
-// Captain, who has paid, the Team total against what is due, and the Team's credit
-// (design/src/ds/Screens.md Captain 1; PRD FR-21, FR-52).
+// Captain, who has paid, the Team total against what is due, the Team's credit and its
+// Payment Barcode (design/src/ds/Screens.md Captain 1 and 6; PRD FR-21, FR-52).
 
 import { Link } from "react-router";
 import { api } from "../../api/client";
@@ -16,6 +16,11 @@ export function TeamPayments({ teamId, isCaptain }: { teamId: number; isCaptain:
         Payments
       </h2>
       {isCaptain && <CaptainPayments teamId={teamId} />}
+      {isCaptain && (
+        <Link className="la-btn la-btn--secondary la-btn--block" to={`/teams/${teamId}/barcode`}>
+          Payment Barcode
+        </Link>
+      )}
       <Link className="la-btn la-btn--primary la-btn--block" to={`/teams/${teamId}/pay`}>
         Pay my share
       </Link>

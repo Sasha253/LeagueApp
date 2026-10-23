@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "ledger",
     "notifications",
     "payments",
+    "barcodes",
 ]
 
 MIDDLEWARE = [
@@ -155,6 +156,8 @@ SPECTACULAR_SETTINGS = {
         "PaymentProviderEnum": "clubs.models.PaymentProvider",
         "PaymentStatusEnum": "payments.models.PAYMENT_STATUSES",
         "PaymentCreditEnum": "payments.models.PAYMENT_CREDIT_SOURCES",
+        "BarcodeModeEnum": "barcodes.models.BARCODE_MODES",
+        "BarcodeStateEnum": "barcodes.services.State.choices",
     },
 }
 
@@ -224,3 +227,9 @@ PAYFAST_ITN_NETWORKS = env.list(
     ],
 )
 PAYFAST_TRUSTED_PROXIES = env.int("PAYFAST_TRUSTED_PROXIES", default=0)
+
+# Payment Barcodes (barcodes/). Each code is signed with this key (HMAC-SHA256), so a code
+# can't be made or moved to another Team without it. Set a long random value of its own in
+# production; empty falls back to a key derived from DJANGO_SECRET_KEY. Changing it makes
+# every Barcode issued so far fail its check (Admins reissue them).
+BARCODE_SIGNING_KEY = env("BARCODE_SIGNING_KEY", default="")

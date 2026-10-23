@@ -18,6 +18,7 @@ api_v1 = [
     path("clubs/<int:club_id>/", include(club_payment_urls)),
     path("", include("ledger.urls")),
     path("", include("payments.urls")),
+    path("", include("barcodes.urls")),
     path("", include("notifications.urls")),
     path("", include("fixtures.urls")),
     path("", include("teams.urls")),

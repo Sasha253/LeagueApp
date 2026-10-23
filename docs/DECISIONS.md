@@ -2,6 +2,34 @@
 
 Newest first. Each entry: the date, what was decided, and why.
 
+## 2026-10-23: Payment Barcodes (chunk 20) (provisional, unattended run)
+
+Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 20: Payment Barcodes".
+
+- **Validity (provisional, unattended run):** gateway mode gives a Barcode for the Team's
+  current match (first match not cancelled or played, today or later, South African
+  date); cash-only mode one for the rest of the Season. The mode is the club's when the
+  Barcode is issued.
+- **Issuing (provisional, unattended run):** only to a paid Team: automatically when it
+  becomes paid (`team_paid`), on the Captain's first look for a later match, or by an Admin
+  of its Club (issue or reissue, revoking the live one). The Captain is told with an Update
+  notification.
+- **Valid (provisional, unattended run):** genuine (signature), not revoked, not past its
+  match or Season, Team active and still paid. Computed at every look and scan.
+- **Signed code (provisional, unattended run):** 10 Crockford base32 characters, the first
+  50 bits of an HMAC-SHA256 over a random nonce and the subject, keyed by
+  `BARCODE_SIGNING_KEY` (environment). Shown as a Code 128 barcode with the code printed
+  under it ("RK 2710 4419").
+- **Revoking (provisional, unattended run):** Admins of the club, with a reason. Never
+  replaced automatically.
+- **Who sees it (provisional, unattended run):** the Captain and the club's Admins.
+- **Scans (provisional, unattended run):** every scan logged in `BarcodeScan`
+  (append-only), only the scanning club's Barcodes are found.
+- **Proposed component styles:** PaymentTicket's status line and notches
+  (`.la-ticket__status`, `.la-ticket__notch--left/right` in
+  `frontend/src/styles/proposed.css`), from the inline styles of design/src/ui.mjs
+  `ticket()`.
+
 ## 2026-10-23: Payments UI (chunk 19) (provisional, unattended run)
 
 Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 19: Payments (UI)".

@@ -26,6 +26,7 @@ import { FindTeamPage } from "./pages/teams/FindTeamPage";
 import { MyTeamsPage } from "./pages/teams/MyTeamsPage";
 import { RequestTeamPage } from "./pages/teams/RequestTeamPage";
 import { TeamPage } from "./pages/teams/TeamPage";
+import { BarcodePage } from "./pages/payments/BarcodePage";
 import { ClubPaymentsPage } from "./pages/payments/ClubPaymentsPage";
 import { ClubTeamPaymentPage } from "./pages/payments/ClubTeamPaymentPage";
 import { PaymentResultPage } from "./pages/payments/PaymentResultPage";
@@ -77,6 +78,7 @@ const screens: RouteObject[] = [
       { path: "/teams/new", element: <RequestTeamPage /> },
       { path: "/teams/:teamId", element: <TeamPage /> },
       { path: "/teams/:teamId/pay", element: <PayPage /> },
+      { path: "/teams/:teamId/barcode", element: <BarcodePage /> },
       // PayFast sends the Player back here (PAYMENT_RETURN_URL, PAYMENT_CANCEL_URL).
       { path: "/payments/done", element: <PaymentResultPage /> },
       { path: "/payments/cancelled", element: <PaymentResultPage left /> },

@@ -25,3 +25,6 @@ PUSH_SENDER = env("PUSH_SENDER", default="notifications.push.FirebaseSender")
 
 # Live PayFast unless the environment says otherwise.
 PAYFAST_SANDBOX = env.bool("PAYFAST_SANDBOX", default=False)
+
+# Payment Barcodes are signed with a key of their own in production (barcodes/).
+BARCODE_SIGNING_KEY = env("BARCODE_SIGNING_KEY")

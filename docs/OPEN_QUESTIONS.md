@@ -671,3 +671,72 @@ docs/DECISIONS.md under "2026-10-23: Teams (chunk 5)".
   Record cash form (amount, the whole Team or one current Player, optional note). No
   Season filter yet. If the answer differs: add the `season` filter the endpoint already
   takes.
+
+## Chunk 20: Payment Barcodes
+
+- **"Per match" when the league fee is per Season.** Question: the league fee is charged
+  once per Season (chunk 8), but with the gateway a Barcode is "valid per match". Which
+  match is it for, and when is the next one issued? Choice: a paid Team's Barcode is for
+  its current match: its first match not cancelled or played, on today's date (South
+  African time) or later. It is issued when the Team becomes paid (`team_paid`) if that
+  match exists, otherwise the first time the Captain opens the Barcode screen; each later
+  match gets its own Barcode the same way. It stops being valid after its match's day, or
+  when the match is cancelled or played. Why: one Barcode can't be reused at another match
+  (NFR Barcode integrity), and the Season's payment still covers every match. If the answer
+  differs: issue per payment instead (needs a per-match charge, chunk 22's friendly fees
+  are the model), or change `barcodes.services.next_match` and `status_of`.
+- **Issuing on opening the screen.** Question: `GET /api/v1/teams/{id}/barcode/` can create
+  the Barcode for a paid Team's next match. Choice: yes, once per match (the same Barcode
+  every time after). Why: no timed job is needed, and the Captain gets it when they need it.
+  If the answer differs: a Celery Beat job issuing them the day before each match.
+- **Cash-only mode.** Question: "Admin confirms payment in the app; Barcode sent to the
+  Captain". Is recording cash the confirmation, or is there a separate step? Choice:
+  recording the cash that makes the Team paid issues the Season Barcode by itself and tells
+  the Captain (an Update notification). An Admin can also issue or reissue one by hand,
+  but only for a paid Team. Validity follows the club's payment mode when it is issued, not
+  how the Team paid: in gateway mode, cash paid to the club still gives per-match
+  Barcodes. Why: the ledger says whether the Team has paid; nothing else should. If the
+  answer differs: a separate "Confirm and send Barcode" Admin step (`issue` exists).
+- **What makes a Barcode valid.** Choice: genuine (its signature checks), not revoked, not
+  past its match or Season, and its Team active and still paid (a reversed payment makes
+  it invalid at once; paying again makes the same Barcode valid again). Checked live at
+  every look and every scan, not stored. Why: a stored flag goes stale on reversals. If
+  the answer differs: revoke Barcodes on a reversal instead.
+- **Revoking.** Question: who may revoke, and does a revoked Barcode come back by itself?
+  Choice: only an Admin of the Team's Club, with a reason. A revoked Barcode is never
+  replaced automatically, so revoking blocks the Team until an Admin issues a new one.
+  Reissuing revokes the live one for the same match or Season ("Reissued by an Admin.").
+  Why: revoking is for a leaked or misused Barcode; the app giving the Captain a new one
+  at once would undo it. If the answer differs: let the Captain's screen issue a new one
+  after a revocation.
+- **Who sees the Barcode.** Choice: the Team's Captain, and the Admins of its Club (to help
+  at the gate); nobody else (404). Players of the Team don't. Why: PRD "Captain: receive
+  the Payment Barcode". If the answer differs: let any Player in the Team open it.
+- **The code and what "signed" means.** Question: the design prints a 10-character code
+  ("RL 2710 4419") that the gate can type in. How is that signed? Choice: the code is the
+  first 50 bits of an HMAC-SHA256 (Crockford base32, 10 characters, no I, L, O or U) over a
+  random nonce and the whole subject (club, Team, mode, Season, match), keyed by
+  `BARCODE_SIGNING_KEY` from the environment (falls back to a key derived from
+  `DJANGO_SECRET_KEY`; production requires its own). Unguessable (50 bits, looked up only
+  by the club's signed-in Referees and Admins), can't be made or moved to another Team
+  without the key. The barcode is a Code 128 of the same code, so scanning and typing
+  check the same thing. Why: one short code serves both the camera and the typed fallback
+  in the design. If the answer differs: a longer signed payload in the barcode (a QR code)
+  with the short code only for typing; the model keeps its nonce, so only signing.py and
+  the ticket change.
+- **Changing the signing key.** Choice: every Barcode issued before fails its check
+  ("not genuine") and Admins reissue them. Why: the key is the only thing that makes a
+  code genuine. If the answer differs: keep the old key as a second key to check against.
+- **Bookings.** Question: Barcodes are "tied to one Team or Booking"; Bookings don't exist
+  yet. Choice: a Barcode's subject is a Team now; chunks 23/24 add a Booking foreign key
+  and a constraint that exactly one of the two is set (a migration making `team`
+  nullable, no rework). If the answer differs: nothing to change now.
+- **Every scan logged.** Choice: `BarcodeScan` (append-only) records every scan or typed
+  code: club, Barcode (or none), the code as entered, camera or typed, who, when, paid or
+  not and why, and the match when the gate says. The scan endpoint, the right-match check
+  and single use per match are chunk 21; `barcodes.services.scan` already logs and checks
+  everything above, only within the scanning club.
+- **Brightness.** Screens.md: "full screen at max brightness". Choice: not yet; the screen
+  asks the Captain to turn brightness up. Why: needs a native plugin
+  (e.g. @capacitor-community/screen-brightness) and a device to test on. If the answer
+  differs: add it behind frontend/src/native/.

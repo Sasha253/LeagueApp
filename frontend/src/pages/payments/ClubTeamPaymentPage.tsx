@@ -1,7 +1,8 @@
 // One Team's payments as its club's Admin sees them (PRD FR-21, FR-22; Screens.md Admin 5
 // "Mark cash paid"): the Team total against what is due, who has paid, and recording cash
 // paid to the club, for one Player or the whole Team. The backend decides what may be
-// recorded (no more than the Team owes) and its answer is shown.
+// recorded (no more than the Team owes) and its answer is shown. Below, the Team's Payment
+// Barcodes (TeamBarcodes.tsx).
 
 import { useState, type FormEvent } from "react";
 import { useParams } from "react-router";
@@ -14,6 +15,7 @@ import { formatRand } from "../../format";
 import { LoadState, NO_ERRORS, send, useClub, useLoad } from "../club/shared";
 import { NOT_AN_ADMIN } from "../teams/ClubTeamsPage";
 import { ScreenHeader } from "../teams/shared";
+import { TeamBarcodes } from "./TeamBarcodes";
 import { AMOUNT_HELP, isAmount, PaymentProgress, type TeamPaymentSummary } from "./shared";
 
 export function ClubTeamPaymentPage() {
@@ -32,6 +34,7 @@ export function ClubTeamPaymentPage() {
             <ScreenHeader title={data.team.name} back={back} caption={clubName} />
             <PaymentProgress summary={data} />
             <CashForm summary={data} onRecorded={reload} />
+            <TeamBarcodes teamId={data.team.id} teamName={data.team.name} paid={data.paid} />
           </>
         )}
       </LoadState>

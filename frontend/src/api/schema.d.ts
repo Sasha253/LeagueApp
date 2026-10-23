@@ -87,6 +87,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/barcodes/{barcode_id}/revoke/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description An Admin of the Barcode's Club revokes it, with a reason. It never counts again. */
+        post: operations["barcodes_revoke_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/captain-requests/{id}/withdraw/": {
         parameters: {
             query?: never;
@@ -1495,6 +1512,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/teams/{team_id}/barcode/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description The Captain's Payment Barcode for the gate now, or why there is none. Opening it
+         *     issues the Barcode for a paid Team's next match if it has none yet.
+         */
+        get: operations["teams_barcode_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/{team_id}/barcodes/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description An Admin of the Team's Club: its Barcodes, newest first, and issuing a new one. */
+        get: operations["teams_barcodes_list"];
+        put?: never;
+        /** @description An Admin of the Team's Club: its Barcodes, newest first, and issuing a new one. */
+        post: operations["teams_barcodes_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/teams/{team_id}/cash-payments/": {
         parameters: {
             query?: never;
@@ -1598,6 +1653,32 @@ export interface components {
              *     * `open` - Open
              */
             readonly action: components["schemas"]["NotificationActionEnum"];
+        };
+        /** @description A Team's Barcode as an Admin of its Club sees it: whether it is valid, and why not. */
+        AdminBarcode: {
+            readonly id: number;
+            /** @description What the barcode encodes and the gate types in: signed, see signing.py. */
+            readonly code: string;
+            /** @description The code as printed under the barcode: "RK 2710 4419". */
+            readonly display_code: string;
+            readonly mode: components["schemas"]["BarcodeModeEnum"];
+            readonly team: components["schemas"]["Named"];
+            readonly season: components["schemas"]["BarcodeSeason"];
+            /** @description The match a per-match Barcode is for. */
+            readonly fixture: components["schemas"]["BarcodeMatch"] | null;
+            /** @description The last day it is valid on (South African date): its match's, or the Season's last day. */
+            readonly valid_until: string;
+            /** Format: date-time */
+            readonly issued_at: string;
+            readonly state: components["schemas"]["BarcodeStateEnum"];
+            readonly reason: string;
+            readonly issued_by: components["schemas"]["Named"] | null;
+            /** Format: date-time */
+            readonly revoked_at: string | null;
+            readonly revoked_by: components["schemas"]["Named"] | null;
+            readonly revoke_reason: string;
+            /** @description How often it was scanned. */
+            readonly scans: number;
         };
         /** @description A Fixture as the club's Admin sees it. FriendlyEligibleSerializer changes it. */
         AdminFixture: {
@@ -1709,6 +1790,58 @@ export interface components {
             /** @description The user id of a Player in the Team. */
             player: number;
         };
+        /** @description A Payment Barcode, as its Captain shows it at the gate. */
+        Barcode: {
+            readonly id: number;
+            /** @description What the barcode encodes and the gate types in: signed, see signing.py. */
+            readonly code: string;
+            /** @description The code as printed under the barcode: "RK 2710 4419". */
+            readonly display_code: string;
+            readonly mode: components["schemas"]["BarcodeModeEnum"];
+            readonly team: components["schemas"]["Named"];
+            readonly season: components["schemas"]["BarcodeSeason"];
+            /** @description The match a per-match Barcode is for. */
+            readonly fixture: components["schemas"]["BarcodeMatch"] | null;
+            /** @description The last day it is valid on (South African date): its match's, or the Season's last day. */
+            readonly valid_until: string;
+            /** Format: date-time */
+            readonly issued_at: string;
+        };
+        BarcodeMatch: {
+            readonly id: number;
+            /**
+             * Format: date-time
+             * @description Stored in UTC; sent with its offset. Show it in Africa/Johannesburg.
+             */
+            readonly kick_off: string;
+            readonly home_team: components["schemas"]["Named"];
+            readonly away_team: components["schemas"]["Named"];
+            readonly pitch: components["schemas"]["Named"];
+        };
+        /**
+         * @description * `match` - Valid for one match (payment gateway)
+         *     * `season` - Valid for the rest of the Season (cash, confirmed by an Admin)
+         * @enum {string}
+         */
+        BarcodeModeEnum: "match" | "season";
+        BarcodeSeason: {
+            readonly id: number;
+            readonly name: string;
+            /** Format: date */
+            readonly ends_on: string;
+        };
+        /**
+         * @description * `valid` - Valid
+         *     * `not_genuine` - Not genuine
+         *     * `revoked` - Revoked
+         *     * `expired` - No longer valid
+         *     * `unpaid` - Not paid
+         *     * `inactive` - Team not active
+         *     * `no_match` - No match coming up
+         *     * `not_found` - No such Barcode
+         * @enum {string}
+         */
+        BarcodeStateEnum: "valid" | "not_genuine" | "revoked" | "expired" | "unpaid" | "inactive" | "no_match" | "not_found";
         /** @enum {unknown} */
         BlankEnum: "";
         BorrowedPlayer: {
@@ -1947,6 +2080,13 @@ export interface components {
          * @enum {string}
          */
         ConfirmationAnswerEnum: "confirm" | "decline";
+        /** @description The Captain's Barcode now, or why there is none (only a valid one is shown). */
+        CurrentBarcode: {
+            readonly state: components["schemas"]["BarcodeStateEnum"];
+            /** @description Why there is no valid Barcode. */
+            readonly reason: string;
+            readonly barcode: components["schemas"]["Barcode"] | null;
+        };
         DeclineTeamRequest: {
             reason?: string;
         };
@@ -2945,6 +3085,10 @@ export interface components {
             pitch?: number | null;
             note?: string;
         };
+        RevokeBarcodeRequest: {
+            /** @description Why it no longer counts. */
+            reason: string;
+        };
         /**
          * @description * `admin` - Admin
          *     * `referee` - Referee
@@ -3380,6 +3524,33 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Registered"];
+                };
+            };
+        };
+    };
+    barcodes_revoke_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                barcode_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RevokeBarcodeRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["RevokeBarcodeRequest"];
+                "multipart/form-data": components["schemas"]["RevokeBarcodeRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminBarcode"];
                 };
             };
         };
@@ -5536,6 +5707,69 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TeamBalance"];
+                };
+            };
+        };
+    };
+    teams_barcode_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentBarcode"];
+                };
+            };
+        };
+    };
+    teams_barcodes_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminBarcode"][];
+                };
+            };
+        };
+    };
+    teams_barcodes_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminBarcode"];
                 };
             };
         };

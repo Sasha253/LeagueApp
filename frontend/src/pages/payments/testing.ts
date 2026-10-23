@@ -57,3 +57,38 @@ export function summary(overrides: object = {}) {
     ...overrides,
   };
 }
+
+export function barcode(overrides: object = {}) {
+  return {
+    id: 31,
+    code: "RK27104419",
+    display_code: "RK 2710 4419",
+    mode: "match",
+    team: TEAM,
+    season: { id: 5, name: "Spring 2026", ends_on: "2026-12-19" },
+    fixture: {
+      id: 12,
+      kick_off: "2026-10-27T17:40:00Z",
+      home_team: TEAM,
+      away_team: { id: 8, name: "Old Boys" },
+      pitch: { id: 3, name: "Pitch 3" },
+    },
+    valid_until: "2026-10-27",
+    issued_at: "2026-10-23T17:00:00Z",
+    ...overrides,
+  };
+}
+
+export function adminBarcode(overrides: object = {}) {
+  return {
+    ...barcode(),
+    state: "valid",
+    reason: "",
+    issued_by: null,
+    revoked_at: null,
+    revoked_by: null,
+    revoke_reason: "",
+    scans: 0,
+    ...overrides,
+  };
+}
