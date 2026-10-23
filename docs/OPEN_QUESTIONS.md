@@ -7,3 +7,8 @@ with into docs/DECISIONS.md.
 
 None. Every question this chunk raised was already answered and is recorded in
 docs/DECISIONS.md under "2026-10-23: Import Nights and Divisions (chunk 4)".
+
+## Chunk 5: Teams (backend)
+
+None. Every question this chunk raised was already answered and is recorded in
+docs/DECISIONS.md under "2026-10-23: Teams (chunk 5)".

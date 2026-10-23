@@ -443,6 +443,100 @@ export interface paths {
         patch: operations["clubs_settings_partial_update"];
         trace?: never;
     };
+    "/api/v1/clubs/{club_id}/teams/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The club's Teams and Team requests. Confirm or decline a request, assign a Captain. */
+        get: operations["clubs_teams_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/teams/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The club's Teams and Team requests. Confirm or decline a request, assign a Captain. */
+        get: operations["clubs_teams_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/teams/{id}/captain/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Assign the Team's Captain
+         * @description The new Captain must be a Player in the Team. The old one stays in it.
+         */
+        post: operations["clubs_teams_captain_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/teams/{id}/confirm/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm a Team request
+         * @description 409 when the Division already has `max_teams` active Teams this Season.
+         */
+        post: operations["clubs_teams_confirm_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/teams/{id}/decline/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decline a Team request
+         * @description Its Players leave it, so they can join or request another Team.
+         */
+        post: operations["clubs_teams_decline_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/health/": {
         parameters: {
             query?: never;
@@ -452,6 +546,104 @@ export interface paths {
         };
         /** @description Liveness check for the app and for deployments. Open to everyone. */
         get: operations["health_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/join-requests/{id}/accept/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept a request to join
+         * @description The Player joins the Team. 409 when they joined another Team in its Division this Season first.
+         */
+        post: operations["join_requests_accept_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/join-requests/{id}/decline/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decline a request to join
+         * @description The Captain accepts or declines a request; the Player who asked can withdraw it.
+         */
+        post: operations["join_requests_decline_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/join-requests/{id}/withdraw/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Withdraw my request to join
+         * @description The Captain accepts or declines a request; the Player who asked can withdraw it.
+         */
+        post: operations["join_requests_withdraw_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/join-requests/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The signed-in Player's requests to join Teams, newest first. */
+        get: operations["me_join_requests_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/teams/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description The signed-in Player's Teams: current ones first, then past ones, newest first.
+         *
+         *     Teams the Admin declined are left out.
+         */
+        get: operations["me_teams_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -482,6 +674,161 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/seasons/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Seasons that haven't ended, for a Captain requesting a Team. */
+        get: operations["seasons_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/seasons/{season_id}/divisions/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The Season's club's Divisions, with how many Teams each has this Season. */
+        get: operations["seasons_divisions_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Teams
+         * @description Active Teams, by name and by club, Season, Night or Division. Without `season`, only Seasons that haven't ended. At most 50, by name.
+         */
+        get: operations["teams_list"];
+        put?: never;
+        /**
+         * Request a new Team
+         * @description The signed-in Player asks the club's Admin for a Team in a Division and Season, and becomes its Captain. 409 when they are already in a Team in that Division this Season, or the Division is full.
+         */
+        post: operations["teams_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Search active Teams, request a new one, ask to join or leave one, see its Players. */
+        get: operations["teams_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/{id}/join/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask to join a Team
+         * @description Search active Teams, request a new one, ask to join or leave one, see its Players.
+         */
+        post: operations["teams_join_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/{id}/join-requests/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Requests to join the Team
+         * @description For its Captain. Pending ones unless `status` says otherwise.
+         */
+        get: operations["teams_join_requests_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/{id}/leave/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Leave a Team
+         * @description A Captain can't leave: the Admin assigns another Captain first.
+         */
+        post: operations["teams_leave_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/{id}/members/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The Team's Players
+         * @description Search active Teams, request a new one, ask to join or leave one, see its Players.
+         */
+        get: operations["teams_members_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -494,6 +841,32 @@ export interface components {
          * @enum {string}
          */
         ActionEnum: "create" | "update" | "unchanged" | "error";
+        /** @description A Team as its Club's Admin sees it, with who asked, who decided and its Players. */
+        AdminTeam: {
+            readonly id: number;
+            name: string;
+            readonly club: components["schemas"]["ClubSummary"];
+            readonly season: components["schemas"]["Named"];
+            readonly division: components["schemas"]["Named"];
+            readonly weekday: components["schemas"]["WeekdayEnum"];
+            readonly captain_id: number | null;
+            readonly captain_name: string | null;
+            /** @description Players in the Team now. */
+            readonly players: number;
+            status: components["schemas"]["TeamStatusEnum"];
+            readonly requested_by_name: string | null;
+            /** Format: date-time */
+            readonly requested_at: string;
+            readonly decided_by_name: string | null;
+            /** Format: date-time */
+            decided_at?: string | null;
+            decline_reason?: string;
+            readonly members: components["schemas"]["Member"][];
+        };
+        AssignCaptainRequest: {
+            /** @description The user id of a Player in the Team. */
+            player: number;
+        };
         /**
          * @description * `min_players` - min_players
          *     * `league_fee` - league_fee
@@ -603,6 +976,9 @@ export interface components {
             readonly id: number;
             name: string;
         };
+        DeclineTeamRequest: {
+            reason?: string;
+        };
         /** @description For a record of the Club in the URL. The view puts that Club in the context. */
         Division: {
             readonly id: number;
@@ -620,6 +996,24 @@ export interface components {
              * @description This Division's fee per Team, else the club's. Null while neither is set.
              */
             readonly effective_league_fee: string | null;
+            /** @description Most Teams this Division takes in one Season. Empty: no limit. */
+            max_teams?: number | null;
+        };
+        /** @description A Division a Captain can choose for a new Team in one Season. */
+        DivisionOption: {
+            readonly id: number;
+            name: string;
+            readonly weekday: components["schemas"]["WeekdayEnum"];
+            /** @description Fewer confirmed Players at T-6h and the Team is out (FR-5). */
+            min_players: number;
+            /** Format: decimal */
+            readonly effective_league_fee: string | null;
+            /** @description Most Teams this Division takes in one Season. Empty: no limit. */
+            max_teams?: number | null;
+            /** @description Active Teams this Season. */
+            readonly teams: number;
+            /** @description Takes Team requests: its league fee is set and it isn't full. */
+            readonly is_open: boolean;
         };
         /** @description For a record of the Club in the URL. The view puts that Club in the context. */
         DivisionRequest: {
@@ -632,6 +1026,8 @@ export interface components {
              * @description Overrides the club's league fee per Team for this Division.
              */
             league_fee?: string | null;
+            /** @description Most Teams this Division takes in one Season. Empty: no limit. */
+            max_teams?: number | null;
         };
         /** @description For a record of the Club in the URL. The view puts that Club in the context. */
         Field: {
@@ -703,6 +1099,26 @@ export interface components {
              */
             file: Blob;
         };
+        JoinRequest: {
+            readonly id: number;
+            readonly team: components["schemas"]["Team"];
+            readonly player_id: number;
+            readonly player_name: string;
+            readonly position: (components["schemas"]["PositionEnum"] | components["schemas"]["NullEnum"]) | null;
+            status?: components["schemas"]["JoinRequestStatusEnum"];
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            decided_at?: string | null;
+        };
+        /**
+         * @description * `pending` - Waiting for the Captain
+         *     * `accepted` - Accepted
+         *     * `declined` - Declined
+         *     * `withdrawn` - Withdrawn
+         * @enum {string}
+         */
+        JoinRequestStatusEnum: "pending" | "accepted" | "declined" | "withdrawn";
         /** @description The signed-in user. `player` is null when the user is not a Player. */
         Me: {
             readonly id: number;
@@ -714,6 +1130,31 @@ export interface components {
             is_booking_user?: boolean;
             player?: components["schemas"]["PlayerProfile"] | null;
             readonly club_roles: components["schemas"]["ClubRole"][];
+            /** @description Ids of the Teams this user captains, active or waiting for the Admin. */
+            readonly captain_of: number[];
+        };
+        /** @description A Player in a Team. */
+        Member: {
+            readonly player_id: number;
+            readonly name: string;
+            readonly position: (components["schemas"]["PositionEnum"] | components["schemas"]["NullEnum"]) | null;
+            readonly is_captain: boolean;
+            /** Format: date-time */
+            joined_at: string;
+        };
+        /** @description One of the signed-in Player's memberships, now or before. */
+        MyTeam: {
+            readonly id: number;
+            readonly team: components["schemas"]["Team"];
+            /** Format: date-time */
+            joined_at: string;
+            /** Format: date-time */
+            left_at?: string | null;
+            readonly is_captain: boolean;
+        };
+        Named: {
+            readonly id: number;
+            readonly name: string;
         };
         Night: {
             readonly id: number;
@@ -774,6 +1215,8 @@ export interface components {
              * @description Overrides the club's league fee per Team for this Division.
              */
             league_fee?: string | null;
+            /** @description Most Teams this Division takes in one Season. Empty: no limit. */
+            max_teams?: number | null;
         };
         /** @description For a record of the Club in the URL. The view puts that Club in the context. */
         PatchedFieldRequest: {
@@ -857,6 +1300,15 @@ export interface components {
             /** Format: date */
             ends_on: string;
         };
+        SeasonOption: {
+            readonly id: number;
+            readonly club: components["schemas"]["ClubSummary"];
+            name: string;
+            /** Format: date */
+            starts_on: string;
+            /** Format: date */
+            ends_on: string;
+        };
         /** @description For a record of the Club in the URL. The view puts that Club in the context. */
         SeasonRequest: {
             name: string;
@@ -865,6 +1317,33 @@ export interface components {
             /** Format: date */
             ends_on: string;
         };
+        /** @description A Team as Players see it when they search. */
+        Team: {
+            readonly id: number;
+            name: string;
+            readonly club: components["schemas"]["ClubSummary"];
+            readonly season: components["schemas"]["Named"];
+            readonly division: components["schemas"]["Named"];
+            readonly weekday: components["schemas"]["WeekdayEnum"];
+            readonly captain_id: number | null;
+            readonly captain_name: string | null;
+            /** @description Players in the Team now. */
+            readonly players: number;
+            status: components["schemas"]["TeamStatusEnum"];
+        };
+        /** @description A Captain's request for a new Team. */
+        TeamRequestRequest: {
+            season: number;
+            division: number;
+            name: string;
+        };
+        /**
+         * @description * `requested` - Waiting for the Admin
+         *     * `active` - Active
+         *     * `declined` - Declined
+         * @enum {string}
+         */
+        TeamStatusEnum: "requested" | "active" | "declined";
         TokenBlacklistRequest: {
             refresh: string;
         };
@@ -1748,6 +2227,151 @@ export interface operations {
             };
         };
     };
+    clubs_teams_list: {
+        parameters: {
+            query?: {
+                division?: number;
+                season?: number;
+                status?: "active" | "declined" | "requested";
+            };
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminTeam"][];
+                };
+            };
+        };
+    };
+    clubs_teams_retrieve: {
+        parameters: {
+            query?: {
+                division?: number;
+                season?: number;
+                status?: "active" | "declined" | "requested";
+            };
+            header?: never;
+            path: {
+                club_id: number;
+                /** @description A unique integer value identifying this team. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminTeam"];
+                };
+            };
+        };
+    };
+    clubs_teams_captain_create: {
+        parameters: {
+            query?: {
+                division?: number;
+                season?: number;
+                status?: "active" | "declined" | "requested";
+            };
+            header?: never;
+            path: {
+                club_id: number;
+                /** @description A unique integer value identifying this team. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignCaptainRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["AssignCaptainRequest"];
+                "multipart/form-data": components["schemas"]["AssignCaptainRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminTeam"];
+                };
+            };
+        };
+    };
+    clubs_teams_confirm_create: {
+        parameters: {
+            query?: {
+                division?: number;
+                season?: number;
+                status?: "active" | "declined" | "requested";
+            };
+            header?: never;
+            path: {
+                club_id: number;
+                /** @description A unique integer value identifying this team. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminTeam"];
+                };
+            };
+        };
+    };
+    clubs_teams_decline_create: {
+        parameters: {
+            query?: {
+                division?: number;
+                season?: number;
+                status?: "active" | "declined" | "requested";
+            };
+            header?: never;
+            path: {
+                club_id: number;
+                /** @description A unique integer value identifying this team. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["DeclineTeamRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["DeclineTeamRequest"];
+                "multipart/form-data": components["schemas"]["DeclineTeamRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminTeam"];
+                };
+            };
+        };
+    };
     health_retrieve: {
         parameters: {
             query?: never;
@@ -1775,6 +2399,110 @@ export interface operations {
             };
         };
     };
+    join_requests_accept_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this join request. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JoinRequest"];
+                };
+            };
+        };
+    };
+    join_requests_decline_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this join request. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JoinRequest"];
+                };
+            };
+        };
+    };
+    join_requests_withdraw_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this join request. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JoinRequest"];
+                };
+            };
+        };
+    };
+    me_join_requests_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JoinRequest"][];
+                };
+            };
+        };
+    };
+    me_teams_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyTeam"][];
+                };
+            };
+        };
+    };
     nights_list: {
         parameters: {
             query?: never;
@@ -1790,6 +2518,212 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Night"][];
+                };
+            };
+        };
+    };
+    seasons_list: {
+        parameters: {
+            query?: {
+                /** @description Only this club's. */
+                club?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeasonOption"][];
+                };
+            };
+        };
+    };
+    seasons_divisions_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                season_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DivisionOption"][];
+                };
+            };
+        };
+    };
+    teams_list: {
+        parameters: {
+            query?: {
+                club?: number;
+                division?: number;
+                night?: number;
+                /** @description Part of the Team's name. */
+                q?: string;
+                season?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Team"][];
+                };
+            };
+        };
+    };
+    teams_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeamRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["TeamRequestRequest"];
+                "multipart/form-data": components["schemas"]["TeamRequestRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Team"];
+                };
+            };
+        };
+    };
+    teams_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this team. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Team"];
+                };
+            };
+        };
+    };
+    teams_join_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this team. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JoinRequest"];
+                };
+            };
+        };
+    };
+    teams_join_requests_list: {
+        parameters: {
+            query?: {
+                status?: "accepted" | "declined" | "pending" | "withdrawn";
+            };
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this team. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JoinRequest"][];
+                };
+            };
+        };
+    };
+    teams_leave_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this team. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyTeam"];
+                };
+            };
+        };
+    };
+    teams_members_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this team. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Member"][];
                 };
             };
         };

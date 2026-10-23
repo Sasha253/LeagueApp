@@ -11,7 +11,8 @@ A view with no Club in its URL only lets in users who hold the role at some Club
 queryset must then be limited with ClubScopedQuerysetMixin, so a list never shows another
 Club's records.
 
-Captain comes with Teams (chunk 5).
+Captain is not a stored role: IsTeamCaptain checks the Team's `captain` on the record, a
+Team or anything with a `team`.
 """
 
 from rest_framework.permissions import BasePermission
@@ -77,6 +78,14 @@ class IsBookingUser(BasePermission):
     def has_permission(self, request, view) -> bool:
         user = request.user
         return bool(user and user.is_authenticated and user.is_booking_user)
+
+
+class IsTeamCaptain(IsPlayer):
+    """Lets in the Captain of the Team the record is, or belongs to."""
+
+    def has_object_permission(self, request, view, obj) -> bool:
+        team = getattr(obj, "team", obj)
+        return team.captain_id == request.user.pk
 
 
 class ClubScopedQuerysetMixin:

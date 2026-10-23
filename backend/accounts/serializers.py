@@ -37,11 +37,29 @@ class MeSerializer(serializers.ModelSerializer):
 
     player = PlayerProfileSerializer(source="player_profile", allow_null=True, required=False)
     club_roles = ClubRoleSerializer(many=True, read_only=True)
+    captain_of = serializers.SerializerMethodField(
+        help_text="Ids of the Teams this user captains, active or waiting for the Admin."
+    )
 
     class Meta:
         model = User
-        fields = ["id", "email", "name", "phone", "is_booking_user", "player", "club_roles"]
+        fields = [
+            "id",
+            "email",
+            "name",
+            "phone",
+            "is_booking_user",
+            "player",
+            "club_roles",
+            "captain_of",
+        ]
         read_only_fields = ["id", "email"]
+
+    def get_captain_of(self, user: User) -> list[int]:
+        if user.pk is None:
+            return []
+        teams = user.captained_teams.exclude(status="declined").order_by("pk")
+        return list(teams.values_list("pk", flat=True))
 
     def validate(self, attrs):
         instance = self.instance

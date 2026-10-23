@@ -58,6 +58,7 @@ export const ME = {
   is_booking_user: false,
   player: { position: "outfield", nights: [] as number[] },
   club_roles: [] as { club_id: number; club_name: string; role: "admin" | "referee" }[],
+  captain_of: [] as number[],
 };
 
 export const TOKENS = { access: "access-1", refresh: "refresh-1" };

@@ -98,6 +98,12 @@ class Division(models.Model):
         blank=True,
         help_text="Overrides the club's league fee per Team for this Division.",
     )
+    max_teams = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1)],
+        help_text="Most Teams this Division takes in one Season. Empty: no limit.",
+    )
 
     class Meta:
         ordering = ["night__club__name", "night__weekday", "name"]

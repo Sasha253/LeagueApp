@@ -2,6 +2,38 @@
 
 Newest first. Each entry: the date, what was decided, and why.
 
+## 2026-10-23: Teams (chunk 5)
+
+Decided by @Sasha while building chunk 5 (the Captain and Admin rows of the roles table).
+
+- **Season:** a Captain requests a Team for a Season and a Division, choosing from the
+  club's Seasons that haven't ended. A Team belongs to one Season; carrying a Team over to
+  the next Season comes later.
+- **Most Teams per Division:** each Division has a `max_teams`, set by the Admin. Empty
+  means no limit. It counts active Teams in one Season. A full Division takes no new
+  requests, and the Admin can't confirm past it. Requests waiting for the Admin don't
+  count. The Nights and Divisions import doesn't read it yet.
+- **One Team per Division and Season:** a Player can be in several Teams, at several clubs,
+  but in only one Team in each Division and Season. It counts Teams that are active and
+  Teams still waiting for the Admin. When a Captain accepts a Player, that Player's other
+  open requests in the same Division and Season are withdrawn.
+- **Team names:** unique in a Division and Season, in any case. A declined Team's name can
+  be used again.
+- **League fee first:** a Team can't be requested until the Division has a league fee (its
+  own or the club's). This is the block on Team sign-up promised in chunk 3.
+- **The requester is Captain** and the Team's first Player as soon as they ask. If the
+  Admin declines, the Team's Players leave it, so they can request or join another Team.
+- **Joining:** Players ask to join active Teams only. The Captain accepts or declines, and
+  the Player can withdraw while the request is pending.
+- **Captain:** the Admin can make any current Player of the Team its Captain. The old
+  Captain stays in the Team as a Player. A Captain can't leave their Team until the Admin
+  assigns another Captain. Removing Players from a Team comes later.
+- **Membership history:** leaving closes a membership and keeps it, and rejoining opens a
+  new one.
+- **Who sees what:** any Player can search active Teams at every club, at most 50 a
+  search. Only a Team's own Players see who is in it. Only its Captain sees its join
+  requests. Admins see their own club's Teams only.
+
 ## 2026-10-23: Import Nights and Divisions (chunk 4)
 
 Decided by @Sasha while building chunk 4 (FR-39).

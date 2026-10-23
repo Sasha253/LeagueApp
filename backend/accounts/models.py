@@ -3,7 +3,7 @@
 - One account per person, app-wide: a Player can play at any club (docs/DECISIONS.md).
 - Player and Booking User are held app-wide. A Player has a PlayerProfile.
 - Admin and Referee are held per Club, as a ClubRole, never app-wide.
-- Captain is not stored here: a Player is a Captain of the Team they captain (chunk 5).
+- Captain is not stored here: a Player is a Captain of the Team they captain (teams app).
 """
 
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin

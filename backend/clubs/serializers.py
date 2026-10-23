@@ -72,7 +72,15 @@ class DivisionSerializer(ClubOwnedSerializer):
 
     class Meta:
         model = Division
-        fields = ["id", "night", "name", "min_players", "league_fee", "effective_league_fee"]
+        fields = [
+            "id",
+            "night",
+            "name",
+            "min_players",
+            "league_fee",
+            "effective_league_fee",
+            "max_teams",
+        ]
         # Unique names per Night are checked in validate(), with the error on `name`.
         validators = []
 

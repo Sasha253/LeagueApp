@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     "core",
     "clubs",
     "accounts",
+    "teams",
 ]
 
 MIDDLEWARE = [
@@ -120,6 +121,8 @@ SPECTACULAR_SETTINGS = {
     "ENUM_NAME_OVERRIDES": {
         "HealthStateEnum": "core.views.HEALTH_STATES",
         "WeekdayEnum": "clubs.models.WEEKDAYS",
+        "TeamStatusEnum": "teams.models.TEAM_STATUSES",
+        "JoinRequestStatusEnum": "teams.models.JOIN_REQUEST_STATUSES",
     },
 }
 
