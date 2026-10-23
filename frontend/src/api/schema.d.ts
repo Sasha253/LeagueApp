@@ -868,6 +868,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/fixtures/{id}/player-requests/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * My Team's Player and Goalkeeper Requests for a Fixture
+         * @description Every Player in the Team sees them and who joined (FR-38); only its Captain can raise one.
+         */
+        get: operations["fixtures_player_requests_retrieve"];
+        put?: never;
+        /**
+         * Request borrowed Players or a Goalkeeper for a Fixture (Captain)
+         * @description FR-35, FR-36: sent to the Players of that position opted into the Night who are in neither Team. Only the Captain of a Team in the match (403 otherwise), while the match is scheduled, confirming or ready and before kick-off, with no open request of that kind from the Team and someone to ask (409 otherwise). The first to accept join (FR-37). Answers with the Team's requests.
+         */
+        post: operations["fixtures_player_requests_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/fixtures/{id}/player-requests/preview/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Who a Player or Goalkeeper Request would go to (Captain)
+         * @description One Fixture, for a Player in either of its Teams now. Anyone else gets 404.
+         */
+        get: operations["fixtures_player_requests_preview_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/fixtures/{id}/requests/": {
         parameters: {
             query?: never;
@@ -1122,6 +1166,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/player-requests/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Player and Goalkeeper Requests I was sent for matches still to come (Screens.md
+         *     Player 1 "Games you can join"): ones I can still answer, and ones I joined. Answer with
+         *     POST /api/v1/notifications/{notification_id}/answer/.
+         */
+        get: operations["me_player_requests_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/teams/": {
         parameters: {
             query?: never;
@@ -1159,6 +1224,26 @@ export interface paths {
         get: operations["nights_list"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/player-requests/{id}/withdraw/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Withdraw my Player or Goalkeeper Request
+         * @description Only while it is open: 409 once filled, withdrawn or no longer applying. Whoever already joined keeps their place.
+         */
+        post: operations["player_requests_withdraw_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1482,6 +1567,12 @@ export interface components {
         };
         /** @enum {unknown} */
         BlankEnum: "";
+        BorrowedPlayer: {
+            readonly id: number;
+            readonly name: string;
+            /** Format: date-time */
+            readonly joined_at: string;
+        };
         /** @description A Captain's request to cancel or postpone a match (FR-18). */
         CaptainRequest: {
             readonly id: number;
@@ -2130,6 +2221,17 @@ export interface components {
          * @enum {string}
          */
         LedgerSubjectEnum: "team" | "player" | "booking_user";
+        /** @description My Team's requests for borrowed Players, and whether I can raise one. */
+        MatchPlayerRequests: {
+            /** @description I'm the Captain of my Team in this match. */
+            is_captain: boolean;
+            /** @description I'm the Captain and the match still takes requests (before kick-off). */
+            can_request: boolean;
+            /** @description The most places one request can ask for. */
+            max_places: number;
+            /** @description Newest first. */
+            requests: components["schemas"]["PlayerRequest"][];
+        };
         /** @description My Team's requests to cancel or postpone a match, and whether I can send one. */
         MatchRequests: {
             /** @description I'm the Captain of my Team in this match. */
@@ -2193,6 +2295,26 @@ export interface components {
             readonly status: components["schemas"]["FixtureStatusEnum"];
             /** @description The signed-in Player's Team in this Fixture. */
             readonly my_team_id: number | null;
+        };
+        /** @description A request I was sent: a game I can join, or one I joined (Screens.md Player 1). */
+        MyPlayerRequest: {
+            readonly id: number;
+            /** @description Answer it here. */
+            readonly notification_id: number;
+            readonly kind: components["schemas"]["PlayerRequestKindEnum"];
+            /** @description Who asks. */
+            readonly team: components["schemas"]["Named"];
+            readonly fixture: components["schemas"]["Fixture"];
+            readonly places: number;
+            readonly places_left: number;
+            readonly status: components["schemas"]["PlayerRequestStatusEnum"];
+            readonly my_answer: components["schemas"]["NotificationAnswerEnum"] | components["schemas"]["BlankEnum"];
+            /** @description I have a place in this match. */
+            readonly joined: boolean;
+            /** @description Accept or Decline is open now. */
+            readonly can_answer: boolean;
+            /** Format: date-time */
+            readonly answer_by: string;
         };
         /** @description One of the signed-in Player's memberships, now or before. */
         MyTeam: {
@@ -2375,6 +2497,75 @@ export interface components {
             /** @description The Nights to get notifications for. */
             nights?: number[];
         };
+        /** @description A Captain's request for borrowed Players, as the Team's Players see it. */
+        PlayerRequest: {
+            readonly id: number;
+            readonly fixture_id: number;
+            readonly team: components["schemas"]["Named"];
+            readonly kind: components["schemas"]["PlayerRequestKindEnum"];
+            /** @description How many Players are wanted. */
+            readonly places: number;
+            /** @description How many places are taken. */
+            readonly filled: number;
+            /**
+             * Format: date-time
+             * @description The kick-off the request was made for.
+             */
+            readonly kick_off: string;
+            readonly raised_by_name: string;
+            /** Format: date-time */
+            readonly raised_at: string;
+            /** @description closed: no longer applies (the match moved, or kick-off passed). */
+            readonly status: components["schemas"]["PlayerRequestStatusEnum"];
+            /**
+             * Format: date-time
+             * @description When it filled, was withdrawn or stopped applying.
+             */
+            readonly ended_at: string | null;
+            /** @description Why it closed. */
+            readonly note: string;
+            /** @description How many Players were asked. */
+            readonly notified: number;
+            /** @description Earliest first. */
+            readonly joined: components["schemas"]["BorrowedPlayer"][];
+        };
+        PlayerRequestCreateRequest: {
+            /**
+             * @description player: outfield Players; goalkeeper: Goalkeepers.
+             *
+             *     * `player` - Player
+             *     * `goalkeeper` - Goalkeeper
+             */
+            kind: components["schemas"]["PlayerRequestKindEnum"];
+            /**
+             * @description How many; at most the Division's minimum.
+             * @default 1
+             */
+            places: number;
+        };
+        /**
+         * @description * `player` - Player
+         *     * `goalkeeper` - Goalkeeper
+         * @enum {string}
+         */
+        PlayerRequestKindEnum: "player" | "goalkeeper";
+        /** @description Who a request would go to (Screens.md Captain 4). */
+        PlayerRequestPreview: {
+            kind: components["schemas"]["PlayerRequestKindEnum"];
+            /** @description Players of that position opted into the Night, in neither Team. */
+            recipients: number;
+            /** @description The match's Night, e.g. Tuesday. */
+            night: string;
+            max_places: number;
+        };
+        /**
+         * @description * `open` - Open
+         *     * `filled` - Filled
+         *     * `withdrawn` - Withdrawn
+         *     * `closed` - No longer applies
+         * @enum {string}
+         */
+        PlayerRequestStatusEnum: "open" | "filled" | "withdrawn" | "closed";
         /**
          * @description * `outfield` - Outfield
          *     * `goalkeeper` - Goalkeeper
@@ -2559,6 +2750,23 @@ export interface components {
             readonly replies_open: boolean;
             readonly my_answer: components["schemas"]["ConfirmationAnswerEnum"] | components["schemas"]["BlankEnum"];
             readonly players: components["schemas"]["SquadPlayer"][];
+            /** @description Borrowed through a Player or Goalkeeper Request; counted as confirmed. */
+            readonly borrowed: components["schemas"]["SquadBorrowed"][];
+        };
+        /** @description A Player from outside both Teams playing for the Team in this match (FR-37). */
+        SquadBorrowed: {
+            readonly id: number;
+            readonly name: string;
+            readonly position: components["schemas"]["PositionEnum"] | components["schemas"]["BlankEnum"];
+            /**
+             * @description The request they answered.
+             *
+             *     * `player` - Player
+             *     * `goalkeeper` - Goalkeeper
+             */
+            readonly kind: components["schemas"]["PlayerRequestKindEnum"];
+            /** Format: date-time */
+            readonly joined_at: string;
         };
         SquadPlayer: {
             readonly id: number;
@@ -4218,6 +4426,84 @@ export interface operations {
             };
         };
     };
+    fixtures_player_requests_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this fixture. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MatchPlayerRequests"];
+                };
+            };
+        };
+    };
+    fixtures_player_requests_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this fixture. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlayerRequestCreateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PlayerRequestCreateRequest"];
+                "multipart/form-data": components["schemas"]["PlayerRequestCreateRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MatchPlayerRequests"];
+                };
+            };
+        };
+    };
+    fixtures_player_requests_preview_retrieve: {
+        parameters: {
+            query: {
+                /**
+                 * @description * `player` - Player
+                 *     * `goalkeeper` - Goalkeeper
+                 */
+                kind: "player" | "goalkeeper";
+            };
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this fixture. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlayerRequestPreview"];
+                };
+            };
+        };
+    };
     fixtures_requests_retrieve: {
         parameters: {
             query?: never;
@@ -4553,6 +4839,25 @@ export interface operations {
             };
         };
     };
+    me_player_requests_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyPlayerRequest"][];
+                };
+            };
+        };
+    };
     me_teams_list: {
         parameters: {
             query?: never;
@@ -4587,6 +4892,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Night"][];
+                };
+            };
+        };
+    };
+    player_requests_withdraw_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this player request. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlayerRequest"];
                 };
             };
         };

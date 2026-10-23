@@ -39,6 +39,7 @@ from teams.models import Team, TeamMembership
 from . import lifecycle
 from .checkpoints import confirmation_cutoff
 from .models import (
+    BorrowedPlayer,
     ConfirmationAnswer,
     Fixture,
     FriendlyInvite,
@@ -163,13 +164,31 @@ def confirmation_answered(sender, notification: Notification, previous: str, **k
     answer(notification.fixture, notification.recipient, notification.answer, via=Via.NOTIFICATION)
 
 
+def borrowed(fixture: Fixture, team: Team):
+    """Players borrowed through a Player or Goalkeeper Request to play for `team` at the
+    Fixture's current kick-off (FR-37, fixtures/borrowing.py).
+
+    Someone who has since joined either Team counts as a member instead, never twice.
+    """
+    members = TeamMembership.objects.filter(
+        left_at__isnull=True, team_id__in=[fixture.home_team_id, fixture.away_team_id]
+    )
+    return (
+        BorrowedPlayer.objects.filter(fixture=fixture, team=team, kick_off=fixture.kick_off)
+        .exclude(player_id__in=members.values("player_id"))
+        .select_related("player__player_profile", "request")
+        .order_by("joined_at", "pk")
+    )
+
+
 def confirmed_count(fixture: Fixture, team: Team) -> int:
-    """Players in `team` now who confirmed for it, for the Fixture's current kick-off (FR-5).
+    """Players in `team` now who confirmed for it, for the Fixture's current kick-off, and
+    the Players borrowed for it (FR-5, FR-37).
 
     An answer given for the other Team of the match (a Player who moved between them) does
     not count: they answer again for their new Team.
     """
-    return ConfirmationAnswer.objects.filter(
+    members = ConfirmationAnswer.objects.filter(
         fixture=fixture,
         team=team,
         kick_off=fixture.kick_off,
@@ -177,6 +196,7 @@ def confirmed_count(fixture: Fixture, team: Team) -> int:
         player__team_memberships__team=team,
         player__team_memberships__left_at__isnull=True,
     ).count()
+    return members + borrowed(fixture, team).count()
 
 
 @dataclass
@@ -190,6 +210,15 @@ class SquadPlayer:
 
 
 @dataclass
+class SquadBorrowed:
+    id: int
+    name: str
+    position: str
+    kind: str
+    joined_at: datetime
+
+
+@dataclass
 class Squad:
     fixture: Fixture
     team: Team
@@ -197,13 +226,15 @@ class Squad:
     answer_by: datetime
     replies_open: bool
     players: list[SquadPlayer] = field(default_factory=list)
+    borrowed: list[SquadBorrowed] = field(default_factory=list)
 
     def count(self, value: str) -> int:
         return sum(1 for p in self.players if p.answer == value)
 
     @property
     def confirmed(self) -> int:
-        return self.count(Value.CONFIRM)
+        """Members who confirmed, and the borrowed Players (FR-37)."""
+        return self.count(Value.CONFIRM) + len(self.borrowed)
 
     @property
     def declined(self) -> int:
@@ -252,6 +283,18 @@ def squad(fixture: Fixture, team: Team, now: datetime | None = None) -> Squad:
             )
         )
     players.sort(key=lambda p: not p.is_captain)  # The Captain first, then by name.
+    lent = []
+    for place in borrowed(fixture, team):
+        profile = getattr(place.player, "player_profile", None)
+        lent.append(
+            SquadBorrowed(
+                id=place.player_id,
+                name=place.player.name,
+                position=profile.position if profile else "",
+                kind=place.request.kind,
+                joined_at=place.joined_at,
+            )
+        )
     return Squad(
         fixture=fixture,
         team=team,
@@ -259,4 +302,5 @@ def squad(fixture: Fixture, team: Team, now: datetime | None = None) -> Squad:
         answer_by=answer_by(fixture, team),
         replies_open=replies_open(fixture, now, team),
         players=players,
+        borrowed=lent,
     )

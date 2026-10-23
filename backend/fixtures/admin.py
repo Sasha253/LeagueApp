@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from .models import (
+    BorrowedPlayer,
     CaptainRequest,
     ConfirmationAnswer,
     Fixture,
@@ -8,6 +9,7 @@ from .models import (
     FixtureFallback,
     FixtureReschedule,
     FixtureTransition,
+    PlayerRequest,
     ReplacementOffer,
     TeamReadiness,
 )
@@ -156,6 +158,41 @@ class CaptainRequestInline(admin.TabularInline):
         return False
 
 
+class PlayerRequestInline(admin.TabularInline):
+    """Captains' Player and Goalkeeper Requests: raised and filled in the app (FR-35 to FR-37)."""
+
+    model = PlayerRequest
+    extra = 0
+    can_delete = False
+    readonly_fields = [
+        "team",
+        "kind",
+        "places",
+        "kick_off",
+        "raised_by",
+        "raised_at",
+        "status",
+        "ended_at",
+        "note",
+        "notified",
+    ]
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+class BorrowedPlayerInline(admin.TabularInline):
+    """Players who joined through a Player or Goalkeeper Request (FR-37)."""
+
+    model = BorrowedPlayer
+    extra = 0
+    can_delete = False
+    readonly_fields = ["request", "team", "kick_off", "player", "joined_at"]
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
 @admin.register(Fixture)
 class FixtureAdmin(admin.ModelAdmin):
     """Read-only: Fixtures change through the app, so every status move is logged."""
@@ -171,6 +208,8 @@ class FixtureAdmin(admin.ModelAdmin):
         FixtureFallbackInline,
         FixtureRescheduleInline,
         CaptainRequestInline,
+        PlayerRequestInline,
+        BorrowedPlayerInline,
     ]
 
     def has_add_permission(self, request):

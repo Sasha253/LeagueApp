@@ -8,9 +8,15 @@ from . import views
 router = SimpleRouter()
 router.register("fixtures", views.FixtureViewSet, basename="fixtures")
 router.register("captain-requests", views.CaptainRequestViewSet, basename="captain-requests")
+router.register("player-requests", views.PlayerRequestViewSet, basename="player-requests")
 
 urlpatterns = [
     path("me/fixtures/", views.MyFixtureListView.as_view(), name="my-fixtures"),
+    path(
+        "me/player-requests/",
+        views.MyPlayerRequestListView.as_view(),
+        name="my-player-requests",
+    ),
     *router.urls,
 ]
 

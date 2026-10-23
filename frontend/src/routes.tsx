@@ -18,6 +18,7 @@ import { FixturePage } from "./pages/fixtures/FixturePage";
 import { FixtureRequestPage } from "./pages/fixtures/FixtureRequestPage";
 import { ImportFixturesPage } from "./pages/fixtures/ImportFixturesPage";
 import { MyFixturesPage } from "./pages/fixtures/MyFixturesPage";
+import { RequestPlayerPage } from "./pages/fixtures/RequestPlayerPage";
 import { TonightPage } from "./pages/fixtures/TonightPage";
 import { ClubTeamPage } from "./pages/teams/ClubTeamPage";
 import { ClubTeamsPage } from "./pages/teams/ClubTeamsPage";
@@ -64,6 +65,7 @@ const screens: RouteObject[] = [
       { path: "/fixtures", element: <MyFixturesPage /> },
       { path: "/fixtures/:fixtureId", element: <FixturePage /> },
       { path: "/fixtures/:fixtureId/request", element: <FixtureRequestPage /> },
+      { path: "/fixtures/:fixtureId/players", element: <RequestPlayerPage /> },
       { path: "/teams", element: <MyTeamsPage /> },
       { path: "/teams/find", element: <FindTeamPage /> },
       { path: "/teams/new", element: <RequestTeamPage /> },

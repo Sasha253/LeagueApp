@@ -110,6 +110,7 @@ export function squad(overrides: object = {}) {
       { id: 1, name: "Sipho Dlamini", position: "outfield", is_captain: false, is_me: true, answer: "", answered_at: null },
       { id: 5, name: "Zaid Adams", position: "outfield", is_captain: false, is_me: false, answer: "", answered_at: null },
     ],
+    borrowed: [] as { id: number; name: string; position: string; kind: "player" | "goalkeeper"; joined_at: string }[],
     ...overrides,
   };
 }
@@ -147,6 +148,47 @@ export function reschedulePreview(overrides: object = {}) {
     answer_by: "2026-11-03T11:40:00Z",
     players: 8,
     officials: 2,
+    ...overrides,
+  };
+}
+
+/** A Captain's Player or Goalkeeper Request for Fixture 30 (FR-35). */
+export function playerRequest(overrides: object = {}) {
+  return {
+    id: 60,
+    fixture_id: 30,
+    team: { id: 8, name: "Old Boys" },
+    kind: "player" as const,
+    places: 2,
+    filled: 0,
+    kick_off: "2026-10-27T17:40:00Z",
+    raised_by_name: "Pieter Botha",
+    // Mon 26 Oct 10:00 in South Africa.
+    raised_at: "2026-10-26T08:00:00Z",
+    status: "open" as const,
+    ended_at: null,
+    note: "",
+    notified: 3,
+    joined: [] as { id: number; name: string; joined_at: string }[],
+    ...overrides,
+  };
+}
+
+/** A request I was sent, as /api/v1/me/player-requests/ sends it. */
+export function gameToJoin(overrides: object = {}) {
+  return {
+    id: 60,
+    notification_id: 70,
+    kind: "goalkeeper" as const,
+    team: { id: 7, name: "Red Lions" },
+    fixture: FIXTURE,
+    places: 1,
+    places_left: 1,
+    status: "open" as const,
+    my_answer: "" as const,
+    joined: false,
+    can_answer: true,
+    answer_by: "2026-10-27T17:40:00Z",
     ...overrides,
   };
 }

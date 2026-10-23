@@ -527,3 +527,45 @@ docs/DECISIONS.md under "2026-10-23: Teams (chunk 5)".
   19:40). Why: the most conservative option that needs no model change and never revives
   stale replies. If the answer differs (allow it as a fresh start): key those records by a
   per-reschedule "round" instead of the kick-off.
+
+## Chunk 17: Player and Goalkeeper Requests
+
+- **Does a borrowed Player pay for a league match? (docs/DECISIONS.md open question 1).**
+  Question: FR-24 sets a fee only for friendlies; the PRD names none for a borrowed Player
+  in a league match. Choice: nothing is charged to a borrowed Player in this chunk; no
+  ledger entry is made. Why: charging money the PRD doesn't name is the riskier guess, and
+  payments come in chunks 18 to 22. If the answer differs: add a club-configurable fee
+  (ClubSettings or Division) and a ledger charge in `borrowing.join`, or fold it into the
+  chunk 22 friendly fees; the `BorrowedPlayer` record already says who joined which match.
+- **Is the Captain told when a request fills? (open question 2).** Choice: yes, one Update
+  to the requesting Team's Captain (if opted into the Night) once every place is taken,
+  naming who joined. Not on each single join; the Match screen shows those as they come.
+  Why: an informational Update is harmless and the Captain needs to know they are no
+  longer short. If the answer differs: drop `_tell_captain_filled`, or call it per join.
+- **How many places one request asks for.** Question: FR-37 speaks of "the slot";
+  Screens.md Captain 4 says "pick Player or Goalkeeper and how many". Choice: a request has
+  1 to N places, N being the Division's minimum players; the first N to accept join. One
+  open request per Team, match and kind. Why: matches the screen and keeps it to one
+  Notification per Player. If the answer differs (always one): fix `places` at 1.
+- **When a request can be raised and answered.** Choice: while the match is scheduled,
+  confirming or ready, before kick-off; answers are taken until kick-off. Why: "a Captain
+  who expects to be short" can know early (FR-38), and a borrowed Player still helps after
+  T-6h. A request stops applying when the match moves to a new kick-off, its Team leaves
+  the match, or it is out, a friendly or cancelled. If the answer differs: change
+  `borrowing.can_raise` and the Notification's `answer_by`.
+- **Does a borrowed Player count towards the Division minimum at T-6h (FR-5)?** Choice:
+  yes, as confirmed for the requesting Team at that kick-off; they also show in the squad
+  (FR-38). Why: that is the point of borrowing ("keeps turn-up rates and the league
+  schedule stable"). If the answer differs: drop the borrowed count in
+  `confirmations.confirmed_count`.
+- **Can a borrowed Player leave after accepting?** Choice: no, their answer is final once
+  they join (their Notification closes). The Captain can withdraw the request; who joined
+  keeps their place. Why: leaving would reopen places and re-notify, which the PRD doesn't
+  describe; a no-show is the same risk as a Team Player's. If the answer differs: add a
+  leave action that removes the place before the T-6h cutoff and reopens the request.
+- **No one to ask.** Choice: a request with no one to send it to is refused (409) and the
+  screen says so before sending. Why: a request no one can see would mislead the Captain.
+- **Other checks on who can join.** A Player joins only one Team per match (database
+  constraint), must still be outside both Teams, opted into the Night and of the right
+  position when they accept. Not checked: whether they play another match that night.
+  If the answer differs: add that check to `borrowing.join` and `borrowing.recipients`.

@@ -2,6 +2,27 @@
 
 Newest first. Each entry: the date, what was decided, and why.
 
+## 2026-10-23: Player and Goalkeeper Requests (chunk 17) (provisional, unattended run)
+
+Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 17: Player and
+Goalkeeper Requests". Answers open questions 1 and 2 below, provisionally.
+
+- **Requests (provisional, unattended run):** a Captain of a Team in the match raises a
+  Player Request (outfield) or Goalkeeper Request for 1 to N places (N: the Division's
+  minimum), while the match is scheduled, confirming or ready and before kick-off. One open
+  request per Team, match and kind. Refused when no one can be asked.
+- **Who is asked (provisional, unattended run):** Players opted into the match's Night, in
+  neither Team, of that position (both counts as either), less anyone already borrowed for
+  the match (FR-36, the visibility rule). Answerable until kick-off.
+- **Joining (provisional, unattended run):** the first N to accept join (FR-37); then the
+  request is filled and every other invite closes. One borrowed place per Player and match.
+  A joined Player can't leave; the Captain can withdraw an open request (who joined stays).
+  A borrowed Player counts as confirmed for the Team at T-6h (FR-5) and in the squad.
+- **Open question 1 (provisional, unattended run):** no fee for a borrowed Player in a
+  league match; nothing is charged.
+- **Open question 2 (provisional, unattended run):** the Captain gets one Update when the
+  request fills.
+
 ## 2026-10-23: Reschedules and Captain requests (chunk 16) (provisional, unattended run)
 
 Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 16: Reschedules and
@@ -480,9 +501,9 @@ Its files are in `design/src/ds/`, copied unchanged from `League App Design Syst
 Raised while drawing the key moments; the PRD does not answer them.
 
 1. Does a borrowed Player pay for a league match, how much, and who pays? FR-24 sets a fee
-   only for friendlies.
+   only for friendlies. (Provisionally answered in chunk 17: no fee yet.)
 2. Is the Captain notified when a Player or Goalkeeper Request fills? The PRD names no
-   notification for it.
+   notification for it. (Provisionally answered in chunk 17: yes, one Update.)
 
 Raised by the multi-club decision (2026-10-23). Questions 3 and 4 were answered in chunk 2
 (see the entry above).

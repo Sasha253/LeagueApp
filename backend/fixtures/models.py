@@ -583,3 +583,125 @@ class FixtureReschedule(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ValueError("A FixtureReschedule is never deleted.")
+
+
+class PlayerRequest(models.Model):
+    """A Captain short of Players asks other Players to join their Team for one match
+    (FR-35 to FR-37): a Player Request (outfield) or a Goalkeeper Request.
+
+    It goes to the Players opted into the match's Night who are in neither Team and play
+    that position (notifications/targeting.py). The first `places` Players to accept join
+    (BorrowedPlayer); then it is filled and stops taking answers. One open request per
+    Fixture, Team and kind. Only fixtures/borrowing.py writes these; never deleted.
+    """
+
+    class Kind(models.TextChoices):
+        PLAYER = "player", "Player"
+        GOALKEEPER = "goalkeeper", "Goalkeeper"
+
+    class Status(models.TextChoices):
+        OPEN = "open", "Open"
+        FILLED = "filled", "Filled"
+        WITHDRAWN = "withdrawn", "Withdrawn"
+        CLOSED = "closed", "No longer applies"
+
+    fixture = models.ForeignKey(Fixture, on_delete=models.PROTECT, related_name="player_requests")
+    team = models.ForeignKey(Team, on_delete=models.PROTECT, related_name="+")
+    kind = models.CharField(max_length=10, choices=Kind.choices)
+    places = models.PositiveSmallIntegerField(help_text="How many Players are wanted.")
+    kick_off = models.DateTimeField(help_text="The kick-off the request was made for.")
+    raised_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+    raised_at = models.DateTimeField()
+    status = models.CharField(max_length=10, choices=Status.choices)
+    ended_at = models.DateTimeField(
+        null=True, blank=True, help_text="When it filled, was withdrawn or stopped applying."
+    )
+    note = models.CharField(max_length=300, blank=True, help_text="Why it closed.")
+    notified = models.PositiveIntegerField(help_text="How many Players were asked.")
+
+    class Meta:
+        ordering = ["raised_at", "pk"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["fixture", "team", "kind"],
+                condition=models.Q(status="open"),
+                name="one_open_player_request_per_team_and_kind",
+            ),
+            models.CheckConstraint(condition=models.Q(places__gte=1), name="player_request_places"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.team}: {self.places} {self.get_kind_display()} for {self.fixture}"
+
+    def get_club_id(self) -> int:
+        return self.fixture.club_id
+
+    def delete(self, *args, **kwargs):
+        raise ValueError("A PlayerRequest is never deleted.")
+
+
+PLAYER_REQUEST_KINDS = PlayerRequest.Kind
+PLAYER_REQUEST_STATUSES = PlayerRequest.Status
+
+
+class PlayerRequestInvite(models.Model):
+    """A Player a PlayerRequest was sent to, and their Notification (Accept / Decline)."""
+
+    request = models.ForeignKey(PlayerRequest, on_delete=models.PROTECT, related_name="invites")
+    player = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="player_request_invites"
+    )
+    notification = models.OneToOneField(
+        "notifications.Notification", on_delete=models.CASCADE, related_name="player_request_invite"
+    )
+
+    class Meta:
+        ordering = ["pk"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["request", "player"], name="one_invite_per_request_player"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.player} for {self.request}"
+
+    def delete(self, *args, **kwargs):
+        raise ValueError("A PlayerRequestInvite is never deleted.")
+
+
+class BorrowedPlayer(models.Model):
+    """A Player from outside both Teams who accepted a PlayerRequest and plays for its Team
+    in that match (FR-37). They count as confirmed for the Team at that kick-off (FR-5,
+    FR-38). One place per Player, match and kick-off. Never changed or deleted.
+    """
+
+    request = models.ForeignKey(PlayerRequest, on_delete=models.PROTECT, related_name="joined")
+    fixture = models.ForeignKey(Fixture, on_delete=models.PROTECT, related_name="borrowed_players")
+    team = models.ForeignKey(Team, on_delete=models.PROTECT, related_name="+")
+    kick_off = models.DateTimeField(help_text="The kick-off they joined for.")
+    player = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="borrowed_places"
+    )
+    joined_at = models.DateTimeField()
+
+    class Meta:
+        ordering = ["joined_at", "pk"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["fixture", "kick_off", "player"], name="one_borrowed_place_per_match"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.player} for {self.team} in {self.fixture}"
+
+    def save(self, *args, **kwargs):
+        if self.pk is not None:
+            raise ValueError("A BorrowedPlayer is never changed.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValueError("A BorrowedPlayer is never deleted.")

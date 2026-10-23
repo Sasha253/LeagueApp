@@ -1,10 +1,16 @@
 // My fixtures (design/src/ds/Screens.md, Player 1 "Matches"): the upcoming and past Fixtures
-// of the Teams you're in now, for Players and Captains. Replies, squads and payments come
-// with later chunks.
+// of the Teams you're in now, for Players and Captains, and "Games you can join": the
+// Player and Goalkeeper Requests you were sent (FR-36, FR-37). Replies, squads and
+// payments come with later chunks.
 
+import { useState } from "react";
 import { Link } from "react-router";
-import { api } from "../../api/client";
-import { LoadState, useLoad } from "../club/shared";
+import { api, type Schemas } from "../../api/client";
+import { Banner } from "../../components/Banner";
+import { StatusChip } from "../../components/StatusChip";
+import { LoadState, send, useLoad } from "../club/shared";
+import { deadline } from "../inbox/shared";
+import { wanted } from "./playerRequests";
 import { ScreenHeader } from "../teams/shared";
 import { FixtureStatusChip, kickOffDate, MatchCard, matchName } from "./shared";
 import { formatTime } from "../../format";
@@ -44,6 +50,7 @@ export function MyFixturesPage() {
           </section>
         )}
       </LoadState>
+      <GamesToJoin />
       <LoadState result={past} retry={reloadPast} what="your past fixtures" forbidden={NOT_A_PLAYER}>
         {(fixtures) =>
           fixtures.length > 0 && (
@@ -71,5 +78,79 @@ export function MyFixturesPage() {
         }
       </LoadState>
     </main>
+  );
+}
+
+type Game = Schemas["MyPlayerRequest"];
+
+/** Player and Goalkeeper Requests you can still answer, and the ones you joined. */
+function GamesToJoin() {
+  const [loaded, reload] = useLoad(() => api.GET("/api/v1/me/player-requests/"), "my-player-requests");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function answer(game: Game, reply: "accept" | "decline") {
+    setBusy(true);
+    const failed = await send(() =>
+      api.POST("/api/v1/inbox/{notification_id}/answer/", {
+        params: { path: { notification_id: game.notification_id } },
+        body: { answer: reply },
+      }),
+    );
+    setBusy(false);
+    setError(failed?.general ?? null);
+    reload();
+  }
+
+  const games = loaded.state === "ok" ? loaded.data : [];
+  if (games.length === 0 && !error) return null;
+  return (
+    <section className="la-stack-2" aria-labelledby="games-to-join">
+      <h2 id="games-to-join" className="la-overline">
+        Games you can join
+      </h2>
+      {error && <Banner status="cancelled" title={error} />}
+      {games.map((game) => (
+        <MatchCard key={game.id} fixture={game.fixture}>
+          <div className="la-stack-2">
+            <span className="body-strong">
+              {game.team.name} needs {wanted(game.kind, game.places)}
+            </span>
+            {game.joined ? (
+              <StatusChip status="confirmed">{`You're playing for ${game.team.name}`}</StatusChip>
+            ) : (
+              <span className="caption la-muted">
+                {game.places_left === 1 ? "1 place left" : `${game.places_left} places left`} · first to accept
+                joins · until {deadline(game.answer_by)}
+              </span>
+            )}
+            {game.can_answer && (
+              <div className="la-actions">
+                <button
+                  type="button"
+                  className="la-btn la-btn--primary"
+                  disabled={busy}
+                  onClick={() => void answer(game, "accept")}
+                >
+                  Join match
+                </button>
+                {game.my_answer === "decline" ? (
+                  <StatusChip status="cancelled">Declined</StatusChip>
+                ) : (
+                  <button
+                    type="button"
+                    className="la-btn la-btn--secondary"
+                    disabled={busy}
+                    onClick={() => void answer(game, "decline")}
+                  >
+                    Not tonight
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </MatchCard>
+      ))}
+    </section>
   );
 }

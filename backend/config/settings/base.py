@@ -148,6 +148,8 @@ SPECTACULAR_SETTINGS = {
         "FallbackOutcomeEnum": "fixtures.models.FALLBACK_OUTCOMES",
         "CaptainRequestKindEnum": "fixtures.models.CAPTAIN_REQUEST_KINDS",
         "CaptainRequestStatusEnum": "fixtures.models.CAPTAIN_REQUEST_STATUSES",
+        "PlayerRequestKindEnum": "fixtures.models.PLAYER_REQUEST_KINDS",
+        "PlayerRequestStatusEnum": "fixtures.models.PLAYER_REQUEST_STATUSES",
     },
 }
 

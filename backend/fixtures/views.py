@@ -24,12 +24,15 @@ from core.exceptions import Conflict
 from core.tables import TableError, read_table
 from teams.models import Team, TeamMembership
 
-from . import confirmations, imports, lifecycle, readiness, reschedules
+from . import borrowing, confirmations, imports, lifecycle, readiness, reschedules
 from .models import (
+    BorrowedPlayer,
     CaptainRequest,
     Fixture,
     FixtureReschedule,
     FixtureTransition,
+    PlayerRequest,
+    PlayerRequestInvite,
     ReplacementOffer,
     TeamReadiness,
 )
@@ -45,8 +48,14 @@ from .serializers import (
     FixtureImportResultSerializer,
     FixtureImportUploadSerializer,
     FriendlyEligibleSerializer,
+    MatchPlayerRequestsSerializer,
     MatchRequestsSerializer,
     MyFixtureSerializer,
+    MyPlayerRequestSerializer,
+    PlayerRequestCreateSerializer,
+    PlayerRequestPreviewQuerySerializer,
+    PlayerRequestPreviewSerializer,
+    PlayerRequestSerializer,
     ReadinessDecisionSerializer,
     ReschedulePreviewSerializer,
     RescheduleSerializer,
@@ -225,6 +234,145 @@ class FixtureViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
             answer.status_code = status.HTTP_201_CREATED
             return answer
         return self.my_requests(fixture)
+
+    # Player and Goalkeeper Requests (FR-35 to FR-37)
+
+    def my_player_requests(self, fixture: Fixture) -> Response:
+        mine = [t for t in (fixture.home_team, fixture.away_team) if t.pk in self.team_ids]
+        is_captain = borrowing.captain_team(fixture, self.request.user) is not None
+        requests = list(
+            PlayerRequest.objects.filter(fixture=fixture, team__in=mine)
+            .select_related("team", "raised_by", "fixture")
+            .prefetch_related(player_requests_joined())
+            .order_by("-raised_at", "-pk")
+        )
+        body = {
+            "is_captain": is_captain,
+            "can_request": is_captain and borrowing.can_raise(fixture),
+            "max_places": borrowing.max_places(fixture),
+            "requests": requests,
+        }
+        return Response(MatchPlayerRequestsSerializer(body).data)
+
+    @extend_schema(
+        methods=["GET"],
+        summary="My Team's Player and Goalkeeper Requests for a Fixture",
+        description="Every Player in the Team sees them and who joined (FR-38); only its "
+        "Captain can raise one.",
+        responses=MatchPlayerRequestsSerializer,
+    )
+    @extend_schema(
+        methods=["POST"],
+        summary="Request borrowed Players or a Goalkeeper for a Fixture (Captain)",
+        description="FR-35, FR-36: sent to the Players of that position opted into the Night "
+        "who are in neither Team. Only the Captain of a Team in the match (403 otherwise), "
+        "while the match is scheduled, confirming or ready and before kick-off, with no "
+        "open request of that kind from the Team and someone to ask (409 otherwise). The "
+        "first to accept join (FR-37). Answers with the Team's requests.",
+        request=PlayerRequestCreateSerializer,
+        responses={201: MatchPlayerRequestsSerializer},
+    )
+    @action(detail=True, methods=["get", "post"], url_path="player-requests")
+    def player_requests(self, request, *args, **kwargs):
+        fixture = self.get_object()
+        if request.method == "POST":
+            body = PlayerRequestCreateSerializer(data=request.data)
+            body.is_valid(raise_exception=True)
+            borrowing.raise_request(
+                fixture, request.user, body.validated_data["kind"], body.validated_data["places"]
+            )
+            answer = self.my_player_requests(self.get_object())
+            answer.status_code = status.HTTP_201_CREATED
+            return answer
+        return self.my_player_requests(fixture)
+
+    @extend_schema(
+        summary="Who a Player or Goalkeeper Request would go to (Captain)",
+        parameters=[PlayerRequestPreviewQuerySerializer],
+        responses=PlayerRequestPreviewSerializer,
+    )
+    @action(detail=True, methods=["get"], url_path="player-requests/preview")
+    def player_requests_preview(self, request, *args, **kwargs):
+        fixture = self.get_object()
+        query = PlayerRequestPreviewQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        planned = borrowing.preview(fixture, request.user, query.validated_data["kind"])
+        return Response(PlayerRequestPreviewSerializer(planned).data)
+
+
+def player_requests_joined() -> Prefetch:
+    return Prefetch("joined", queryset=BorrowedPlayer.objects.select_related("player"))
+
+
+class PlayerRequestViewSet(viewsets.GenericViewSet):
+    """A Captain's own Player and Goalkeeper Requests. Anyone else gets 404."""
+
+    serializer_class = PlayerRequestSerializer
+    permission_classes = [IsPlayer]
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return PlayerRequest.objects.none()
+        return (
+            PlayerRequest.objects.filter(team__captain=self.request.user)
+            .select_related("team", "raised_by", "fixture")
+            .prefetch_related(player_requests_joined())
+        )
+
+    @extend_schema(
+        summary="Withdraw my Player or Goalkeeper Request",
+        description="Only while it is open: 409 once filled, withdrawn or no longer applying. "
+        "Whoever already joined keeps their place.",
+        request=None,
+        responses=PlayerRequestSerializer,
+    )
+    @action(detail=True, methods=["post"])
+    def withdraw(self, request, *args, **kwargs):
+        withdrawn = borrowing.withdraw(self.get_object(), request.user)
+        return Response(PlayerRequestSerializer(self.get_queryset().get(pk=withdrawn.pk)).data)
+
+
+class MyPlayerRequestListView(generics.ListAPIView):
+    """Player and Goalkeeper Requests I was sent for matches still to come (Screens.md
+    Player 1 "Games you can join"): ones I can still answer, and ones I joined. Answer with
+    POST /api/v1/notifications/{notification_id}/answer/."""
+
+    serializer_class = MyPlayerRequestSerializer
+    permission_classes = [IsPlayer]
+    pagination_class = None
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return PlayerRequestInvite.objects.none()
+        now = timezone.now()
+        invites = (
+            PlayerRequestInvite.objects.filter(
+                player=self.request.user, request__fixture__kick_off__gt=now
+            )
+            .select_related(
+                "notification",
+                "request__team",
+                "request__fixture__club",
+                "request__fixture__season",
+                "request__fixture__division__night",
+                "request__fixture__pitch",
+                "request__fixture__home_team",
+                "request__fixture__away_team",
+            )
+            .prefetch_related(
+                Prefetch(
+                    "request__joined", queryset=BorrowedPlayer.objects.only("request", "player")
+                )
+            )
+            .order_by("request__fixture__kick_off", "pk")
+        )
+        joined = Q(request__joined__player=self.request.user)
+        still_open = Q(
+            request__status=PlayerRequest.Status.OPEN,
+            notification__closed_at__isnull=True,
+            notification__answer_by__gt=now,
+        )
+        return invites.filter(joined | still_open).distinct()
 
 
 class CaptainRequestViewSet(viewsets.GenericViewSet):

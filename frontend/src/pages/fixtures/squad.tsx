@@ -71,6 +71,11 @@ export function SquadReplies({ squad }: { squad: Squad }) {
       {GROUPS.map((group) => {
         const players = squad.players.filter((p) => p.answer === group.answer);
         const names = players.map((p) => `${p.name}${p.is_me ? " (you)" : ""}${p.is_captain ? " (captain)" : ""}`);
+        // Borrowed through a Player or Goalkeeper Request (FR-37): counted as confirmed.
+        if (group.answer === "confirm") {
+          names.push(...squad.borrowed.map((p) => `${p.name} (${p.kind === "goalkeeper" ? "borrowed goalkeeper" : "borrowed"})`));
+        }
+        const count = names.length;
         return (
           <li key={group.title} className="la-item">
             <span className={`la-disc la-disc--${group.tone}`} aria-hidden="true">
@@ -78,7 +83,7 @@ export function SquadReplies({ squad }: { squad: Squad }) {
             </span>
             <span className="la-item__body">
               <span className={group.answer === "confirm" ? "body-strong" : "body"}>
-                {group.title} · {players.length}
+                {group.title} · {count}
               </span>
               <span className="caption la-muted">{names.length > 0 ? names.join(", ") : "No one"}</span>
             </span>

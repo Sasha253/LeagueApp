@@ -7,9 +7,10 @@ from clubs.models import Field, Night, Season
 from clubs.serializers import ClubSummarySerializer
 from ledger.serializers import MONEY
 from ledger.services import fixture_credit_returned
+from notifications.models import Answer
 from teams.serializers import NamedSerializer
 
-from . import fallbacks
+from . import borrowing, fallbacks
 from .imports import Action
 from .models import (
     CaptainRequest,
@@ -18,6 +19,8 @@ from .models import (
     FixtureFallback,
     FixtureReschedule,
     FixtureTransition,
+    PlayerRequest,
+    PlayerRequestInvite,
     ReplacementOffer,
     TeamReadiness,
 )
@@ -469,6 +472,20 @@ class SquadPlayerSerializer(serializers.Serializer):
         return player.id == self.context["me"].pk
 
 
+class SquadBorrowedSerializer(serializers.Serializer):
+    """A Player from outside both Teams playing for the Team in this match (FR-37)."""
+
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(read_only=True)
+    position = serializers.ChoiceField(
+        choices=PlayerProfile.Position.choices, allow_blank=True, read_only=True
+    )
+    kind = serializers.ChoiceField(
+        choices=PlayerRequest.Kind.choices, read_only=True, help_text="The request they answered."
+    )
+    joined_at = serializers.DateTimeField(read_only=True)
+
+
 class SquadSerializer(serializers.Serializer):
     """The signed-in Player's Team for one Fixture: who is playing (FR-38)."""
 
@@ -490,6 +507,11 @@ class SquadSerializer(serializers.Serializer):
     )
     my_answer = serializers.SerializerMethodField()
     players = SquadPlayerSerializer(many=True, read_only=True)
+    borrowed = SquadBorrowedSerializer(
+        many=True,
+        read_only=True,
+        help_text="Borrowed through a Player or Goalkeeper Request; counted as confirmed.",
+    )
 
     @extend_schema_field(
         serializers.ChoiceField(choices=ConfirmationAnswer.Value.choices, allow_blank=True)
@@ -564,3 +586,134 @@ class TonightFixtureSerializer(serializers.Serializer):
 class ReadinessDecisionSerializer(serializers.Serializer):
     decision = serializers.ChoiceField(choices=Decision.choices)
     note = serializers.CharField(max_length=300, allow_blank=True, required=False)
+
+
+# Player and Goalkeeper Requests (FR-35 to FR-37)
+
+
+class BorrowedPlayerSerializer(serializers.Serializer):
+    id = serializers.IntegerField(source="player.pk", read_only=True)
+    name = serializers.CharField(source="player.name", read_only=True)
+    joined_at = serializers.DateTimeField(read_only=True)
+
+
+def _now(context) -> object:
+    return context.setdefault("now", timezone.now())
+
+
+class PlayerRequestSerializer(serializers.ModelSerializer):
+    """A Captain's request for borrowed Players, as the Team's Players see it."""
+
+    team = NamedSerializer(read_only=True)
+    raised_by_name = serializers.CharField(source="raised_by.name", read_only=True)
+    status = serializers.SerializerMethodField(
+        help_text="closed: no longer applies (the match moved, or kick-off passed)."
+    )
+    filled = serializers.SerializerMethodField(help_text="How many places are taken.")
+    joined = BorrowedPlayerSerializer(many=True, read_only=True, help_text="Earliest first.")
+
+    class Meta:
+        model = PlayerRequest
+        fields = [
+            "id",
+            "fixture_id",
+            "team",
+            "kind",
+            "places",
+            "filled",
+            "kick_off",
+            "raised_by_name",
+            "raised_at",
+            "status",
+            "ended_at",
+            "note",
+            "notified",
+            "joined",
+        ]
+        read_only_fields = fields
+
+    @extend_schema_field(serializers.ChoiceField(choices=PlayerRequest.Status.choices))
+    def get_status(self, player_request: PlayerRequest) -> str:
+        return borrowing.status_of(player_request, player_request.fixture, _now(self.context))
+
+    def get_filled(self, player_request: PlayerRequest) -> int:
+        return len(player_request.joined.all())
+
+
+class PlayerRequestCreateSerializer(serializers.Serializer):
+    kind = serializers.ChoiceField(
+        choices=PlayerRequest.Kind.choices,
+        help_text="player: outfield Players; goalkeeper: Goalkeepers.",
+    )
+    places = serializers.IntegerField(
+        min_value=1, default=1, help_text="How many; at most the Division's minimum."
+    )
+
+
+class MatchPlayerRequestsSerializer(serializers.Serializer):
+    """My Team's requests for borrowed Players, and whether I can raise one."""
+
+    is_captain = serializers.BooleanField(help_text="I'm the Captain of my Team in this match.")
+    can_request = serializers.BooleanField(
+        help_text="I'm the Captain and the match still takes requests (before kick-off)."
+    )
+    max_places = serializers.IntegerField(help_text="The most places one request can ask for.")
+    requests = PlayerRequestSerializer(many=True, help_text="Newest first.")
+
+
+class PlayerRequestPreviewQuerySerializer(serializers.Serializer):
+    kind = serializers.ChoiceField(choices=PlayerRequest.Kind.choices)
+
+
+class PlayerRequestPreviewSerializer(serializers.Serializer):
+    """Who a request would go to (Screens.md Captain 4)."""
+
+    kind = serializers.ChoiceField(choices=PlayerRequest.Kind.choices)
+    recipients = serializers.IntegerField(
+        help_text="Players of that position opted into the Night, in neither Team."
+    )
+    night = serializers.CharField(help_text="The match's Night, e.g. Tuesday.")
+    max_places = serializers.IntegerField()
+
+
+class MyPlayerRequestSerializer(serializers.Serializer):
+    """A request I was sent: a game I can join, or one I joined (Screens.md Player 1)."""
+
+    id = serializers.IntegerField(source="request.pk", read_only=True)
+    notification_id = serializers.IntegerField(read_only=True, help_text="Answer it here.")
+    kind = serializers.ChoiceField(
+        source="request.kind", choices=PlayerRequest.Kind.choices, read_only=True
+    )
+    team = NamedSerializer(source="request.team", read_only=True, help_text="Who asks.")
+    fixture = FixtureSerializer(source="request.fixture", read_only=True)
+    places = serializers.IntegerField(source="request.places", read_only=True)
+    places_left = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
+    my_answer = serializers.ChoiceField(
+        source="notification.answer",
+        choices=Answer.choices,
+        allow_blank=True,
+        read_only=True,
+    )
+    joined = serializers.SerializerMethodField(help_text="I have a place in this match.")
+    can_answer = serializers.SerializerMethodField(help_text="Accept or Decline is open now.")
+    answer_by = serializers.DateTimeField(source="notification.answer_by", read_only=True)
+
+    def get_places_left(self, invite: PlayerRequestInvite) -> int:
+        return max(0, invite.request.places - len(invite.request.joined.all()))
+
+    @extend_schema_field(serializers.ChoiceField(choices=PlayerRequest.Status.choices))
+    def get_status(self, invite: PlayerRequestInvite) -> str:
+        request = invite.request
+        return borrowing.status_of(request, request.fixture, _now(self.context))
+
+    def get_joined(self, invite: PlayerRequestInvite) -> bool:
+        return any(p.player_id == invite.player_id for p in invite.request.joined.all())
+
+    def get_can_answer(self, invite: PlayerRequestInvite) -> bool:
+        now = _now(self.context)
+        return (
+            invite.notification.is_answerable(now)
+            and self.get_status(invite) == PlayerRequest.Status.OPEN
+            and not self.get_joined(invite)
+        )

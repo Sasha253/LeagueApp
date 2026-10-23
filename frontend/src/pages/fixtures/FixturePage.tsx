@@ -2,7 +2,8 @@
 // Teams: kick-off, the teams, pitch and status; then your Team's SquadProgress, your reply
 // (changeable until T-6h, FR-3) and the squad's replies (FR-38). Pay my share comes with
 // the payment chunks. The Team's requests to cancel or postpone (FR-18): its Captain can
-// send one, and withdraw it while it waits for the Admin.
+// send one, and withdraw it while it waits for the Admin. The Team's Player and Goalkeeper
+// Requests (FR-35 to FR-37): its Captain raises and withdraws them.
 
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
@@ -14,6 +15,7 @@ import { FIXTURE_STATUS, MatchCard } from "./shared";
 import { NOT_A_PLAYER } from "./MyFixturesPage";
 import { SquadProgress, SquadReplies, YourReply, type Squad } from "./squad";
 import { RequestStatus, requestDetail, requestTitle } from "./requests";
+import { MatchPlayerRequests } from "./playerRequests";
 
 export function FixturePage() {
   const id = Number(useParams().fixtureId);
@@ -68,6 +70,7 @@ export function FixturePage() {
                 <p className="caption la-muted">If this match can't go ahead, it may be played as a friendly.</p>
               )}
               <MatchSquad fixtureId={match.id} notOpenYet={match.status === "scheduled"} />
+              <MatchPlayerRequests fixtureId={match.id} />
               <MatchRequests fixtureId={match.id} />
             </>
           );
