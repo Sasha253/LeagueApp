@@ -224,3 +224,49 @@ docs/DECISIONS.md under "2026-10-23: Teams (chunk 5)".
   pushes until someone signs in on it (the token then moves) or Firebase reports it dead.
   Choice: accepted for now. If the answer differs: let the backend drop devices whose
   account has no valid refresh token.
+
+## Chunk 11: Celery Beat and the timed checkpoints
+
+- **How often the checkpoints run.** Question: the PRD says only "on time". Choice: Beat
+  starts one pass every 60 seconds (`CHECKPOINT_INTERVAL_SECONDS`), and a pass not started
+  within that time expires. Why: a minute late is on time for a 36-hour or 6-hour notice,
+  and each pass is cheap. If the answer differs: change the env variable.
+- **Late runs.** Question: what happens when Beat or the worker was down at the due time?
+  Choice: the next pass catches up, while it still makes sense: a Confirmation (and its
+  resend) only before the T-6h cutoff, because it couldn't be answered after; a Reminder
+  only before kick-off. A Fixture that missed its Confirmation stays `scheduled` for the
+  T-6h readiness check (chunk 13). Why: never send something that can't be acted on. If the
+  answer differs: widen the windows in `fixtures/checkpoints.py` `due()`.
+- **Exactly once, and reschedules.** Choice: a `FixtureCheckpoint` row per Fixture, kind and
+  kick-off, claimed in the same transaction as the notifications. A second run finds the
+  row and does nothing. A reschedule to a new kick-off gets fresh checkpoints (FR-9 comes in
+  chunk 16). Why: the 2026-10-23 decision says each job must be safe to run twice.
+- **What "resend" is.** Question: a second Notification, or the first one pushed again?
+  Choice: the same inbox entry pushed again, shown unread, with `resent_at` set. Why: one
+  Confirmation per Player per match keeps one answer; two entries could be answered
+  differently. If the answer differs: call `notify()` again in `resend_confirmations`.
+- **Who gets the resend.** Choice: Players who got the first Confirmation, haven't answered
+  (confirm or decline both count as answered), are still in one of the two Teams and still
+  opted into the Night. Resend time counts from when the first actually went out, so a late
+  first send means a late resend, and no resend at all if that falls after T-6h. Why: FR-2
+  says once, to Players who haven't answered. If the answer differs: change
+  `resend_confirmations`.
+- **Which Fixtures get the checkpoints.** Choice: Confirmations only for `scheduled`
+  Fixtures (moving them to `confirming`, cause "timed checkpoint"); Reminders for
+  `scheduled`, `confirming` and `ready`. A Fixture already out, offered to a replacement, a
+  friendly, cancelled or played gets neither: the chunk that moves it there tells people.
+  Why: those matches are no longer the league match the Reminder describes. If the answer
+  differs: change `REMINDER_STATUSES`.
+- **Reminder recipients.** Question: does a Player who declined still get the T-6h
+  Reminder? Choice: yes, as FR-4 and the targeting rules say (Players and Captains of both
+  Teams, the Night's Admins, the pitch's Referee), filtered by Night opt-ins. Why: the PRD
+  names no exception. If the answer differs: exclude decliners in `send_reminders`.
+- **Readiness order (for chunk 13).** The T-6h readiness check should run in the same pass,
+  before the Reminder, so a Team that is out isn't reminded.
+- **A Player who joins after T-36h.** Not answered here: they get no Confirmation. Chunk 12
+  should decide whether joining a `confirming` match sends one.
+- **Delivery fallback.** The chunk 9 proposal (push retries, then email) is still waiting
+  for an answer, so pushes are still sent in-process after commit, not as Celery tasks.
+- **Local worker pool.** `make worker` uses `--pool=threads`: on this Mac with Python 3.14
+  Celery's default process pool fails every task ("not enough values to unpack"). Production
+  on Linux can use the default pool.

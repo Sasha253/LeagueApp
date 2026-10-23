@@ -1,4 +1,5 @@
-# Local development services. Django runs on the host (make run); PostgreSQL runs here.
+# Local development services. Django, the Celery worker and Beat run on the host (make run,
+# make worker, make beat); PostgreSQL and Redis (the Celery broker) run here.
 # Values come from .env; the port is bound to localhost only.
 name: leagueapp
 
@@ -19,5 +20,18 @@ services:
       timeout: 5s
       retries: 10
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6380}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
 volumes:
   postgres-data:
+  redis-data:

@@ -117,3 +117,42 @@ class FixtureTransition(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ValueError("A FixtureTransition is never deleted.")
+
+
+class FixtureCheckpoint(models.Model):
+    """A timed checkpoint that has run for a Fixture (FR-1, FR-2, FR-4). Never changed.
+
+    Unique per Fixture, kind and kick-off: each checkpoint runs exactly once for a kick-off,
+    however often or late the timed job runs, and a reschedule to a new kick-off (FR-9)
+    gets checkpoints of its own. See fixtures/checkpoints.py.
+    """
+
+    class Kind(models.TextChoices):
+        CONFIRMATION = "confirmation", "Confirmations sent (T-36h)"
+        RESEND = "resend", "Unanswered Confirmations resent"
+        REMINDER = "reminder", "Reminders sent (T-6h)"
+
+    fixture = models.ForeignKey(Fixture, on_delete=models.PROTECT, related_name="checkpoints")
+    kind = models.CharField(max_length=12, choices=Kind.choices)
+    kick_off = models.DateTimeField(help_text="The kick-off this checkpoint ran for.")
+    ran_at = models.DateTimeField()
+    notified = models.PositiveIntegerField(help_text="How many people were notified.")
+
+    class Meta:
+        ordering = ["ran_at", "pk"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["fixture", "kind", "kick_off"], name="one_checkpoint_per_kick_off"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.fixture}: {self.get_kind_display()}"
+
+    def save(self, *args, **kwargs):
+        if self.pk is not None:
+            raise ValueError("A FixtureCheckpoint is never changed.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValueError("A FixtureCheckpoint is never deleted.")

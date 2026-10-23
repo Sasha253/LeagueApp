@@ -2,6 +2,27 @@
 
 Newest first. Each entry: the date, what was decided, and why.
 
+## 2026-10-23: Celery Beat and the timed checkpoints (chunk 11) (provisional, unattended run)
+
+Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 11: Celery Beat and the
+timed checkpoints".
+
+- **Celery (provisional, unattended run):** Celery 5.6 with Redis (docker compose, port
+  6380). `make worker` and `make beat`; one Beat only. Beat starts `fixtures.run_checkpoints`
+  every 60 seconds (`CHECKPOINT_INTERVAL_SECONDS`).
+- **Checkpoints (provisional, unattended run):** each Club's own hours. T-36h: a
+  `scheduled` Fixture moves to `confirming` and every Player of both Teams gets a
+  Confirmation answerable until T-6h. Resend, once, `confirmation_resend_after_hours` after
+  the first went out, to Players who haven't answered: the same inbox entry pushed again.
+  T-6h: Reminder to Players and Captains of both Teams, the Night's Admins and the pitch's
+  Referee, for `scheduled`, `confirming` and `ready` Fixtures.
+- **Exactly once (provisional, unattended run):** one `FixtureCheckpoint` row per Fixture,
+  kind and kick-off, claimed with the notifications in one transaction; the log is
+  append-only. A new kick-off (reschedule) gets new checkpoints.
+- **Late (provisional, unattended run):** a missed checkpoint runs on the next pass while it
+  still makes sense: Confirmations and the resend only before T-6h, Reminders only before
+  kick-off.
+
 ## 2026-10-23: Push and inbox in the app (chunk 10) (provisional, unattended run)
 
 Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 10: Push and inbox in

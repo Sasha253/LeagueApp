@@ -96,6 +96,24 @@ def notify(
     return created
 
 
+def resend(notifications) -> list[int]:
+    """Pushes these Notifications again, after commit, and shows them as unread (FR-2).
+
+    The same inbox entry is pushed again, so an answer to either push is one answer.
+    """
+    ids = list(notifications.values_list("pk", flat=True))
+    if ids:
+        Notification.objects.filter(pk__in=ids).update(
+            push_status=PushStatus.PENDING,
+            pushed_at=None,
+            push_error="",
+            read_at=None,
+            resent_at=timezone.now(),
+        )
+        transaction.on_commit(lambda: push(ids), robust=True)
+    return ids
+
+
 def push_data(notification: Notification) -> dict[str, str]:
     """What the app needs to open the right screen. FCM data values must be strings."""
     data = {"notification_id": str(notification.pk), "kind": notification.kind}

@@ -95,6 +95,9 @@ class Notification(models.Model):
         max_length=10, choices=PushStatus.choices, default=PushStatus.PENDING
     )
     pushed_at = models.DateTimeField(null=True, blank=True)
+    resent_at = models.DateTimeField(
+        null=True, blank=True, help_text="Pushed again to someone who hadn't answered (FR-2)."
+    )
     push_error = models.CharField(max_length=300, blank=True)
 
     class Meta:

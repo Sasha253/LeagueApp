@@ -53,6 +53,8 @@ screen designs in design/ (open design/key-moments-draft.html).
 
 ## Commands
 - make install / make up / make migrate / make run / make test / make lint (backend)
+- make worker / make beat (Celery worker and Celery Beat for the timed checkpoints; `make up`
+  starts Redis, their broker; run only one Beat)
 - npm run dev / npm test / npm run build / npm run gen:api (frontend, in frontend/)
 - npm run cap:sync / npm run cap:ios / npm run cap:android (build, then sync or run the
   installed app; in frontend/, needs VITE_API_BASE_URL, see frontend/.env.example)

@@ -11,14 +11,14 @@ bookings and finances. React frontend, Django REST API.
 
 - Python 3.12 or later
 - Node 20 or later
-- Docker (for PostgreSQL)
+- Docker (for PostgreSQL and Redis)
 
 ## First run
 
 ```sh
 cp .env.example .env          # then set DJANGO_SECRET_KEY and the Postgres password
 make install                  # backend/.venv with the dev requirements
-make up                       # PostgreSQL on 127.0.0.1:5433
+make up                       # PostgreSQL on 127.0.0.1:5433, Redis on 127.0.0.1:6380
 make migrate
 cd frontend && npm install
 ```
@@ -30,6 +30,14 @@ Run the API and the web app in two terminals:
 ```sh
 make run                      # Django on http://127.0.0.1:8000
 cd frontend && npm run dev    # React on http://localhost:5173, proxies /api to Django
+```
+
+The timed checkpoints (T-36h Confirmations, their resend, T-6h Reminders) need a Celery
+worker and Celery Beat, each in its own terminal:
+
+```sh
+make worker                   # runs the jobs
+make beat                     # starts them every minute (run only one Beat)
 ```
 
 - API docs: http://127.0.0.1:8000/api/v1/docs/

@@ -152,3 +152,27 @@ CORS_ALLOWED_ORIGINS = [*env.list("CORS_ALLOWED_ORIGINS", default=[]), *CAPACITO
 PUSH_SENDER = env("PUSH_SENDER", default="notifications.push.LogSender")
 FIREBASE_CREDENTIALS_FILE = env("FIREBASE_CREDENTIALS_FILE", default="")
 FIREBASE_CREDENTIALS_JSON = env("FIREBASE_CREDENTIALS_JSON", default="")
+
+# Timed jobs (config/celery.py): Celery with Redis as the broker, a worker and one Beat.
+# Beat starts the checkpoint pass every CHECKPOINT_INTERVAL_SECONDS; a pass that isn't
+# started within that time expires, because the next one does the same work. Jobs are
+# safe to run twice, so a task is acknowledged only once it has run, and is run again if
+# its worker dies. Results aren't kept.
+CELERY_BROKER_URL = env(
+    "CELERY_BROKER_URL", default=f"redis://127.0.0.1:{env.int('REDIS_PORT', default=6380)}/0"
+)
+CELERY_TASK_IGNORE_RESULT = True
+CELERY_TASK_ACKS_LATE = True
+CELERY_TASK_REJECT_ON_WORKER_LOST = True
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_ENABLE_UTC = True
+CHECKPOINT_INTERVAL_SECONDS = env.int("CHECKPOINT_INTERVAL_SECONDS", default=60)
+CELERY_BEAT_SCHEDULE = {
+    "timed-checkpoints": {
+        "task": "fixtures.run_checkpoints",
+        "schedule": float(CHECKPOINT_INTERVAL_SECONDS),
+        "options": {"expires": CHECKPOINT_INTERVAL_SECONDS},
+    },
+}
