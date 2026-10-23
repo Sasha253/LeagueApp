@@ -97,3 +97,42 @@ By hand: run `make migrate` (two new migrations).
 
 Checks: make test (539 passed), make lint (passed), npm test (181 passed), npm run build
 (passed).
+
+## Review (independent, unattended run)
+
+Compared 284c8b7 with the chunk 14 prompt and the CLAUDE.md rules.
+
+- Money: eligibility uses `team_balance(team).outstanding > 0` (Decimal); no new money
+  fields. Ledger untouched.
+- Club isolation: candidates are filtered to the Fixture's Club, Season and Division; only
+  the candidate Team's current Captain can accept (via the recipient-only inbox answer
+  endpoint); the Admin detail goes through the club-scoped `ClubFixtureViewSet`;
+  `notify()` refuses a Fixture of another Club.
+- Configurable values: `replacement_close_hours_before` is a ClubSettings/SettingsDefaults
+  value, validated below the readiness hours and on the Club settings screen.
+- Notification targeting: FR-13/FR-14 go to opted-in Players of the out and remaining
+  Teams; offers only to opted-in Captains; FR-16 to the Night's Admins and the pitch's
+  Referee (`targeting.officials`). Matches the PRD and docs/OPEN_QUESTIONS.md.
+- Concurrency: every path locks Fixture, then Notification, then offer, then Team
+  (`notifications.services.answer` locks the Fixture first), so no deadlock between an
+  accept and the lapse task; a second accept gets 409 and its answer is rolled back.
+  The join-free `lifecycle.lock()` is sound. Threaded test present.
+- Append-only: offers and candidates are never deleted (PROTECT, `delete()` raises,
+  read-only admin inline).
+- UI: only `la-` classes, type styles and existing components (StatusChip, Banner).
+- Tests cover each rule; `npm run gen:api` reproduces the committed schema.d.ts (no diff).
+- Scope: nothing from chunks 15 or 16 (only the `replacement_lapsed` signal and an
+  `open_offer()` entry point).
+
+Noted, not changed (not defects of this chunk):
+- The Notification screen shows "Open the match" on the FR-13 General Notification and on
+  a Captain's offer, but the out Team's Players (after a swap) and a candidate Captain
+  cannot open that match; the screen shows its normal error. A later UI chunk could hide
+  the link when the Player is not in the match.
+- The Captain's continued membership of the candidate Team is not rechecked (only
+  `team.captain`); Captains are kept as members by the teams app.
+
+No defects found that needed a code change.
+
+Checks: make test (539 passed), make lint (passed), npm test (181 passed), npm run build
+(passed), npm run gen:api (no change).
