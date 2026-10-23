@@ -2,6 +2,34 @@
 
 Newest first. Each entry: the date, what was decided, and why.
 
+## 2026-10-23: Import Nights and Divisions (chunk 4)
+
+Decided by @Sasha while building chunk 4 (FR-39).
+
+- **Columns:** one row per Division: Night (a weekday, like Tuesday, Tue or "Tuesday Night"),
+  Division, Min players and League fee. Night and Division are required. Headers are
+  matched without regard to case or spaces, and other columns are ignored. Only the first
+  sheet of an .xlsx is read. The template (Excel or CSV) is downloaded from the import
+  screen, and its second sheet explains the columns.
+- **Matching:** a Division is matched on its Night and its name, ignoring case and outer
+  spaces, so re-importing a file creates nothing twice. A Night the Club doesn't have yet
+  is created.
+- **Re-importing updates:** an existing Division takes the file's Min players and League
+  fee. A blank cell keeps the value it has. For a new Division, a blank Min players means
+  the club's minimum, and a blank League fee means the club's fee.
+- **Divisions not in the file are left alone:** an import never deletes.
+- **All or nothing:** preview writes nothing. Commit checks the file again and saves every
+  row in one transaction, or saves nothing if any row has an error. The server keeps no
+  upload between the two: the app sends the file again.
+- **Fees** are read in rand: "350", "R 350", "1,200.50" and "1 200" are accepted. A comma
+  counts only as a thousands separator, so "350,50" is an error, not R 35,050.
+- **Limits:** 5 MB and 500 rows a file.
+- **Not in the installed app yet:** the template download works in a browser. The
+  installed app can't save files until the Capacitor Filesystem and Share plugins are
+  added, so it asks the Admin to use a browser. Uploading works in both.
+- **Proposed component** (`frontend/src/styles/proposed.css`): FilePicker, a button-styled
+  label around a hidden file input.
+
 ## 2026-10-23: Club setup and configurable values (chunk 3)
 
 Decided by @Sasha while building chunk 3.

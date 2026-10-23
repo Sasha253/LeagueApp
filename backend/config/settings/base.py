@@ -117,7 +117,10 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
     # Separate request schemas, so read-only fields (ids, issued tokens) aren't asked for.
     "COMPONENT_SPLIT_REQUEST": True,
-    "ENUM_NAME_OVERRIDES": {"HealthStateEnum": "core.views.HEALTH_STATES"},
+    "ENUM_NAME_OVERRIDES": {
+        "HealthStateEnum": "core.views.HEALTH_STATES",
+        "WeekdayEnum": "clubs.models.WEEKDAYS",
+    },
 }
 
 # The installed app (Capacitor) always calls the API from these origins, in every

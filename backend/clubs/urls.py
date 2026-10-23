@@ -15,5 +15,20 @@ router.register("invites", views.ClubInviteViewSet, basename="club-invites")
 
 urlpatterns = [
     path("settings/", views.ClubSettingsView.as_view(), name="club-settings"),
+    path(
+        "imports/nights-divisions/preview/",
+        views.NightDivisionImportPreviewView.as_view(),
+        name="club-import-nights-preview",
+    ),
+    path(
+        "imports/nights-divisions/commit/",
+        views.NightDivisionImportCommitView.as_view(),
+        name="club-import-nights-commit",
+    ),
+    path(
+        "imports/nights-divisions/template/",
+        views.NightDivisionImportTemplateView.as_view(),
+        name="club-import-nights-template",
+    ),
     path("", include(router.urls)),
 ]

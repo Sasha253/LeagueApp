@@ -80,6 +80,9 @@ class Night(models.Model):
         return f"{self.club}: {self.get_weekday_display()}"
 
 
+WEEKDAYS = Night.Weekday  # One name for the weekday choices in the OpenAPI schema.
+
+
 class Division(models.Model):
     """A Division of one Night's league, e.g. Division 2 of the Tuesday Night league."""
 

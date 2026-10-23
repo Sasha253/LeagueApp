@@ -23,6 +23,10 @@ describe("NightsPage", () => {
     expect(within(tuesday).getByText("Minimum 6 players · R 400 per Team")).toBeInTheDocument();
     // A Night with Divisions can't be deleted, so no Delete for the Night itself.
     expect(within(tuesday).getAllByRole("button", { name: "Delete" })).toHaveLength(2);
+    expect(screen.getByRole("link", { name: "Import from a spreadsheet" })).toHaveAttribute(
+      "href",
+      "/clubs/1/setup/nights/import",
+    );
   });
 
   it("adds a Night on a weekday not used yet", async () => {

@@ -65,3 +65,9 @@
 
 /* ConfirmButton: a destructive action asks once more, in place. */
 .la-confirm { display: inline-flex; flex-wrap: wrap; gap: var(--space-2); justify-content: flex-end; }
+
+/* FilePicker: a button-styled label around a hidden file input; the focus ring shows on
+   the label, since the input itself is invisible. */
+.la-file { cursor: pointer; }
+.la-file:focus-within { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.la-file:has(input:disabled) { opacity: .6; cursor: default; }

@@ -3,6 +3,7 @@
 // Nights and Divisions carry over from Season to Season (docs/DECISIONS.md).
 
 import { useState } from "react";
+import { Link } from "react-router";
 import { api, type Schemas } from "../../api/client";
 import type { FormErrors } from "../../api/errors";
 import { Banner } from "../../components/Banner";
@@ -53,6 +54,9 @@ export function NightsPage() {
   return (
     <main className="la-screen">
       <SetupHeader title="Nights and Divisions" />
+      <Link className="la-btn la-btn--secondary" to={`/clubs/${clubId}/setup/nights/import`}>
+        Import from a spreadsheet
+      </Link>
       <LoadState result={nights} retry={reload} what="Nights">
         {(list) => {
           const used = new Set(list.map((night) => night.weekday));

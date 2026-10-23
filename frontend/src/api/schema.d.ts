@@ -201,6 +201,68 @@ export interface paths {
         patch: operations["clubs_fields_partial_update"];
         trace?: never;
     };
+    "/api/v1/clubs/{club_id}/imports/nights-divisions/commit/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Nights and Divisions
+         * @description Checks the file again and saves every row in one transaction. If any row has an error, nothing is saved and the answer is 400 with the rows and their errors.
+         */
+        post: operations["clubs_imports_nights_divisions_commit_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/imports/nights-divisions/preview/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview an import of Nights and Divisions
+         * @description Checks every row and says what the import would do. Writes nothing.
+         */
+        post: operations["clubs_imports_nights_divisions_preview_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/imports/nights-divisions/template/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download the Nights and Divisions import template
+         * @description For views under /clubs/{club_id}/: only that Club's Admins, only its records.
+         *
+         *     `club_field` is the lookup from the model to its Club.
+         */
+        get: operations["clubs_imports_nights_divisions_template_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clubs/{club_id}/invites/": {
         parameters: {
             query?: never;
@@ -425,6 +487,20 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
+         * @description * `create` - New Division
+         *     * `update` - Division changes
+         *     * `unchanged` - No change
+         *     * `error` - Has errors
+         * @enum {string}
+         */
+        ActionEnum: "create" | "update" | "unchanged" | "error";
+        /**
+         * @description * `min_players` - min_players
+         *     * `league_fee` - league_fee
+         * @enum {string}
+         */
+        ChangesEnum: "min_players" | "league_fee";
+        /**
          * @description Invites an email to be an Admin or Referee of the Club in the URL.
          *
          *     An account with that email gets the role at once (`accepted` is true). Otherwise the
@@ -587,6 +663,46 @@ export interface components {
          * @enum {string}
          */
         HealthStateEnum: "ok" | "error";
+        ImportResult: {
+            /** @description True once the import has been saved. */
+            committed: boolean;
+            summary: components["schemas"]["ImportSummary"];
+            rows: components["schemas"]["ImportRow"][];
+        };
+        ImportRow: {
+            /** @description The spreadsheet's row number; the header is 1. */
+            row: number;
+            night: (components["schemas"]["WeekdayEnum"] | components["schemas"]["NullEnum"]) | null;
+            division: string;
+            /** @description What the Division will have after the import. */
+            min_players: number | null;
+            /**
+             * Format: decimal
+             * @description The Division's own fee after the import. Null: the club's fee applies.
+             */
+            league_fee: string | null;
+            action: components["schemas"]["ActionEnum"];
+            /** @description The import adds this Night to the club. */
+            new_night: boolean;
+            /** @description What an update changes. */
+            changes: components["schemas"]["ChangesEnum"][];
+            errors: string[];
+        };
+        ImportSummary: {
+            rows: number;
+            nights_created: number;
+            divisions_created: number;
+            divisions_updated: number;
+            unchanged: number;
+            errors: number;
+        };
+        ImportUploadRequest: {
+            /**
+             * Format: binary
+             * @description An .xlsx or .csv file, up to 5 MB and 500 rows.
+             */
+            file: Blob;
+        };
         /** @description The signed-in user. `player` is null when the user is not a Player. */
         Me: {
             readonly id: number;
@@ -604,6 +720,8 @@ export interface components {
             readonly club: components["schemas"]["ClubSummary"];
             weekday: components["schemas"]["WeekdayEnum"];
         };
+        /** @enum {unknown} */
+        NullEnum: null;
         PatchedClubSettingsRequest: {
             /**
              * Format: decimal
@@ -1168,6 +1286,88 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Field"];
+                };
+            };
+        };
+    };
+    clubs_imports_nights_divisions_commit_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["ImportUploadRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportResult"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportResult"];
+                };
+            };
+        };
+    };
+    clubs_imports_nights_divisions_preview_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["ImportUploadRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportResult"];
+                };
+            };
+        };
+    };
+    clubs_imports_nights_divisions_template_retrieve: {
+        parameters: {
+            query?: {
+                file_type?: "csv" | "xlsx";
+            };
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": Blob;
+                    "text/csv": Blob;
                 };
             };
         };

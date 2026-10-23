@@ -97,13 +97,18 @@ export function LoadState<T>({
 }
 
 /** Back to the setup hub, the title, and the Club it belongs to. */
-export function SetupHeader({ title, back = "setup" }: { title: string; back?: "setup" | "profile" }) {
+const BACK = {
+  setup: { label: "Club setup", path: "setup" },
+  nights: { label: "Nights and Divisions", path: "setup/nights" },
+} as const;
+
+export function SetupHeader({ title, back = "setup" }: { title: string; back?: "setup" | "nights" | "profile" }) {
   const { clubId, clubName } = useClub();
-  const to = back === "profile" ? "/profile" : `/clubs/${clubId}/setup`;
+  const to = back === "profile" ? "/profile" : `/clubs/${clubId}/${BACK[back].path}`;
   return (
     <div className="la-stack-2">
       <Link className="la-btn la-btn--quiet la-back" to={to}>
-        {back === "profile" ? "Profile" : "Club setup"}
+        {back === "profile" ? "Profile" : BACK[back].label}
       </Link>
       <h1 className="title-1">{title}</h1>
       <p className="caption la-muted">{clubName}</p>

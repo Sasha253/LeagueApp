@@ -11,6 +11,17 @@ export const json = (status: number, body?: unknown) =>
     headers: { "Content-Type": "application/json" },
   });
 
+/** JSON as parsed; a multipart form as its fields, with each file as its name. */
+async function bodyOf(request: Request): Promise<unknown> {
+  const text = await request.text();
+  if (request.headers.get("Content-Type")?.startsWith("multipart/form-data")) {
+    // Read from the text: jsdom's File can't be parsed back by Request.formData().
+    const parts = text.matchAll(/name="([^"]+)"(?:; filename="([^"]*)")?\r\n(?:.*\r\n)*?\r\n(.*)\r\n/g);
+    return Object.fromEntries([...parts].map(([, name, filename, value]) => [name, filename ?? value]));
+  }
+  return text ? JSON.parse(text) : undefined;
+}
+
 /** Routes are "METHOD /path/". A list answers in turn, repeating the last answer. */
 export function fakeApi(routes: Routes) {
   const calls: { method: string; path: string; auth: string | null; body: unknown }[] = [];
@@ -20,12 +31,11 @@ export function fakeApi(routes: Routes) {
     const request = new Request(input, init);
     const path = new URL(request.url).pathname;
     const key = `${request.method} ${path}`;
-    const text = await request.clone().text();
     calls.push({
       method: request.method,
       path,
       auth: request.headers.get("Authorization"),
-      body: text ? JSON.parse(text) : undefined,
+      body: await bodyOf(request.clone()),
     });
     const route = routes[key];
     if (!route) return json(404, { detail: `No fake for ${key}` });
