@@ -108,3 +108,46 @@ open questions 1 and 2 in docs/OPEN_QUESTIONS.md.
 
 Checks: make test (620 passed), make lint (passed), npm test (215 passed), npm run build
 (passed).
+
+## Review (fix: chunk 17 review)
+
+Independent review of 8f12c15 against the chunk prompt and CLAUDE.md.
+
+Plan: read the diff, check club isolation, targeting, races, append-only rows, configurable
+values, UI and tests; run the four checks; fix real defects only.
+
+Checked and fine:
+- Club isolation: the Team's requests go through `FixtureViewSet.get_object` (my Teams'
+  Fixtures, 404 otherwise); withdraw is scoped to `team__captain=user`; "Games you can
+  join" to the signed-in Player's own invites. Recipients come from the Night (one Club).
+- Targeting: outfield Players for a Player Request, Goalkeepers for a Goalkeeper Request
+  ("both" counts as either), opted into the Night, in neither Team (FR-36, visibility rule).
+- Races: Fixture locked first by `notifications.answer`, then the request row; a late
+  Accept raises 409 and rolls the answer back; a unique constraint keeps one borrowed place
+  per Player and match. Withdraw and raise lock in the same order.
+- Configurable values: the most places is the Division's minimum (data). No money, no
+  ledger entries (open question 1, provisional: no fee).
+- Rows are never deleted; admin inlines are read-only.
+- UI uses only existing `la-` classes and components; Vitest covers each screen; schema
+  regenerated.
+- Nothing from later chunks.
+
+Defects fixed:
+- `GET /api/v1/me/player-requests/` still said "You're playing for <Team>" after the match
+  moved to a new kick-off or the Team left the match, although that borrowed place no
+  longer counts (`confirmations.borrowed` filters by kick-off and Team). `joined` now uses
+  the same rule (`borrowing.still_playing`).
+- The same list kept offering a request that no longer applies (Team out of the match):
+  the row stays open in the database and its Notification is not closed by a Team leaving,
+  so it showed "1 place left" with no way to answer. The list now drops invites whose
+  request no longer applies and where the Player has no place that still counts.
+- The view's docstring named the answer URL as `/notifications/...`; it is
+  `/api/v1/inbox/{notification_id}/answer/` (schema.d.ts regenerated).
+- Two pytest tests added for the above.
+
+Not changed (noted): a Team leaving the match does not close its request's invite
+Notifications in the inbox; accepting one is refused with 409 "This request no longer
+applies." Closing them belongs with the replacement and fallback paths.
+
+Checks: make test (622 passed), make lint (passed), npm test (215 passed), npm run build
+(passed).

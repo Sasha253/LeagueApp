@@ -1176,7 +1176,7 @@ export interface paths {
         /**
          * @description Player and Goalkeeper Requests I was sent for matches still to come (Screens.md
          *     Player 1 "Games you can join"): ones I can still answer, and ones I joined. Answer with
-         *     POST /api/v1/notifications/{notification_id}/answer/.
+         *     POST /api/v1/inbox/{notification_id}/answer/.
          */
         get: operations["me_player_requests_list"];
         put?: never;

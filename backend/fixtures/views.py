@@ -335,7 +335,7 @@ class PlayerRequestViewSet(viewsets.GenericViewSet):
 class MyPlayerRequestListView(generics.ListAPIView):
     """Player and Goalkeeper Requests I was sent for matches still to come (Screens.md
     Player 1 "Games you can join"): ones I can still answer, and ones I joined. Answer with
-    POST /api/v1/notifications/{notification_id}/answer/."""
+    POST /api/v1/inbox/{notification_id}/answer/."""
 
     serializer_class = MyPlayerRequestSerializer
     permission_classes = [IsPlayer]
@@ -361,7 +361,8 @@ class MyPlayerRequestListView(generics.ListAPIView):
             )
             .prefetch_related(
                 Prefetch(
-                    "request__joined", queryset=BorrowedPlayer.objects.only("request", "player")
+                    "request__joined",
+                    queryset=BorrowedPlayer.objects.only("request", "player", "team", "kick_off"),
                 )
             )
             .order_by("request__fixture__kick_off", "pk")
@@ -372,7 +373,16 @@ class MyPlayerRequestListView(generics.ListAPIView):
             notification__closed_at__isnull=True,
             notification__answer_by__gt=now,
         )
-        return invites.filter(joined | still_open).distinct()
+        found = invites.filter(joined | still_open).distinct()
+        # Keep only places that still count and requests that still apply: a reschedule or
+        # a Team leaving the match ends both without touching these rows.
+        serializer = self.get_serializer()
+        return [
+            invite
+            for invite in found
+            if serializer.get_joined(invite)
+            or serializer.get_status(invite) == PlayerRequest.Status.OPEN
+        ]
 
 
 class CaptainRequestViewSet(viewsets.GenericViewSet):

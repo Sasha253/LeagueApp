@@ -97,6 +97,15 @@ def applies(player_request: PlayerRequest, fixture: Fixture, now: datetime) -> b
     )
 
 
+def still_playing(place: BorrowedPlayer, fixture: Fixture) -> bool:
+    """The borrowed place still counts: same kick-off, and its Team is still in the match
+    (the same rule as confirmations.borrowed)."""
+    return place.kick_off == fixture.kick_off and place.team_id in (
+        fixture.home_team_id,
+        fixture.away_team_id,
+    )
+
+
 def status_of(player_request: PlayerRequest, fixture: Fixture, now: datetime) -> str:
     """What the request is now: an open one that no longer applies shows as closed."""
     if player_request.status == RStatus.OPEN and not applies(player_request, fixture, now):

@@ -499,3 +499,34 @@ def test_withdraw_through_the_api(match, outsiders, clock):
     assert response.status_code == 200
     assert response.data["status"] == "withdrawn"
     assert as_user(people["thandi"]).post(url).status_code == 409
+
+
+def test_games_to_join_drop_requests_and_places_that_no_longer_apply(
+    match, outsiders, clock, admin
+):
+    """Review fix: after a reschedule a joined Player is not shown as playing, and a request
+    for a Team that left the match is not offered."""
+    fixture, people = match
+    clock(fixture, hours=72)
+    borrowing.raise_request(fixture, people["thandi"], "player", 2)
+    accept(outsiders["lerato"])
+    url = reverse("api-v1:my-player-requests")
+    (game,) = as_user(outsiders["lerato"]).get(url).data
+    assert game["joined"]
+
+    reschedules.reschedule(fixture, base.week_later(fixture), admin=admin)
+
+    assert as_user(outsiders["lerato"]).get(url).data == []
+    assert as_user(outsiders["nomvula"]).get(url).data == []
+
+
+def test_games_to_join_drop_a_request_from_a_team_out_of_the_match(match, outsiders, clock):
+    fixture, people = match
+    clock(fixture, hours=48)
+    borrowing.raise_request(fixture, people["thandi"], "player", 1)
+    url = reverse("api-v1:my-player-requests")
+    assert len(as_user(outsiders["lerato"]).get(url).data) == 1
+
+    lifecycle.transition(fixture, S.ONE_TEAM_OUT, cause=FixtureTransition.Cause.ADMIN)
+
+    assert as_user(outsiders["lerato"]).get(url).data == []

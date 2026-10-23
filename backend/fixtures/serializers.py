@@ -708,7 +708,11 @@ class MyPlayerRequestSerializer(serializers.Serializer):
         return borrowing.status_of(request, request.fixture, _now(self.context))
 
     def get_joined(self, invite: PlayerRequestInvite) -> bool:
-        return any(p.player_id == invite.player_id for p in invite.request.joined.all())
+        fixture = invite.request.fixture
+        return any(
+            p.player_id == invite.player_id and borrowing.still_playing(p, fixture)
+            for p in invite.request.joined.all()
+        )
 
     def get_can_answer(self, invite: PlayerRequestInvite) -> bool:
         now = _now(self.context)
