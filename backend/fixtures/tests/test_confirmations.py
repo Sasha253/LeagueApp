@@ -350,3 +350,22 @@ def test_answers_for_an_old_kick_off_do_not_count(confirming):
     assert confirmations.confirmed_count(fixture, fixture.home_team) == 0
     body = signed_in(people["thandi"]).get(squad_url(fixture)).json()
     assert body["players"][0]["answer"] == ""
+
+
+def test_an_answer_for_the_other_team_does_not_count_after_a_move(confirming):
+    fixture, people = confirming
+    sipho = people["sipho"]
+    signed_in(sipho).post(answer_url(fixture), {"answer": "confirm"})
+    assert confirmations.confirmed_count(fixture, fixture.home_team) == 1
+    TeamMembership.objects.filter(player=sipho, left_at__isnull=True).update(left_at=timezone.now())
+    TeamMembership.objects.create(team=fixture.away_team, player=sipho, joined_at=timezone.now())
+
+    assert confirmations.confirmed_count(fixture, fixture.away_team) == 0
+    body = signed_in(sipho).get(squad_url(fixture)).json()
+    assert body["team"]["id"] == fixture.away_team_id
+    assert body["my_answer"] == ""
+    assert body["confirmed"] == 0
+
+    signed_in(sipho).post(answer_url(fixture), {"answer": "confirm"})
+    assert confirmations.confirmed_count(fixture, fixture.away_team) == 1
+    assert confirmations.confirmed_count(fixture, fixture.home_team) == 0

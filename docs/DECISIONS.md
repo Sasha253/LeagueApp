@@ -23,6 +23,8 @@ Confirmations".
 - **Screens (provisional, unattended run):** Match detail shows SquadProgress, the reply
   card and the squad list (Confirmed, Waiting, Declined) from f02 and f06; a Confirmation
   in the inbox shows SquadProgress. New Lucide icon: clock.
+- **Moving Teams (provisional, unattended run):** an answer counts only for the Team it
+  was given for; a Player who moves to the other Team of the match answers again.
 
 ## 2026-10-23: Celery Beat and the timed checkpoints (chunk 11) (provisional, unattended run)
 

@@ -77,3 +77,36 @@ By hand: run `make migrate` (new table).
 
 Checks: make test (448 passed), make lint (passed), npm test (171 passed), npm run build
 (passed).
+
+## Review (independent, 2026-10-23)
+
+Plan: compare 3c1e870 with the chunk 12 prompt and the CLAUDE.md rules, run all four checks,
+fix real defects only.
+
+Checked and fine:
+- Rules live in the backend: status `confirming`, the cutoff from the Club's
+  `readiness_hours_before`, membership now; the app only draws `replies_open`, `answer_by`
+  and `below_minimum`. The Division minimum is data (`Division.min_players`).
+- Access: squad and answer go through FixtureViewSet, which only finds Fixtures of the
+  Player's active Teams (404 otherwise); only the Player's own Team's replies are returned.
+  No money or ledger in this chunk. Notification targeting unchanged.
+- Locking order (Fixture, then Notification) is the same in every path; a refused inbox
+  answer rolls back in the same transaction.
+- UI uses `la-` components and tokens only (`la-progress`, `la-group`, `la-disc`, chips);
+  schema.d.ts matches the endpoints. Nothing from chunk 13+ was built.
+
+Fixed:
+- An answer was counted for whichever Team the Player is in now, not the Team it was given
+  for. A Player who confirmed for the home Team and then moved to the away Team of the same
+  match counted as confirmed for the away Team (`confirmed_count`, `squad`), which chunk 13
+  would use to decide who is out at T-6h. Both now filter on the answer's Team; new test
+  `test_an_answer_for_the_other_team_does_not_count_after_a_move`. Logged in
+  OPEN_QUESTIONS.md and DECISIONS.md (provisional).
+
+Noted, not changed:
+- After such a move the Player's Confirmation Notification still shows the old answer, and
+  answering it with the same value is a no-op (`notifications.services.answer` returns
+  early), so they must re-answer on the match screen. Rare; left for chunk 16 (Team and
+  fixture changes).
+
+Checks after the fix: make test 449 passed, make lint passed, npm test 171 passed, npm run build passed.

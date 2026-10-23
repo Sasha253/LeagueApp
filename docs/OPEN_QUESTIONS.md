@@ -307,3 +307,8 @@ docs/DECISIONS.md under "2026-10-23: Teams (chunk 5)".
   notification for it. If the answer differs: notify on joining a `confirming` match.
 - **Wording.** The squad hint says "Your team needs n more by Tue 13:40 or it's out of the
   match." (FR-5: the Team's participation is cancelled, not necessarily the match.)
+- **A Player who moves between the two Teams of a match** (chunk 12 review). Choice: an
+  answer counts only for the Team it was given for; after the move the Player shows as
+  Waiting in the new Team and answers again on the match screen. Why: a "playing" given
+  for one side must not lift the other side over its minimum at T-6h (FR-5). If the answer
+  differs: carry the answer over to the new Team on the move.

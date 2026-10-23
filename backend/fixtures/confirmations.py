@@ -127,9 +127,14 @@ def confirmation_answered(sender, notification: Notification, previous: str, **k
 
 
 def confirmed_count(fixture: Fixture, team: Team) -> int:
-    """Players in `team` now who confirmed for the Fixture's current kick-off (FR-5)."""
+    """Players in `team` now who confirmed for it, for the Fixture's current kick-off (FR-5).
+
+    An answer given for the other Team of the match (a Player who moved between them) does
+    not count: they answer again for their new Team.
+    """
     return ConfirmationAnswer.objects.filter(
         fixture=fixture,
+        team=team,
         kick_off=fixture.kick_off,
         answer=Value.CONFIRM,
         player__team_memberships__team=team,
@@ -190,7 +195,9 @@ def squad(fixture: Fixture, team: Team, now: datetime | None = None) -> Squad:
     )
     answers = {
         a.player_id: a
-        for a in ConfirmationAnswer.objects.filter(fixture=fixture, kick_off=fixture.kick_off)
+        for a in ConfirmationAnswer.objects.filter(
+            fixture=fixture, team=team, kick_off=fixture.kick_off
+        )
     }
     players = []
     for membership in memberships:
