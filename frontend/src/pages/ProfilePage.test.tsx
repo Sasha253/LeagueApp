@@ -19,6 +19,7 @@ async function openProfile(me: object = ME, nights: unknown = { status: 200, bod
     "PATCH /api/v1/auth/me/": (request) =>
       request.json().then((body) => Response.json({ ...me, ...body })),
     "POST /api/v1/auth/logout/": { status: 200, body: {} },
+    "GET /api/v1/inbox/summary/": { status: 200, body: { unread: 3, needs_reply: 1 } },
   });
   const router = renderApp("/profile");
   await screen.findByRole("heading", { name: "Profile" });
@@ -26,6 +27,14 @@ async function openProfile(me: object = ME, nights: unknown = { status: 200, bod
 }
 
 describe("ProfilePage", () => {
+  it("opens the Inbox, with how many are unread", async () => {
+    await openProfile();
+
+    const inbox = screen.getByRole("link", { name: /Inbox/ });
+    expect(inbox).toHaveAttribute("href", "/inbox");
+    expect(await within(inbox).findByText("3 unread")).toBeInTheDocument();
+  });
+
   it("sends a signed-out visitor to Log in", async () => {
     fakeApi({});
     const router = renderApp("/profile");

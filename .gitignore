@@ -24,3 +24,7 @@ design/shots/
 # OS / editors
 .DS_Store
 Thumbs.db
+
+# Firebase app config: each environment adds its own (docs/build-log/chunk-10.md)
+frontend/android/app/google-services.json
+frontend/ios/App/App/GoogleService-Info.plist

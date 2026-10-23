@@ -5,6 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from "react";
 import { currentTokens, loadTokens, onSessionEnded, setTokens, type Tokens } from "../api/auth";
 import { api, type Me } from "../api/client";
+import { forgetDevice } from "../push/device";
 
 export type AuthState =
   | { status: "loading" }
@@ -55,6 +56,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const endSession = useCallback(async () => {
     const refresh = currentTokens()?.refresh;
+    // While the session still works, so this phone gets no more pushes for this account.
+    await forgetDevice().catch(() => {});
     // Best effort: signing out on the phone must work even when the API can't be reached.
     if (refresh) await api.POST("/api/v1/auth/logout/", { body: { refresh } }).catch(() => {});
     await setTokens(null);

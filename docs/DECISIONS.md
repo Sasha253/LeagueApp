@@ -2,6 +2,31 @@
 
 Newest first. Each entry: the date, what was decided, and why.
 
+## 2026-10-23: Push and inbox in the app (chunk 10) (provisional, unattended run)
+
+Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 10: Push and inbox in
+the app (UI)".
+
+- **When the app asks for push (provisional, unattended run):** right after someone is
+  signed in (each start of the app while signed in), only if the phone hasn't been asked
+  yet. The token is registered with `POST /api/v1/devices/` every start, and removed with
+  `DELETE /api/v1/devices/{id}/` on logout, before the session ends.
+- **Push buttons never answer by themselves (provisional, unattended run):** a tapped
+  push, or any of its buttons, opens the notification's screen; the Player answers there.
+  "Find a match" opens My fixtures until the "Games you can join" screen exists.
+- **iOS token (provisional, unattended run):** the backend sends by FCM token, so the iOS
+  app must hand Capacitor the FCM token, not the APNs token. Until Firebase is added to the
+  iOS project by hand, the AppDelegate passes the APNs token and pushes to iPhones fail
+  (the inbox still has every notification).
+- **Inbox entry point (provisional, unattended run):** an Inbox row with the unread count
+  on Profile, since no chunk has built the tab bar yet. The Inbox and Notification screens
+  follow design/src/screens/f02-confirmation.mjs; answer buttons use player phrases ("I'm
+  in", "Can't make it", "Join match", "Not tonight").
+- **Proposed components** (`frontend/src/styles/proposed.css`): icon disc (`.la-disc`,
+  copied from design/src/proposed.css), ChoiceChip count, status hero (`.la-hero`, scale-in
+  with a Reduce Motion fade) and the unread dot (`.la-unread`). Lucide icons in
+  `frontend/src/components/Icon.tsx`.
+
 ## 2026-10-23: Notifications (chunk 9) (provisional, unattended run)
 
 Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 9: Notifications

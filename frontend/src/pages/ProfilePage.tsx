@@ -9,7 +9,9 @@ import { formErrors, unreachable, type FormErrors } from "../api/errors";
 import { useAuth } from "../auth/AuthProvider";
 import { Banner } from "../components/Banner";
 import { ChoiceChip } from "../components/ChoiceChip";
+import { StatusChip } from "../components/StatusChip";
 import { WEEKDAYS_SHORT as WEEKDAYS } from "../format";
+import { onInboxChanged } from "../push/events";
 import { POSITIONS } from "./positions";
 
 const ROLE_LABELS = { admin: "Admin", referee: "Referee" } as const;
@@ -57,6 +59,26 @@ function byClub(nights: Night[]): { club: Night["club"]; nights: Night[] }[] {
   return [...groups.values()];
 }
 
+/** How many notifications are unread, or null until known. */
+function useUnread(): number | null {
+  const [unread, setUnread] = useState<number | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => onInboxChanged(() => setAttempt((n) => n + 1)), []);
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .GET("/api/v1/inbox/summary/")
+      .then(({ data }) => {
+        if (!cancelled && data) setUnread(data.unread);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [attempt]);
+  return unread;
+}
+
 export function ProfilePage() {
   const { state, setMe, endSession } = useAuth();
   const me = state.status === "signedIn" ? state.me : null;
@@ -66,6 +88,7 @@ export function ProfilePage() {
   const [errors, setErrors] = useState<FormErrors>(NO_ERRORS);
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
+  const unread = useUnread();
 
   if (!me || !draft) return null;
 
@@ -117,6 +140,18 @@ export function ProfilePage() {
         <p className="body">{me.name}</p>
         <p className="caption la-muted">{me.email}</p>
       </div>
+
+      <ul className="la-group">
+        <li>
+          <Link className="la-item la-item--link" to="/inbox">
+            <span className="la-item__body">
+              <span className="body-strong">Inbox</span>
+              <span className="caption la-muted">Confirmations, requests and updates</span>
+            </span>
+            {unread !== null && unread > 0 && <StatusChip status="pending">{`${unread} unread`}</StatusChip>}
+          </Link>
+        </li>
+      </ul>
 
       {me.player && (
         <ul className="la-group">

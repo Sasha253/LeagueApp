@@ -1,4 +1,4 @@
-import type { RouteObject } from "react-router";
+import { Outlet, type RouteObject } from "react-router";
 import { RequireAuth } from "./auth/RequireAuth";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
@@ -22,8 +22,21 @@ import { FindTeamPage } from "./pages/teams/FindTeamPage";
 import { MyTeamsPage } from "./pages/teams/MyTeamsPage";
 import { RequestTeamPage } from "./pages/teams/RequestTeamPage";
 import { TeamPage } from "./pages/teams/TeamPage";
+import { InboxPage } from "./pages/inbox/InboxPage";
+import { NotificationPage } from "./pages/inbox/NotificationPage";
+import { PushBridge } from "./push/PushBridge";
 
-export const routes: RouteObject[] = [
+/** Around every screen: push taps can open any of them. */
+function AppShell() {
+  return (
+    <>
+      <PushBridge />
+      <Outlet />
+    </>
+  );
+}
+
+const screens: RouteObject[] = [
   { path: "/", element: <HomePage /> },
   { path: "/login", element: <LoginPage /> },
   { path: "/signup", element: <SignUpPage /> },
@@ -49,6 +62,10 @@ export const routes: RouteObject[] = [
       { path: "/teams/find", element: <FindTeamPage /> },
       { path: "/teams/new", element: <RequestTeamPage /> },
       { path: "/teams/:teamId", element: <TeamPage /> },
+      { path: "/inbox", element: <InboxPage /> },
+      { path: "/inbox/:notificationId", element: <NotificationPage /> },
     ],
   },
 ];
+
+export const routes: RouteObject[] = [{ element: <AppShell />, children: screens }];

@@ -191,3 +191,36 @@ docs/DECISIONS.md under "2026-10-23: Teams (chunk 5)".
   e.g. T-6h for FR-3) and while the notification isn't closed; closed or late answers get
   409. What an answer does is left to later chunks through the `notification_answered`
   signal. The inbox shows the newest 100, unanswered ones first.
+
+## Chunk 10: Push and inbox in the app (UI)
+
+- **When to ask for push permission.** Question: the PRD doesn't say when the app asks.
+  Choice: once someone is signed in, the first time only (the phone's own prompt; never
+  asked again after a no). Why: pushes are per account, and asking before sign-in would
+  register a token with no one to send to. If the answer differs: call `registerPush`
+  from another place (for example after choosing Nights) in `push/PushBridge.tsx`.
+- **Do push buttons answer straight from the lock screen?** Question: the lock screen
+  design shows "I'm in" / "Can't make it" on the push; the prompt says a tap "opens the
+  right screen". Choice: every button opens the notification's screen and nothing is
+  answered until the Player taps there. Why: the stricter reading; an answer from a
+  pocket tap counts towards T-6h readiness. Also, OS action buttons need the backend to
+  send a category per kind and the app to register them natively, which isn't built. If
+  the answer differs: in `push/links.ts` and `PushBridge`, post the answer for
+  `confirm`, `decline` and `accept` action ids, and add categories in
+  `notifications/push.py` and natively.
+- **Where "Find a match" goes.** Question: the General notification's button has no
+  screen yet ("Games you can join" comes with Player Requests and friendlies). Choice:
+  My fixtures (`/fixtures`). If the answer differs: change `FIND_MATCH_PATH` in
+  `frontend/src/push/links.ts`.
+- **Inbox entry point without a tab bar.** Question: the designs put Inbox in the tab
+  bar, which no chunk has built. Choice: an Inbox row with the unread count on Profile.
+  If the answer differs: add the tab bar (its own chunk) with the Inbox badge from
+  `GET /api/v1/inbox/summary/`.
+- **Which match screen a notification opens.** Choice: an Admin of the notification's
+  Club opens the club's Fixture screen; everyone else the Player's. If the answer
+  differs: change `matchPath` in `pages/inbox/NotificationPage.tsx`.
+- **Session that ends by itself.** When the refresh token stops working (not a logout),
+  the phone can't remove its device registration, so it keeps getting that account's
+  pushes until someone signs in on it (the token then moves) or Firebase reports it dead.
+  Choice: accepted for now. If the answer differs: let the backend drop devices whose
+  account has no valid refresh token.
