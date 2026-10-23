@@ -87,3 +87,37 @@ the delivery fallback proposal.
 
 Checks: make test 403 passed; make lint clean; npm test 126 passed (26 files);
 npm run build ok.
+
+## Review (fix: chunk 9 review)
+
+Plan: compare abe1edc with the chunk 9 prompt, the PRD "Notifications" and "Targeting
+rules" sections and CLAUDE.md; run the four checks; fix real defects only.
+
+Checked and fine:
+- Seven kinds, content, action buttons, recipient, read and answered state; answers
+  changeable until `answer_by` or close (FR-3).
+- Targeting in one module: Night opt-ins (per Club, since a Night belongs to one Club),
+  Player Requests to outfield (and both) Players outside both Teams, Goalkeeper Requests
+  to Goalkeepers, reschedule only to the Night's Admins and the affected pitch's Referee
+  (who must still hold the Referee role at that Club). Each rule has a test.
+- Isolation: inbox and devices filter by the signed-in user; others' records are 404.
+  `notify()` refuses a Fixture of another Club. No money, ledger or UI in this chunk.
+- Firebase credentials only from env; FakeSender in every test; delivery fallback
+  proposed in docs/OPEN_QUESTIONS.md and not built, as the prompt asks.
+- `npm run gen:api` re-run: schema unchanged. Nothing from later chunks.
+
+Fixed:
+- A push that raised (a misconfigured PUSH_SENDER, firebase-admin import failure, a DB
+  error while recording) ran in a plain `on_commit` callback, so it surfaced as a 500 on
+  the action that notified, after that action had already committed. `notify()` now
+  registers the push with `on_commit(..., robust=True)`: the error is logged and the
+  Notification stays "pending" in the inbox (ready for chunk 11's retries). Test:
+  `test_a_push_that_raises_never_fails_the_action`.
+
+Noted, not changed:
+- firebase-admin 7.7 warns that `Message.token` is deprecated; it still works. Revisit
+  when chunk 10 wires real devices.
+- Two simultaneous registrations of the same new device token can hit the unique
+  constraint (500 for the second). Rare; the app retries registration on next start.
+
+Checks after the fix: make test 404 passed; make lint clean; npm test 126 passed (26 files); npm run build ok.

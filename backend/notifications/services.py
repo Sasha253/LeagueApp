@@ -90,7 +90,9 @@ def notify(
     created = Notification.objects.bulk_create(notifications)
     ids = [n.pk for n in created]
     if ids:
-        transaction.on_commit(lambda: push(ids))
+        # robust: a push that raises (sender misconfigured, Firebase down) is logged and
+        # never fails the action that notified; the Notification stays "pending".
+        transaction.on_commit(lambda: push(ids), robust=True)
     return created
 
 

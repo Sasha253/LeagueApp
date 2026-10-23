@@ -222,3 +222,24 @@ def test_firebase_sender_without_credentials_fails_every_push(settings):
     results = FirebaseSender().send([PushMessage("a", "T", "B")])
     assert not results[0].ok
     assert "FIREBASE_CREDENTIALS" in results[0].error
+
+
+@pytest.mark.django_db
+def test_a_push_that_raises_never_fails_the_action(
+    match, fake_push, django_capture_on_commit_callbacks, monkeypatch
+):
+    from notifications import push as push_module
+
+    class Broken(push_module.PushSender):
+        def send(self, messages):
+            raise RuntimeError("Firebase down")
+
+    monkeypatch.setattr("notifications.services.get_sender", lambda: Broken())
+    _, people = match
+    device(people["sipho"], "sipho-phone")
+    with django_capture_on_commit_callbacks(execute=True):
+        created = send(match)
+
+    assert len(created) == 4  # Saved and in the inbox; the push stays pending for a retry.
+    sipho = Notification.objects.get(recipient=people["sipho"])
+    assert sipho.push_status == PushStatus.PENDING
