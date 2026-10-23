@@ -101,7 +101,11 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
-    "DEFAULT_THROTTLE_RATES": {"auth": env("AUTH_THROTTLE_RATE", default="20/min")},
+    "DEFAULT_THROTTLE_RATES": {
+        "auth": env("AUTH_THROTTLE_RATE", default="20/min"),
+        # Gate scans per signed-in Admin or Referee: a busy gate, not guessing codes.
+        "barcode_scan": env("BARCODE_SCAN_THROTTLE_RATE", default="60/min"),
+    },
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
 }
@@ -158,6 +162,8 @@ SPECTACULAR_SETTINGS = {
         "PaymentCreditEnum": "payments.models.PAYMENT_CREDIT_SOURCES",
         "BarcodeModeEnum": "barcodes.models.BARCODE_MODES",
         "BarcodeStateEnum": "barcodes.services.State.choices",
+        "BarcodeScanMethodEnum": "barcodes.models.SCAN_METHODS",
+        "BarcodeScanStateEnum": "barcodes.services.State.scan_choices",
     },
 }
 

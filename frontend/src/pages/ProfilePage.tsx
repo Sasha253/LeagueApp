@@ -186,8 +186,26 @@ export function ProfilePage() {
                   <span className="body-strong">{ROLE_LABELS[role.role]}</span>
                   <span className="caption la-muted">{role.club_name}</span>
                 </div>
+                {role.role === "referee" && (
+                  <span className="la-confirm">
+                    <Link
+                      className="la-btn la-btn--secondary la-btn--sm"
+                      to={`/clubs/${role.club_id}/scan`}
+                      aria-label={`Scan at ${role.club_name}`}
+                    >
+                      Scan
+                    </Link>
+                  </span>
+                )}
                 {role.role === "admin" && (
                   <span className="la-confirm">
+                    <Link
+                      className="la-btn la-btn--secondary la-btn--sm"
+                      to={`/clubs/${role.club_id}/scan`}
+                      aria-label={`Scan at ${role.club_name}`}
+                    >
+                      Scan
+                    </Link>
                     <Link
                       className="la-btn la-btn--secondary la-btn--sm"
                       to={`/clubs/${role.club_id}/tonight`}

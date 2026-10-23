@@ -740,3 +740,51 @@ docs/DECISIONS.md under "2026-10-23: Teams (chunk 5)".
   asks the Captain to turn brightness up. Why: needs a native plugin
   (e.g. @capacitor-community/screen-brightness) and a device to test on. If the answer
   differs: add it behind frontend/src/native/.
+
+## Chunk 21: Gate scanning
+
+- **Which match a scan is for.** Question: FR-23 says the gate shows whether the Team has
+  paid; the chunk asks for "right Fixture". How does the gate know the match? Choice: the
+  scan may name a match (`fixture`, optional in the API); otherwise a per-match Barcode is
+  checked against its own match and a Season Barcode against its Team's match today (the
+  first one still on that it hasn't been let in for). The screen doesn't ask for a match
+  yet. Why: the gate is the club's entrance, and a Referee scanning at speed shouldn't have
+  to pick a match first. If the answer differs: a match picker on the scan screen (the API
+  already takes `fixture`).
+- **Valid only today.** Choice: the match must be today (South African date). A Barcode for
+  a later match reads "Not paid: this Barcode is for Tue 3 Nov. It isn't valid today."; an
+  earlier one already read "no longer valid" (chunk 20). Why: the design's Not paid example
+  is an old pass; a future pass is the same mistake. If the answer differs: let a future
+  match's Barcode in with a warning.
+- **Single use.** Question: "not reused where single-use": what counts as one use? Choice: a
+  Barcode lets its Team in once per match, per-match and Season Barcodes alike (a Season
+  Barcode once for each of the Team's matches). A second scan for the same match reads Not
+  paid: "Already scanned at 19:21 by Rita. A Barcode lets its Team in once per match." The
+  Barcode row is locked during the check and a unique constraint (one Paid scan per Barcode
+  and match) stops two gates letting it in at once. Why: NFR "impossible to reuse"; the
+  Captain shows one Barcode for the whole Team. If the answer differs (an accidental
+  rescan should read Paid again): drop the "used" check for scans by the same person within
+  a few minutes, or let an Admin undo a scan; the constraint would move to a flag.
+- **Ruled out or match off.** Choice: a Team ruled out at T-6h (`TeamReadiness` out), or a
+  match cancelled, played or with both Teams out, reads Not paid with that reason, even with
+  a valid Barcode. Why: FR-6, a Team only plays when it is in the match. If the answer
+  differs: show Paid with a warning line instead.
+- **Who may scan.** Choice: every Admin and Referee of the club, at any of the club's
+  matches (not only a Referee's own pitch). Others get 403. Only the club's own Barcodes are
+  found. Why: PRD roles "Referee: scan a Barcode to confirm a Team has paid", the gate is one
+  entrance per venue. If the answer differs: limit Referees to Fixtures on their pitch
+  (`Field.referee`) when the scan names one.
+- **What the result shows.** Choice: Paid or Not paid in large type, the Team, the match
+  (opponent, time, pitch; the date when not today), the reason, the code, "This match only"
+  or "Until <date>", and on Paid what the Team paid and how ("R 350 · card"). Referees see
+  the amount too. Why: the design (f13-scan.mjs). If the answer differs: hide the amount from
+  Referees.
+- **Camera plugin.** Choice: the official `@capacitor/barcode-scanner` (Ionic): its own
+  full-screen camera view with a torch button, Code 128 hint. The design's own framed camera
+  overlay (`la-scan`) isn't built: the plugin draws its own. Why: an official plugin that
+  works on iOS and Android with no custom native code, opened from one wrapper
+  (frontend/src/native/scanner.ts). If the answer differs: `@capacitor-mlkit/barcode-scanning`
+  with a transparent WebView and the design's overlay.
+- **Rate limit.** Choice: 60 scans per minute per signed-in Admin or Referee
+  (`BARCODE_SCAN_THROTTLE_RATE`). Why: a busy gate stays far below it, guessing codes can't.
+  If the answer differs: change the environment value.

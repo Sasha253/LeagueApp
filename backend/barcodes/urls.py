@@ -1,4 +1,5 @@
-"""Payment Barcodes, under /api/v1/ before the Teams router."""
+"""Payment Barcodes. `urlpatterns` go under /api/v1/ before the Teams router;
+`club_urlpatterns` under /api/v1/clubs/{club_id}/."""
 
 from django.urls import path
 
@@ -12,4 +13,8 @@ urlpatterns = [
         views.RevokeBarcodeView.as_view(),
         name="barcode-revoke",
     ),
+]
+
+club_urlpatterns = [
+    path("scans/", views.ScanView.as_view(), name="club-scans"),
 ]

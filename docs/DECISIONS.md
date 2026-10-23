@@ -2,6 +2,33 @@
 
 Newest first. Each entry: the date, what was decided, and why.
 
+## 2026-10-23: Gate scanning (chunk 21) (provisional, unattended run)
+
+Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 21: Gate scanning".
+
+- **Which match (provisional, unattended run):** a scan may name a match; otherwise a
+  per-match Barcode is checked against its own match and a Season Barcode against its
+  Team's match today.
+- **Today only (provisional, unattended run):** the match must be today (South African
+  date), still on (not cancelled, played or both Teams out), and the Team not ruled out of
+  it at T-6h; otherwise Not paid with the reason.
+- **Single use (provisional, unattended run):** a Barcode lets its Team in once per match
+  (Season Barcodes once per match too). A second scan reads Not paid with when and by whom
+  it was scanned. Locked check plus a unique constraint on Paid scans.
+- **Who scans (provisional, unattended run):** every Admin and Referee of the club, at any
+  of its matches; others 403. Only the club's own Barcodes are found. 60 scans a minute
+  each (`BARCODE_SCAN_THROTTLE_RATE`).
+- **Result (provisional, unattended run):** Paid / Not paid, Team, match, reason, code,
+  validity, and on Paid the amount and methods the Team paid.
+- **Camera (provisional, unattended run):** the official `@capacitor/barcode-scanner`
+  plugin behind frontend/src/native/scanner.ts (its own camera view with torch); typing the
+  code is the fallback and the only way in a browser. iOS `NSCameraUsageDescription` and
+  Android `CAMERA` added.
+- **Proposed component styles:** the scan result block (`.la-result`, `--paid`,
+  `--notpaid`, `__word`) and the key-value row (`.la-kv`) copied from design/src/proposed.css
+  into `frontend/src/styles/proposed.css`. The design's framed camera overlay (`.la-scan`)
+  is not used: the plugin draws its own.
+
 ## 2026-10-23: Payment Barcodes (chunk 20) (provisional, unattended run)
 
 Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 20: Payment Barcodes".

@@ -286,7 +286,7 @@ def test_codes_are_unique_and_retried(owing, match, cashier, pay, monkeypatch, m
 # Scanning: every scan is logged
 
 
-def test_a_valid_scan_reads_paid(owing, match, cashier, pay, club_a):
+def test_a_valid_scan_reads_paid(owing, tonight, cashier, pay, club_a):
     pay(owing, cashier)
     barcode = Barcode.objects.get()
     result = services.scan(

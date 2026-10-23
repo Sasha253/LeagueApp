@@ -622,6 +622,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clubs/{club_id}/scans/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description The gate (FR-23): an Admin or Referee of the club scans a Payment Barcode with the
+         *     camera, or types its code. The answer says Paid or Not paid, for which Team and match,
+         *     and why not. Every scan is logged.
+         */
+        post: operations["clubs_scans_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clubs/{club_id}/seasons/": {
         parameters: {
             query?: never;
@@ -1824,6 +1845,30 @@ export interface components {
          * @enum {string}
          */
         BarcodeModeEnum: "match" | "season";
+        /**
+         * @description * `camera` - Scanned with the camera
+         *     * `manual` - Code typed in
+         * @enum {string}
+         */
+        BarcodeScanMethodEnum: "camera" | "manual";
+        /**
+         * @description * `valid` - Valid
+         *     * `not_genuine` - Not genuine
+         *     * `revoked` - Revoked
+         *     * `expired` - No longer valid
+         *     * `unpaid` - Not paid
+         *     * `inactive` - Team not active
+         *     * `no_match` - No match coming up
+         *     * `not_found` - No such Barcode
+         *     * `wrong_match` - Not for this match
+         *     * `not_today` - Not for today
+         *     * `no_match_today` - No match today
+         *     * `match_off` - Match is off
+         *     * `ruled_out` - Team ruled out
+         *     * `used` - Already scanned
+         * @enum {string}
+         */
+        BarcodeScanStateEnum: "valid" | "not_genuine" | "revoked" | "expired" | "unpaid" | "inactive" | "no_match" | "not_found" | "wrong_match" | "not_today" | "no_match_today" | "match_off" | "ruled_out" | "used";
         BarcodeSeason: {
             readonly id: number;
             readonly name: string;
@@ -3095,6 +3140,48 @@ export interface components {
          * @enum {string}
          */
         RoleEnum: "admin" | "referee";
+        /** @description A code scanned with the camera or typed in at the gate. */
+        ScanRequestRequest: {
+            /** @description As scanned or typed: "RK 2710 4419", spaces optional. */
+            code: string;
+            method: components["schemas"]["BarcodeScanMethodEnum"];
+            /** @description The match the gate is checking for. Optional: without it, the Barcode's own match, or for a Season Barcode its Team's match today. */
+            fixture?: number | null;
+        };
+        /**
+         * @description What the gate shows after a scan: Paid or Not paid, for which Team and match, and
+         *     why not. Everything here is decided by the backend.
+         */
+        ScanResult: {
+            /** @description The logged scan. */
+            readonly id: number;
+            readonly paid: boolean;
+            readonly state: components["schemas"]["BarcodeScanStateEnum"];
+            /** @description Why not paid; empty when paid. */
+            readonly reason: string;
+            /** Format: date-time */
+            readonly scanned_at: string;
+            /** @description The code as scanned or typed. */
+            readonly code: string;
+            /** @description The Barcode's code as printed ("RK 2710 4419"); null when none matched. */
+            readonly display_code: string | null;
+            readonly team: components["schemas"]["Named"] | null;
+            /** @description The match the scan was checked against. */
+            readonly fixture: components["schemas"]["BarcodeMatch"] | null;
+            readonly mode: (components["schemas"]["BarcodeModeEnum"] | components["schemas"]["NullEnum"]) | null;
+            /**
+             * Format: date
+             * @description The Barcode's last valid day (South African date).
+             */
+            readonly valid_until: string | null;
+            /**
+             * Format: decimal
+             * @description What the Team has paid, in rand; only on a Paid result.
+             */
+            readonly paid_amount: string | null;
+            /** @description How the Team paid (card, cash, credit); only on a Paid result. */
+            readonly paid_methods: components["schemas"]["LedgerMethodEnum"][];
+        };
         /** @description For a record of the Club in the URL. The view puts that Club in the context. */
         Season: {
             readonly id: number;
@@ -4464,6 +4551,33 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TonightFixture"];
+                };
+            };
+        };
+    };
+    clubs_scans_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScanRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ScanRequestRequest"];
+                "multipart/form-data": components["schemas"]["ScanRequestRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScanResult"];
                 };
             };
         };

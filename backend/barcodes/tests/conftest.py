@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 import pytest
+from django.utils import timezone
 
 from clubs.models import PaymentMode
 from fixtures.tests import conftest as fixture_fixtures
@@ -31,6 +32,12 @@ def boys(make_team, make_user):
 def match(make_fixture, lions, boys):
     """Red Lions vs Old Boys, next Tuesday at 19:40."""
     return make_fixture(lions, boys)
+
+
+@pytest.fixture
+def tonight(make_fixture, lions, boys):
+    """Red Lions vs Old Boys today (South African date): the match at the gate now."""
+    return make_fixture(lions, boys, date=timezone.localdate(), time="00:01")
 
 
 @pytest.fixture

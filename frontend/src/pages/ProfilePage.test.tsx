@@ -116,6 +116,24 @@ describe("ProfilePage", () => {
     expect(screen.getByRole("link", { name: "Fixtures for Club A" })).toHaveAttribute("href", "/clubs/1/fixtures");
   });
 
+  it("links Admins and Referees to the club's gate scanner, and nobody else", async () => {
+    await openProfile({
+      ...ME,
+      club_roles: [
+        { club_id: 1, club_name: "Club A", role: "admin" },
+        { club_id: 2, club_name: "Club B", role: "referee" },
+      ],
+    });
+
+    expect(screen.getByRole("link", { name: "Scan at Club A" })).toHaveAttribute("href", "/clubs/1/scan");
+    expect(screen.getByRole("link", { name: "Scan at Club B" })).toHaveAttribute("href", "/clubs/2/scan");
+  });
+
+  it("gives a Player no gate scanner", async () => {
+    await openProfile();
+    expect(screen.queryByRole("link", { name: /^Scan at/ })).not.toBeInTheDocument();
+  });
+
   it("links a Player to their fixtures", async () => {
     await openProfile();
     expect(screen.getByRole("link", { name: /^My fixtures/ })).toHaveAttribute("href", "/fixtures");

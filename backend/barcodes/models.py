@@ -154,7 +154,7 @@ class BarcodeScan(models.Model):
         null=True,
         blank=True,
         related_name="barcode_scans",
-        help_text="The match the gate was checking for, when it said.",
+        help_text="The match the scan was checked against.",
     )
     scanned_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="barcode_scans"
@@ -168,6 +168,14 @@ class BarcodeScan(models.Model):
     class Meta:
         ordering = ["-scanned_at", "-pk"]
         indexes = [models.Index(fields=["club", "-scanned_at"])]
+        constraints = [
+            # Single use (NFR Barcode integrity): a Barcode lets its Team in once per match.
+            models.UniqueConstraint(
+                fields=["barcode", "fixture"],
+                condition=models.Q(result="paid"),
+                name="one_paid_scan_per_barcode_and_match",
+            ),
+        ]
 
     def __str__(self) -> str:
         return f"Scan of {self.code}: {self.get_result_display()}"

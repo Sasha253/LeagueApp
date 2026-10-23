@@ -126,3 +126,14 @@
 .la-ticket__status svg { width: 20px; height: 20px; }
 .la-ticket__notch--left { left: -12px; }
 .la-ticket__notch--right { right: -12px; }
+
+/* Gate scan result (chunk 21), copied from design/src/proposed.css: the large Paid / Not paid
+   block (design/src/screens/f13-scan.mjs resultPaid, resultNotPaid) and a key-value row. */
+.la-result { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-4); border-radius: var(--radius-md); }
+.la-result svg { width: 40px; height: 40px; flex: none; }
+.la-result__word { font-family: var(--font-display); font-size: 48px; line-height: 48px; font-weight: 700; }
+.la-result--paid { background: var(--confirmed-soft); color: var(--confirmed); }
+.la-result--notpaid { background: var(--cancelled-soft); color: var(--cancelled); }
+.la-kv { display: flex; justify-content: space-between; gap: var(--space-3); align-items: baseline; }
+.la-kv > span:first-child { color: var(--ink-muted); }
+.la-kv > span:last-child { text-align: right; font-weight: 600; }

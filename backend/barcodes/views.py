@@ -4,25 +4,35 @@
 - Admins of the Team's Club see all its Barcodes, issue or reissue one (only for a paid
   Team), and revoke one with a reason.
 - Anyone else gets 404, so a Team's Barcodes don't show that they exist.
+- At the gate (FR-23) the club's Admins and Referees scan or type a code: the answer is
+  Paid or Not paid with the reason, and every scan is logged. Only that club's Barcodes
+  are found.
 """
 
 from django.db.models import Count
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from accounts.models import ClubRole
+from accounts.permissions import IsClubAdminOrReferee
+from clubs.models import Club
+from ledger import services as ledger
 from teams.models import Team
 
-from . import services
+from . import services, signing
 from .models import Barcode
 from .serializers import (
     AdminBarcodeSerializer,
     CurrentBarcodeSerializer,
     RevokeBarcodeSerializer,
+    ScanRequestSerializer,
+    ScanResultSerializer,
 )
 
 
@@ -106,3 +116,64 @@ class RevokeBarcodeView(APIView):
         services.revoke(barcode, by=request.user, reason=body.validated_data["reason"])
         barcode = _barcodes(barcode.team).get(pk=barcode.pk)
         return Response(AdminBarcodeSerializer(barcode).data)
+
+
+def _scan_answer(result: services.ScanResult) -> dict:
+    barcode = result.barcode
+    answer = {
+        "id": result.scan.pk,
+        "paid": result.paid,
+        "state": result.status.state,
+        "reason": result.status.reason,
+        "scanned_at": result.scan.scanned_at,
+        "code": result.scan.code,
+        "display_code": None,
+        "team": None,
+        "fixture": result.match,
+        "mode": None,
+        "valid_until": None,
+        "paid_amount": None,
+        "paid_methods": [],
+    }
+    if barcode is not None:
+        answer["display_code"] = signing.display(barcode.code)
+        answer["team"] = barcode.team
+        answer["mode"] = barcode.mode
+        answer["valid_until"] = (
+            timezone.localdate(barcode.fixture.kick_off)
+            if barcode.fixture is not None
+            else barcode.season.ends_on
+        )
+    if result.paid:
+        balance = ledger.team_balance(barcode.team)
+        answer["paid_amount"] = balance.paid
+        answer["paid_methods"] = [
+            method for method, amount in balance.paid_by_method.items() if amount > 0
+        ]
+    return answer
+
+
+class ScanView(APIView):
+    """The gate (FR-23): an Admin or Referee of the club scans a Payment Barcode with the
+    camera, or types its code. The answer says Paid or Not paid, for which Team and match,
+    and why not. Every scan is logged."""
+
+    permission_classes = [IsClubAdminOrReferee]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "barcode_scan"
+
+    @extend_schema(request=ScanRequestSerializer, responses={201: ScanResultSerializer})
+    def post(self, request, club_id: int):
+        club = get_object_or_404(Club, pk=club_id)
+        body = ScanRequestSerializer(data=request.data, club_id=club.pk)
+        body.is_valid(raise_exception=True)
+        result = services.scan(
+            body.validated_data["code"],
+            club=club,
+            by=request.user,
+            method=body.validated_data["method"],
+            fixture=body.validated_data.get("fixture"),
+        )
+        return Response(
+            ScanResultSerializer(_scan_answer(result)).data, status=status.HTTP_201_CREATED
+        )

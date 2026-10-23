@@ -10,8 +10,10 @@
   only an Admin reissues.
 - A Barcode is valid while it is genuine (signed), not revoked, not past its match or
   Season, and its Team is still paid. That is checked at every look and every scan.
-- Every scan is logged (`scan`). Matching the scan to tonight's match and refusing a
-  reused per-match Barcode is the gate's job (chunk 21).
+- At the gate (`scan`, FR-23) a valid Barcode also has to fit the match: its own match
+  (or, for a Season Barcode, the Team's match today or the one the gate names), today,
+  still on, the Team not ruled out of it, and not scanned in already: a Barcode lets its
+  Team in once per match. Every scan is logged, whatever the result.
 
 Everything here is decided by the backend; the app only shows it.
 """
@@ -27,7 +29,7 @@ from django.utils import timezone
 from accounts.models import User
 from clubs.models import Club, PaymentMode
 from core.exceptions import Conflict
-from fixtures.models import Fixture
+from fixtures.models import Fixture, TeamReadiness
 from ledger import services as ledger
 from notifications.models import Kind
 from notifications.services import match_day, match_time, notify
@@ -46,6 +48,7 @@ REISSUED = "Reissued by an Admin."
 ATTEMPTS = 5  # New nonces tried if a code is already taken (one in 2^50 each time).
 
 FINISHED = (Fixture.Status.CANCELLED, Fixture.Status.PLAYED)
+OFF = (*FINISHED, Fixture.Status.BOTH_TEAMS_OUT)  # Matches nobody is let in for.
 
 
 class State:
@@ -59,6 +62,13 @@ class State:
     INACTIVE = "inactive"
     NO_MATCH = "no_match"
     NOT_FOUND = "not_found"
+    # At the gate only (`scan`):
+    WRONG_MATCH = "wrong_match"
+    NOT_TODAY = "not_today"
+    NO_MATCH_TODAY = "no_match_today"
+    MATCH_OFF = "match_off"
+    RULED_OUT = "ruled_out"
+    USED = "used"
 
     choices = [
         (VALID, "Valid"),
@@ -69,6 +79,16 @@ class State:
         (INACTIVE, "Team not active"),
         (NO_MATCH, "No match coming up"),
         (NOT_FOUND, "No such Barcode"),
+    ]
+    # A scan at the gate answers any of the above, or one of these.
+    scan_choices = [
+        *choices,
+        (WRONG_MATCH, "Not for this match"),
+        (NOT_TODAY, "Not for today"),
+        (NO_MATCH_TODAY, "No match today"),
+        (MATCH_OFF, "Match is off"),
+        (RULED_OUT, "Team ruled out"),
+        (USED, "Already scanned"),
     ]
 
 
@@ -331,12 +351,120 @@ class ScanResult:
     scan: BarcodeScan
     barcode: Barcode | None
     status: Status
+    match: Fixture | None = None
 
     @property
     def paid(self) -> bool:
         return self.status.valid
 
 
+def _plays_in(team: Team, fixture: Fixture) -> bool:
+    return team.pk in (fixture.home_team_id, fixture.away_team_id)
+
+
+def _admitted(barcode: Barcode, fixture: Fixture) -> BarcodeScan | None:
+    """The scan that already let `barcode`'s Team in for `fixture`, if any."""
+    return (
+        BarcodeScan.objects.filter(barcode=barcode, fixture=fixture, result=BarcodeScan.Result.PAID)
+        .select_related("scanned_by")
+        .first()
+    )
+
+
+def _match_today(barcode: Barcode) -> Fixture | None:
+    """For a Season Barcode: the Team's match today that is still on, the first one it
+    hasn't been let in for yet (else the first)."""
+    team = barcode.team
+    today = _today()
+    matches = list(
+        Fixture.objects.filter(Q(home_team=team) | Q(away_team=team))
+        .filter(
+            kick_off__gte=_start_of(today),
+            kick_off__lt=_start_of(today + dt.timedelta(days=1)),
+        )
+        .exclude(status__in=OFF)
+        .select_related("home_team", "away_team", "pitch")
+        .order_by("kick_off", "pk")
+    )
+    for match in matches:
+        if _admitted(barcode, match) is None:
+            return match
+    return matches[0] if matches else None
+
+
+def _off_reason(match: Fixture) -> str:
+    day = _day(timezone.localdate(match.kick_off))
+    if match.status == Fixture.Status.CANCELLED:
+        return f"The match on {day} was cancelled."
+    if match.status == Fixture.Status.PLAYED:
+        return f"The match on {day} has been played."
+    return f"The match on {day} is off: both Teams are out."
+
+
+def _at_the_gate(barcode: Barcode, fixture: Fixture | None) -> tuple[Status, Fixture | None]:
+    """Whether a valid `barcode` lets its Team in now, for which match. `fixture` is the
+    match the gate is checking for, when it says."""
+    team = barcode.team
+    if barcode.mode == Mode.MATCH:
+        match = barcode.fixture
+        if fixture is not None and fixture.pk != match.pk:
+            played_on = _day(timezone.localdate(match.kick_off))
+            return (
+                Status(
+                    State.WRONG_MATCH,
+                    f"This Barcode is for {team.name}'s match on {played_on}, not this one.",
+                ),
+                fixture,
+            )
+    elif fixture is not None:
+        if not _plays_in(team, fixture):
+            return Status(State.WRONG_MATCH, f"{team.name} doesn't play in this match."), fixture
+        match = fixture
+    else:
+        match = _match_today(barcode)
+        if match is None:
+            return Status(State.NO_MATCH_TODAY, f"{team.name} has no match today."), None
+
+    if match.status in OFF:
+        return Status(State.MATCH_OFF, _off_reason(match)), match
+    played_on = timezone.localdate(match.kick_off)
+    if played_on != _today():
+        return (
+            Status(
+                State.NOT_TODAY, f"This Barcode is for {_day(played_on)}. It isn't valid today."
+            ),
+            match,
+        )
+    ruled_out = TeamReadiness.objects.filter(
+        fixture=match,
+        team=team,
+        kick_off=match.kick_off,
+        outcome=TeamReadiness.Outcome.OUT,
+    ).exists()
+    if ruled_out:
+        return Status(State.RULED_OUT, f"{team.name} was ruled out of this match."), match
+    earlier = _admitted(barcode, match)
+    if earlier is not None:
+        return Status(State.USED, _used_reason(earlier)), match
+    return Status(State.VALID), match
+
+
+def _used_reason(earlier: BarcodeScan | None) -> str:
+    if earlier is None:
+        return "Already scanned. A Barcode lets its Team in once per match."
+    at = timezone.localtime(earlier.scanned_at)
+    return (
+        f"Already scanned at {at:%H:%M} by {earlier.scanned_by.name}. "
+        "A Barcode lets its Team in once per match."
+    )
+
+
+def _log(**fields) -> BarcodeScan:
+    fields["reason"] = fields["reason"][:300]
+    return BarcodeScan.objects.create(**fields)
+
+
+@transaction.atomic
 def scan(
     entered: str,
     *,
@@ -345,28 +473,49 @@ def scan(
     method: str,
     fixture: Fixture | None = None,
 ) -> ScanResult:
-    """Checks a scanned or typed code at `club`'s gate, and logs the scan whatever the
-    result. Only this club's Barcodes are found."""
+    """Checks a scanned or typed code at `club`'s gate (FR-23), and logs the scan whatever
+    the result. Only this club's Barcodes are found. `fixture` is the match the gate is
+    checking for, when it says; else the Barcode's own match (or, for a Season Barcode,
+    the Team's match today).
+
+    Paid means: the Barcode is valid (`status_of`), its match is today and still on, the
+    Team isn't ruled out of it, and the Barcode hasn't let the Team in for it already.
+    """
     code = signing.normalise(entered)
     barcode = None
     if code is not None:
+        # Locked, so two gates scanning the same Barcode at once can't both let it in.
         barcode = (
-            Barcode.objects.filter(club=club, code=code)
+            Barcode.objects.select_for_update(of=("self",))
+            .filter(club=club, code=code)
             .select_related("team", "season", "fixture")
             .first()
         )
+    match = fixture
     if barcode is None:
         status = Status(State.NOT_FOUND, "No Barcode has this code.")
     else:
         status = status_of(barcode)
-    logged = BarcodeScan.objects.create(
-        club=club,
-        barcode=barcode,
-        code=entered.strip()[:40],
-        method=method,
-        fixture=fixture,
-        scanned_by=by,
-        result=BarcodeScan.Result.PAID if status.valid else BarcodeScan.Result.NOT_PAID,
-        reason=status.reason[:300],
-    )
-    return ScanResult(logged, barcode, status)
+        if status.valid:
+            status, match = _at_the_gate(barcode, fixture)
+        elif match is None:
+            match = barcode.fixture
+    entry = {
+        "club": club,
+        "barcode": barcode,
+        "code": entered.strip()[:40],
+        "method": method,
+        "fixture": match,
+        "scanned_by": by,
+    }
+    if status.valid:
+        try:
+            with transaction.atomic():
+                logged = _log(**entry, result=BarcodeScan.Result.PAID, reason="")
+        except IntegrityError:
+            # Let in by another gate in the same moment (the constraint backs the lock).
+            status = Status(State.USED, _used_reason(_admitted(barcode, match)))
+        else:
+            return ScanResult(logged, barcode, status, match)
+    logged = _log(**entry, result=BarcodeScan.Result.NOT_PAID, reason=status.reason)
+    return ScanResult(logged, barcode, status, match)

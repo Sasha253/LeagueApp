@@ -31,6 +31,7 @@ import { ClubPaymentsPage } from "./pages/payments/ClubPaymentsPage";
 import { ClubTeamPaymentPage } from "./pages/payments/ClubTeamPaymentPage";
 import { PaymentResultPage } from "./pages/payments/PaymentResultPage";
 import { PayPage } from "./pages/payments/PayPage";
+import { ScanPage } from "./pages/payments/ScanPage";
 import { InboxPage } from "./pages/inbox/InboxPage";
 import { NotificationPage } from "./pages/inbox/NotificationPage";
 import { PushBridge } from "./push/PushBridge";
@@ -69,6 +70,7 @@ const screens: RouteObject[] = [
       { path: "/clubs/:clubId/requests", element: <ClubRequestsPage /> },
       { path: "/clubs/:clubId/payments", element: <ClubPaymentsPage /> },
       { path: "/clubs/:clubId/payments/:teamId", element: <ClubTeamPaymentPage /> },
+      { path: "/clubs/:clubId/scan", element: <ScanPage /> },
       { path: "/fixtures", element: <MyFixturesPage /> },
       { path: "/fixtures/:fixtureId", element: <FixturePage /> },
       { path: "/fixtures/:fixtureId/request", element: <FixtureRequestPage /> },
