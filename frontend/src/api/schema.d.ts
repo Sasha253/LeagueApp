@@ -691,6 +691,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/fixtures/{id}/answer/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Answer a Fixture's Confirmation, or change the answer
+         * @description Until the cutoff (T-6h), while the match is confirming (FR-3). 409 before the Confirmations go out or after the cutoff. Answers with my Team's replies.
+         */
+        post: operations["fixtures_answer_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/fixtures/{id}/squad/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * My Team's replies for a Fixture
+         * @description Every Player in my Team now and whether they are playing, against the Division's minimum (FR-38). Only my own Team's replies.
+         */
+        get: operations["fixtures_squad_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/health/": {
         parameters: {
             query?: never;
@@ -1372,6 +1412,12 @@ export interface components {
             readonly id: number;
             name: string;
         };
+        /**
+         * @description * `confirm` - Playing
+         *     * `decline` - Not playing
+         * @enum {string}
+         */
+        ConfirmationAnswerEnum: "confirm" | "decline";
         DeclineTeamRequest: {
             reason?: string;
         };
@@ -1457,6 +1503,15 @@ export interface components {
             name: string;
             /** @description A user holding the Referee role at this club. */
             referee?: number | null;
+        };
+        FixtureAnswerRequest: {
+            /**
+             * @description confirm: playing; decline: not.
+             *
+             *     * `confirm` - Playing
+             *     * `decline` - Not playing
+             */
+            answer: components["schemas"]["ConfirmationAnswerEnum"];
         };
         /**
          * @description * `create` - New Fixture
@@ -1991,6 +2046,45 @@ export interface components {
             starts_on: string;
             /** Format: date */
             ends_on: string;
+        };
+        /** @description The signed-in Player's Team for one Fixture: who is playing (FR-38). */
+        Squad: {
+            readonly fixture_id: number;
+            readonly team: components["schemas"]["Named"];
+            /** @description The Division's minimum. */
+            readonly min_players: number;
+            readonly confirmed: number;
+            readonly declined: number;
+            /** @description Not answered yet. */
+            readonly waiting: number;
+            /** @description Fewer confirmed than the minimum: out at T-6h if it stays. */
+            readonly below_minimum: boolean;
+            readonly short_by: number;
+            /**
+             * Format: date-time
+             * @description The cutoff (T-6h): no answers or changes after it.
+             */
+            readonly answer_by: string;
+            /** @description Answers can be given or changed now. */
+            readonly replies_open: boolean;
+            readonly my_answer: components["schemas"]["ConfirmationAnswerEnum"] | components["schemas"]["BlankEnum"];
+            readonly players: components["schemas"]["SquadPlayer"][];
+        };
+        SquadPlayer: {
+            readonly id: number;
+            readonly name: string;
+            readonly position: components["schemas"]["PositionEnum"] | components["schemas"]["BlankEnum"];
+            readonly is_captain: boolean;
+            readonly is_me: boolean;
+            /**
+             * @description Empty: not answered yet.
+             *
+             *     * `confirm` - Playing
+             *     * `decline` - Not playing
+             */
+            readonly answer: components["schemas"]["ConfirmationAnswerEnum"] | components["schemas"]["BlankEnum"];
+            /** Format: date-time */
+            readonly answered_at: string | null;
         };
         /** @description A Team as Players see it when they search. */
         Team: {
@@ -3310,6 +3404,56 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MyFixture"];
+                };
+            };
+        };
+    };
+    fixtures_answer_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this fixture. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FixtureAnswerRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["FixtureAnswerRequest"];
+                "multipart/form-data": components["schemas"]["FixtureAnswerRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Squad"];
+                };
+            };
+        };
+    };
+    fixtures_squad_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this fixture. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Squad"];
                 };
             };
         };

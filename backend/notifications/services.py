@@ -16,6 +16,7 @@ from django.dispatch import Signal
 from django.utils import timezone
 
 from core.exceptions import Conflict
+from fixtures.models import Fixture
 
 from .models import DeviceToken, Kind, Notification, PushStatus
 from .push import PushMessage, get_sender
@@ -181,7 +182,13 @@ def mark_read(notification: Notification) -> Notification:
 
 @transaction.atomic
 def answer(notification: Notification, value: str) -> Notification:
-    """Records the recipient's answer. They may change it while it is still answerable."""
+    """Records the recipient's answer. They may change it while it is still answerable.
+
+    A Notification about a Fixture locks the Fixture first: every path that changes both
+    (answers from the match screen, the resend) locks in that order, so none deadlock.
+    """
+    if notification.fixture_id is not None:
+        list(Fixture.objects.select_for_update().filter(pk=notification.fixture_id))
     notification = Notification.objects.select_for_update().get(pk=notification.pk)
     if not notification.answers:
         raise Conflict("This notification has nothing to answer.")

@@ -270,3 +270,40 @@ docs/DECISIONS.md under "2026-10-23: Teams (chunk 5)".
 - **Local worker pool.** `make worker` uses `--pool=threads`: on this Mac with Python 3.14
   Celery's default process pool fails every task ("not enough values to unpack"). Production
   on Linux can use the default pool.
+
+## Chunk 12: Answering Confirmations
+
+- **When replies open.** Question: FR-3 says a Player can change their answer "at any time
+  before the cutoff"; can they answer before the T-36h Confirmation goes out? Choice: no.
+  Replies are open only while the Fixture is `confirming` (from T-36h, or when a later
+  chunk moves it there) and before the cutoff. Before that the match screen says "Replies
+  open when the Confirmations go out." Why: the answer is an answer to the Confirmation;
+  early answers would need the T-36h Confirmation to know about them. If the answer
+  differs: allow `scheduled` in `fixtures/confirmations.py` `_refuse_if_closed` and skip
+  answered Players in `send_confirmations`.
+- **The cutoff.** Choice: `readiness_hours_before` kick-off (T-6h) from the Club's
+  settings, checked by the backend on every answer, whichever way it comes in. Answers at
+  or after it are refused (409). Why: FR-3, FR-5 and the chunk 11 decision.
+- **Where the answer lives.** Choice: a `ConfirmationAnswer` per Fixture, Player and
+  kick-off, changed in place; the Player's Confirmation Notification is kept in step both
+  ways. Why: a Player who didn't opt into the Night's notifications gets no Confirmation
+  (targeting rule) but is still in the Team and must be able to answer, and the T-6h
+  readiness check needs one place to count. A changed kick-off (reschedule) starts with
+  no answers. If the answer differs (keep answers across a reschedule): drop `kick_off`
+  from the lookups in `fixtures/confirmations.py`.
+- **History of changed answers.** Choice: only the current answer and when it was given
+  are kept, not every change. Why: answers are not money and the PRD asks for none. If
+  the answer differs: add an append-only log like FixtureTransition.
+- **Who sees replies.** Choice: a Team's Players (its Captain too) see their own Team's
+  replies: each Player's name and answer, the counts, the Division minimum and whether the
+  Team is below it. They don't see the other Team's replies. Admins get both Teams' replies
+  with the T-6h queue (chunk 13). Why: FR-38 says "Team members", and the other Team's
+  squad is theirs. If the answer differs: return both Teams from the squad endpoint.
+- **Who counts.** Choice: confirmed answers of Players in the Team now. A Player who
+  answered and then left the Team no longer counts or shows. Borrowed Players (FR-37) are
+  added in chunk 17.
+- **A Player who joins after T-36h** (from chunk 11). Choice: no Confirmation is sent to
+  them; they answer on the match screen. Why: the smallest change; the PRD names no
+  notification for it. If the answer differs: notify on joining a `confirming` match.
+- **Wording.** The squad hint says "Your team needs n more by Tue 13:40 or it's out of the
+  match." (FR-5: the Team's participation is cancelled, not necessarily the match.)

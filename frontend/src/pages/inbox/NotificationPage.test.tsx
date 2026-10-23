@@ -2,6 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { json, ME } from "../../test/fakeApi";
+import { squad } from "../fixtures/testing";
 import { openAs } from "../teams/testing";
 import { ANSWERED, GENERAL, notification, UPDATE } from "./testing";
 
@@ -130,5 +131,29 @@ describe("NotificationPage", () => {
     await openAs("/inbox/99", { [`GET ${path(99)}`]: () => json(404, { detail: "Not found." }) }, "Notification");
 
     expect(await screen.findByText("Couldn't load the notification")).toBeInTheDocument();
+  });
+
+  it("shows the Team's squad on a Confirmation, refreshed after answering (FR-38)", async () => {
+    const answered = notification({ answer: "confirm", answered_at: "2026-10-26T05:42:00Z", needs_reply: false });
+    const { calls } = await open(notification(), {
+      [`POST ${path(5)}answer/`]: { status: 200, body: answered },
+      "GET /api/v1/fixtures/30/squad/": [
+        { status: 200, body: squad() },
+        { status: 200, body: squad({ confirmed: 2, short_by: 3 }) },
+      ],
+    });
+
+    expect(await screen.findByRole("region", { name: "Squad" })).toHaveTextContent("1 of 5 confirmed");
+    await userEvent.click(screen.getByRole("button", { name: "I'm in" }));
+
+    await waitFor(() => expect(screen.getByRole("region", { name: "Squad" })).toHaveTextContent("2 of 5 confirmed"));
+    expect(calls.filter((c) => c.path === "/api/v1/fixtures/30/squad/")).toHaveLength(2);
+  });
+
+  it("shows no squad when it can't be loaded", async () => {
+    await open(notification());
+
+    expect(await screen.findByRole("button", { name: "I'm in" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Squad" })).not.toBeInTheDocument();
   });
 });

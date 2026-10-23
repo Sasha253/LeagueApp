@@ -7,6 +7,8 @@ import pytest
 from django.utils import timezone
 
 from core.exceptions import Conflict
+from fixtures import lifecycle
+from fixtures.models import Fixture
 from notifications import services, targeting
 from notifications.models import DeviceToken, Kind, Notification, PushStatus
 from notifications.push import FirebaseSender, PushMessage
@@ -139,6 +141,8 @@ def test_content_is_in_south_african_time(match):
 
 @pytest.mark.django_db
 def test_answering_records_it_and_can_be_changed(match):
+    # A Confirmation is answered while its match is taking replies (fixtures/confirmations.py).
+    lifecycle.transition(match[0], Fixture.Status.CONFIRMING, cause="checkpoint")
     notification = send(match)[0]
     received = []
 

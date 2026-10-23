@@ -1,13 +1,16 @@
 // A Fixture (design/src/ds/Screens.md, Player 2 "Match detail"), for a Player in one of its
-// Teams: kick-off, the teams, pitch and status. The squad, replies and Pay my share come
-// with the Confirmation and payment chunks.
+// Teams: kick-off, the teams, pitch and status; then your Team's SquadProgress, your reply
+// (changeable until T-6h, FR-3) and the squad's replies (FR-38). Pay my share comes with
+// the payment chunks.
 
+import { useEffect, useState } from "react";
 import { useParams } from "react-router";
 import { api } from "../../api/client";
 import { LoadState, useLoad } from "../club/shared";
 import { ScreenHeader } from "../teams/shared";
 import { FIXTURE_STATUS, MatchCard } from "./shared";
 import { NOT_A_PLAYER } from "./MyFixturesPage";
+import { SquadProgress, SquadReplies, YourReply, type Squad } from "./squad";
 
 export function FixturePage() {
   const id = Number(useParams().fixtureId);
@@ -61,10 +64,39 @@ export function FixturePage() {
               {match.friendly_eligible && (
                 <p className="caption la-muted">If this match can't go ahead, it may be played as a friendly.</p>
               )}
+              <MatchSquad fixtureId={match.id} notOpenYet={match.status === "scheduled"} />
             </>
           );
         }}
       </LoadState>
     </main>
+  );
+}
+
+/** Your Team's replies for the match, and your own. */
+function MatchSquad({ fixtureId, notOpenYet }: { fixtureId: number; notOpenYet: boolean }) {
+  const [loaded, reload] = useLoad(
+    () => api.GET("/api/v1/fixtures/{id}/squad/", { params: { path: { id: fixtureId } } }),
+    `squad-${fixtureId}`,
+  );
+  const [squad, setSquad] = useState<Squad | null>(null);
+  useEffect(() => {
+    if (loaded.state === "ok") setSquad(loaded.data);
+  }, [loaded]);
+
+  return (
+    <LoadState result={loaded} retry={reload} what="squad" forbidden={NOT_A_PLAYER}>
+      {(first) => {
+        const current = squad ?? first;
+        return (
+          <>
+            <SquadProgress squad={current} />
+            <YourReply fixtureId={fixtureId} squad={current} notOpenYet={notOpenYet} onAnswered={setSquad} />
+            <h2 className="la-overline">Squad replies</h2>
+            <SquadReplies squad={current} />
+          </>
+        );
+      }}
+    </LoadState>
   );
 }

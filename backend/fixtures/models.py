@@ -156,3 +156,47 @@ class FixtureCheckpoint(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ValueError("A FixtureCheckpoint is never deleted.")
+
+
+class ConfirmationAnswer(models.Model):
+    """A Player's answer to a Fixture's Confirmation: playing or not (FR-3, FR-38).
+
+    One per Fixture, Player and kick-off: the Player's current answer, changed in place
+    until the cutoff (T-6h). A reschedule to a new kick-off starts with no answers. The
+    T-6h readiness check counts the confirmed ones of each Team (FR-5). Only
+    fixtures/confirmations.py writes them.
+    """
+
+    class Value(models.TextChoices):
+        CONFIRM = "confirm", "Playing"
+        DECLINE = "decline", "Not playing"
+
+    class Via(models.TextChoices):
+        NOTIFICATION = "notification", "Confirmation Notification"
+        FIXTURE = "fixture", "Match screen"
+
+    fixture = models.ForeignKey(
+        Fixture, on_delete=models.PROTECT, related_name="confirmation_answers"
+    )
+    team = models.ForeignKey(Team, on_delete=models.PROTECT, related_name="+")
+    player = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="confirmation_answers"
+    )
+    kick_off = models.DateTimeField(help_text="The kick-off this answer is for.")
+    answer = models.CharField(max_length=10, choices=Value.choices)
+    answered_at = models.DateTimeField()
+    via = models.CharField(max_length=12, choices=Via.choices)
+
+    class Meta:
+        ordering = ["answered_at", "pk"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["fixture", "player", "kick_off"], name="one_answer_per_player_and_kick_off"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.player} for {self.fixture}: {self.get_answer_display()}"
+
+
+CONFIRMATION_ANSWERS = ConfirmationAnswer.Value

@@ -12,6 +12,7 @@ from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import generics, mixins, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
@@ -23,15 +24,17 @@ from core.exceptions import Conflict
 from core.tables import TableError, read_table
 from teams.models import Team, TeamMembership
 
-from . import imports, lifecycle
+from . import confirmations, imports, lifecycle
 from .models import Fixture, FixtureTransition
 from .serializers import (
     AdminFixtureDetailSerializer,
     AdminFixtureSerializer,
+    FixtureAnswerSerializer,
     FixtureImportResultSerializer,
     FixtureImportUploadSerializer,
     FriendlyEligibleSerializer,
     MyFixtureSerializer,
+    SquadSerializer,
 )
 
 PAST_LIMIT = 50
@@ -122,6 +125,43 @@ class FixtureViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     @extend_schema(summary="A Fixture of one of my Teams")
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
+
+    def my_squad(self, fixture: Fixture) -> Response:
+        team = next(
+            team for team in (fixture.home_team, fixture.away_team) if team.pk in self.team_ids
+        )
+        squad = confirmations.squad(fixture, team)
+        return Response(SquadSerializer(squad, context={"me": self.request.user}).data)
+
+    @extend_schema(
+        summary="My Team's replies for a Fixture",
+        description="Every Player in my Team now and whether they are playing, against the "
+        "Division's minimum (FR-38). Only my own Team's replies.",
+        responses=SquadSerializer,
+    )
+    @action(detail=True, methods=["get"])
+    def squad(self, request, *args, **kwargs):
+        return self.my_squad(self.get_object())
+
+    @extend_schema(
+        summary="Answer a Fixture's Confirmation, or change the answer",
+        description="Until the cutoff (T-6h), while the match is confirming (FR-3). 409 "
+        "before the Confirmations go out or after the cutoff. Answers with my Team's replies.",
+        request=FixtureAnswerSerializer,
+        responses=SquadSerializer,
+    )
+    @action(detail=True, methods=["post"])
+    def answer(self, request, *args, **kwargs):
+        fixture = self.get_object()
+        given = FixtureAnswerSerializer(data=request.data)
+        given.is_valid(raise_exception=True)
+        confirmations.answer(
+            fixture,
+            request.user,
+            given.validated_data["answer"],
+            via=confirmations.Via.FIXTURE,
+        )
+        return self.my_squad(self.get_object())
 
 
 # The club's Admin

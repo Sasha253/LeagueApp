@@ -7,6 +7,8 @@ from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
 
+from fixtures import lifecycle
+from fixtures.models import Fixture
 from notifications import services
 from notifications.models import DeviceToken, Kind, Notification
 
@@ -27,8 +29,13 @@ def url(name, notification):
 
 @pytest.fixture
 def sipho_inbox(match):
-    """Sipho has an Update, a Confirmation, and a closed Player Request."""
+    """Sipho has an Update, a Confirmation, and a closed Player Request.
+
+    The match is taking replies (its Confirmations went out), so the Confirmation can be
+    answered (fixtures/confirmations.py).
+    """
     fixture, people = match
+    lifecycle.transition(fixture, Fixture.Status.CONFIRMING, cause="checkpoint")
     sipho = people["sipho"]
     note = {"club": fixture.club, "fixture": fixture}
     update = services.notify(Kind.UPDATE, [sipho], title="Pitch changed", **note)[0]

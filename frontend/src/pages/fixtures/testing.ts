@@ -42,3 +42,28 @@ export function adminFixture(overrides: object = {}) {
     ...overrides,
   };
 }
+
+/** My Team's replies for Fixture 30, as the squad endpoint sends them. */
+export function squad(overrides: object = {}) {
+  return {
+    fixture_id: 30,
+    team: { id: 8, name: "Old Boys" },
+    min_players: 5,
+    confirmed: 1,
+    declined: 1,
+    waiting: 2,
+    below_minimum: true,
+    short_by: 4,
+    // Tue 27 Oct 13:40 in South Africa: T-6h.
+    answer_by: "2026-10-27T11:40:00Z",
+    replies_open: true,
+    my_answer: "" as const,
+    players: [
+      { id: 3, name: "Pieter Botha", position: "goalkeeper", is_captain: true, is_me: false, answer: "confirm", answered_at: "2026-10-26T06:00:00Z" },
+      { id: 4, name: "Ayanda Khumalo", position: "both", is_captain: false, is_me: false, answer: "decline", answered_at: "2026-10-26T07:00:00Z" },
+      { id: 1, name: "Sipho Dlamini", position: "outfield", is_captain: false, is_me: true, answer: "", answered_at: null },
+      { id: 5, name: "Zaid Adams", position: "outfield", is_captain: false, is_me: false, answer: "", answered_at: null },
+    ],
+    ...overrides,
+  };
+}

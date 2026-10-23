@@ -2,6 +2,28 @@
 
 Newest first. Each entry: the date, what was decided, and why.
 
+## 2026-10-23: Answering Confirmations (chunk 12) (provisional, unattended run)
+
+Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 12: Answering
+Confirmations".
+
+- **Replies (provisional, unattended run):** a Player in either Team answers "I'm in" or
+  "Can't make it" from the Confirmation Notification or the match screen, and can change
+  it, while the Fixture is `confirming` and before the cutoff (`readiness_hours_before`
+  kick-off, T-6h, from the Club's settings). The backend refuses anything else with 409.
+- **One answer (provisional, unattended run):** `ConfirmationAnswer`, one per Fixture,
+  Player and kick-off, changed in place; the Player's Confirmation Notification shows the
+  same answer, so the resend skips anyone who answered either way. A Player without the
+  Night's notifications still answers on the match screen. A new kick-off starts with no
+  answers. A Player who joins after T-36h gets no Confirmation and answers on the match
+  screen.
+- **Who sees (provisional, unattended run):** a Team's Players see their own Team's
+  replies (names and answers, confirmed against the Division minimum, below it or not);
+  not the other Team's. Only Players in the Team now count.
+- **Screens (provisional, unattended run):** Match detail shows SquadProgress, the reply
+  card and the squad list (Confirmed, Waiting, Declined) from f02 and f06; a Confirmation
+  in the inbox shows SquadProgress. New Lucide icon: clock.
+
 ## 2026-10-23: Celery Beat and the timed checkpoints (chunk 11) (provisional, unattended run)
 
 Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 11: Celery Beat and the

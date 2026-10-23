@@ -1,12 +1,14 @@
 from django.utils import timezone
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from accounts.models import PlayerProfile
 from clubs.models import Night, Season
 from clubs.serializers import ClubSummarySerializer
 from teams.serializers import NamedSerializer
 
 from .imports import Action
-from .models import Fixture, FixtureTransition
+from .models import ConfirmationAnswer, Fixture, FixtureTransition
 
 
 class FixtureSerializer(serializers.ModelSerializer):
@@ -158,3 +160,59 @@ class FixtureImportResultSerializer(serializers.Serializer):
     committed = serializers.BooleanField(help_text="True once the import has been saved.")
     summary = FixtureImportSummarySerializer()
     rows = FixtureImportRowSerializer(many=True)
+
+
+class FixtureAnswerSerializer(serializers.Serializer):
+    answer = serializers.ChoiceField(
+        choices=ConfirmationAnswer.Value.choices, help_text="confirm: playing; decline: not."
+    )
+
+
+class SquadPlayerSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(read_only=True)
+    position = serializers.ChoiceField(
+        choices=PlayerProfile.Position.choices, allow_blank=True, read_only=True
+    )
+    is_captain = serializers.BooleanField(read_only=True)
+    is_me = serializers.SerializerMethodField()
+    answer = serializers.ChoiceField(
+        choices=ConfirmationAnswer.Value.choices,
+        allow_blank=True,
+        read_only=True,
+        help_text="Empty: not answered yet.",
+    )
+    answered_at = serializers.DateTimeField(read_only=True, allow_null=True)
+
+    def get_is_me(self, player) -> bool:
+        return player.id == self.context["me"].pk
+
+
+class SquadSerializer(serializers.Serializer):
+    """The signed-in Player's Team for one Fixture: who is playing (FR-38)."""
+
+    fixture_id = serializers.IntegerField(source="fixture.pk", read_only=True)
+    team = NamedSerializer(read_only=True)
+    min_players = serializers.IntegerField(read_only=True, help_text="The Division's minimum.")
+    confirmed = serializers.IntegerField(read_only=True)
+    declined = serializers.IntegerField(read_only=True)
+    waiting = serializers.IntegerField(read_only=True, help_text="Not answered yet.")
+    below_minimum = serializers.BooleanField(
+        read_only=True, help_text="Fewer confirmed than the minimum: out at T-6h if it stays."
+    )
+    short_by = serializers.IntegerField(read_only=True)
+    answer_by = serializers.DateTimeField(
+        read_only=True, help_text="The cutoff (T-6h): no answers or changes after it."
+    )
+    replies_open = serializers.BooleanField(
+        read_only=True, help_text="Answers can be given or changed now."
+    )
+    my_answer = serializers.SerializerMethodField()
+    players = SquadPlayerSerializer(many=True, read_only=True)
+
+    @extend_schema_field(
+        serializers.ChoiceField(choices=ConfirmationAnswer.Value.choices, allow_blank=True)
+    )
+    def get_my_answer(self, squad) -> str:
+        me = self.context["me"].pk
+        return next((p.answer for p in squad.players if p.id == me), "")

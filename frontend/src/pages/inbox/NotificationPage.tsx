@@ -1,7 +1,8 @@
 // Notification detail (design/src/ds/Screens.md, Shared 4; f02-confirmation.mjs): a
 // ConfirmationCard for the kinds that take an answer, a plain message for the rest.
 // Opening it marks it read. The answer can be changed while the API says it can (FR-3);
-// confirming a match shows "You're in!".
+// confirming a match shows "You're in!". A Confirmation shows the Team's SquadProgress
+// (FR-38).
 
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
@@ -14,6 +15,7 @@ import { formatMoment } from "../../format";
 import { inboxChanged } from "../../push/events";
 import { FIND_MATCH, FIND_MATCH_PATH } from "../../push/links";
 import { LoadState, send, useLoad } from "../club/shared";
+import { SquadProgress } from "../fixtures/squad";
 import { ScreenHeader } from "../teams/shared";
 import {
   answerChip,
@@ -107,6 +109,10 @@ function Detail({ initial }: { initial: Notification }) {
         </div>
       )}
 
+      {n.kind === "confirmation" && n.fixture_id !== null && (
+        <ConfirmationSquad fixtureId={n.fixture_id} answer={n.answer} />
+      )}
+
       <article className="la-card la-stack" aria-labelledby="notification-title">
         <div style={{ display: "flex", gap: "var(--space-3)" }}>
           <Disc notification={n} />
@@ -178,4 +184,14 @@ function Detail({ initial }: { initial: Notification }) {
       )}
     </>
   );
+}
+
+/** The Team's replies for a Confirmation's match, again after each answer. Nothing if it
+ * can't be loaded (for example the Player has left the Team). */
+function ConfirmationSquad({ fixtureId, answer }: { fixtureId: number; answer: string }) {
+  const [loaded] = useLoad(
+    () => api.GET("/api/v1/fixtures/{id}/squad/", { params: { path: { id: fixtureId } } }),
+    `squad-${fixtureId}-${answer}`,
+  );
+  return loaded.state === "ok" ? <SquadProgress squad={loaded.data} /> : null;
 }
