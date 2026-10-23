@@ -29,7 +29,7 @@ from django.utils import timezone
 from accounts.models import User
 from clubs.models import Club, PaymentMode
 from core.exceptions import Conflict
-from fixtures.models import Fixture, TeamReadiness
+from fixtures.models import Fixture, ReplacementOffer, TeamReadiness
 from ledger import services as ledger
 from notifications.models import Kind
 from notifications.services import match_day, match_time, notify
@@ -443,6 +443,13 @@ def _at_the_gate(barcode: Barcode, fixture: Fixture | None) -> tuple[Status, Fix
     ).exists()
     if ruled_out:
         return Status(State.RULED_OUT, f"{team.name} was ruled out of this match."), match
+    # Out by any other way too (a Captain's cancellation the Admin accepted): every Team
+    # out of a match has its slot offered to other Teams, whether or not one took it.
+    withdrew = ReplacementOffer.objects.filter(
+        fixture=match, out_team=team, kick_off=match.kick_off
+    ).exists()
+    if withdrew:
+        return Status(State.RULED_OUT, f"{team.name} is out of this match."), match
     earlier = _admitted(barcode, match)
     if earlier is not None:
         return Status(State.USED, _used_reason(earlier)), match

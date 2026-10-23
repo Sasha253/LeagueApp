@@ -9,7 +9,7 @@ from django.utils import timezone
 from barcodes import services
 from barcodes.models import Barcode, BarcodeScan
 from barcodes.services import State, Status
-from fixtures.models import Fixture, TeamReadiness
+from fixtures.models import Fixture, ReplacementOffer, TeamReadiness
 from ledger import services as ledger
 from ledger.models import LedgerEntry
 
@@ -98,6 +98,46 @@ def test_a_team_ruled_out_is_not_let_in(paid_tonight, tonight, at_gate, owing):
     result = at_gate(paid_tonight.code)
     assert result.status.state == State.RULED_OUT
     assert result.status.reason == "Red Lions was ruled out of this match."
+
+
+@pytest.mark.parametrize("offer_status", ["open", "lapsed"])
+def test_a_team_whose_cancellation_was_accepted_is_not_let_in(
+    paid_tonight, tonight, at_gate, owing, offer_status
+):
+    # A Captain's cancellation the Admin accepted leaves no T-6h record, only the offer of
+    # the Team's slot to other Teams (open, or lapsed into a friendly).
+    remaining = tonight.away_team if tonight.home_team_id == owing.pk else tonight.home_team
+    ReplacementOffer.objects.create(
+        fixture=tonight,
+        kick_off=tonight.kick_off,
+        out_team=owing,
+        remaining_team=remaining,
+        slot="home" if tonight.home_team_id == owing.pk else "away",
+        opened_at=timezone.now(),
+        closes_at=tonight.kick_off,
+        status=offer_status,
+    )
+    result = at_gate(paid_tonight.code)
+    assert result.status.state == State.RULED_OUT
+    assert result.status.reason == "Red Lions is out of this match."
+    assert BarcodeScan.objects.get().result == "not_paid"
+
+
+def test_an_offer_for_an_earlier_kick_off_does_not_rule_the_team_out(
+    paid_tonight, tonight, at_gate, owing
+):
+    remaining = tonight.away_team if tonight.home_team_id == owing.pk else tonight.home_team
+    ReplacementOffer.objects.create(
+        fixture=tonight,
+        kick_off=tonight.kick_off - dt.timedelta(days=7),
+        out_team=owing,
+        remaining_team=remaining,
+        slot="home" if tonight.home_team_id == owing.pk else "away",
+        opened_at=timezone.now(),
+        closes_at=tonight.kick_off,
+        status="withdrawn",
+    )
+    assert at_gate(paid_tonight.code).paid
 
 
 def test_a_team_let_play_at_t6h_is_let_in(paid_tonight, tonight, at_gate, owing):

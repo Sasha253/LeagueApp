@@ -91,3 +91,28 @@ By hand:
 - Optionally set `BARCODE_SCAN_THROTTLE_RATE` per environment.
 
 Checks: make test 800 passed; make lint clean; npm test 267 passed; npm run build ok.
+
+## Review (independent, unattended run)
+
+Checked commit 8d7e1f4 against the chunk prompt and CLAUDE.md: club isolation (only the
+club's Barcodes and Fixtures are found; `IsClubAdminOrReferee` on the club in the URL), money
+as Decimal (`paid_amount` DecimalField from the ledger), no hard-coded club values (the
+throttle rate is an env setting, not a club value), ledger untouched, no notifications sent
+by scans, UI built from tokens and `la-` classes with the two new styles listed in
+DECISIONS.md, camera behind `frontend/src/native/scanner.ts` with a browser fallback,
+schema.d.ts current, nothing from later chunks.
+
+Fixed:
+- A Team whose Captain's cancellation the Admin accepted (chunk 16) read **Paid** at the gate.
+  That path leaves no `TeamReadiness` OUT record, only the `ReplacementOffer` for the Team's
+  slot, so the "ruled out" check missed it while the offer was open or after it lapsed into a
+  friendly. The gate now also reads Not paid (`ruled_out`, "<Team> is out of this match.")
+  when a `ReplacementOffer` names the Team as out for this match and kick-off. Tests:
+  `test_a_team_whose_cancellation_was_accepted_is_not_let_in` (open, lapsed) and
+  `test_an_offer_for_an_earlier_kick_off_does_not_rule_the_team_out`.
+
+Noted, not changed (cosmetic):
+- The result's "Paid" row joins the raw method values ("card, cash"), lower case.
+
+Checks after the fix: make test 803 passed; make lint clean; npm test 267 passed;
+npm run build ok; npm run gen:api no change.
