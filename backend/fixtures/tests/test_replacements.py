@@ -26,7 +26,8 @@ match = notification_fixtures.match
 S = Fixture.Status
 Status = ReplacementOffer.Status
 
-pytestmark = pytest.mark.django_db
+# What happens after both_teams_out or a lapsed offer is chunk 15's (test_fallbacks.py).
+pytestmark = [pytest.mark.django_db, pytest.mark.usefixtures("without_fallbacks")]
 
 
 @pytest.fixture
@@ -486,7 +487,7 @@ def test_an_offer_no_one_takes_lapses_and_hands_off(lions_out, clock, lapsed):
     assert lapsed == [(fixture.pk, offer.pk)]
     assert offer_to(fixture, teams["bulls"]).closed_at is not None
     fixture.refresh_from_db()
-    assert fixture.status == S.REPLACEMENT_OFFERED  # chunk 15 decides what comes next
+    assert fixture.status == S.REPLACEMENT_OFFERED  # chunk 15 is disconnected here
     assert replacements.lapse_due() == {"lapsed": 0, "withdrawn": 0}
     assert lapsed == [(fixture.pk, offer.pk)]
 

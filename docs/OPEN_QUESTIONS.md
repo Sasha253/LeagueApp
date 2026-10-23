@@ -405,3 +405,52 @@ docs/DECISIONS.md under "2026-10-23: Teams (chunk 5)".
   eligible Team, or the close time already past, it lapses at once. An offer whose match
   moved on (the Admin cancelled or rescheduled it) is withdrawn, with no hand-off.
 - **Both Teams out.** No replacement search: chunk 15 (FR-10 to FR-12).
+
+## Chunk 15: Friendly fallback or cancellation
+
+- **Which payments become credit on a cancellation (FR-43).** Question: the league fee is
+  charged once per Season (chunk 8), so a season payment isn't "for" one match; how much of
+  it is a cancelled match worth? Choice: only payments recorded against the cancelled
+  Fixture (ledger entries with that `fixture`: card, cash or credit) come back as credit,
+  each to whoever paid it (FR-52), and only what is left of each (none twice; a reversed
+  payment is skipped). Season-fee payments are untouched; an Admin can still issue credit by
+  hand. Why: it never turns money that wasn't paid for this match into credit, and per-match
+  payments (PayFast, Barcodes "per match", friendly fees) record their Fixture in later
+  chunks. If the answer differs: add a per-match share of the season fee in
+  `ledger.services.return_fixture_payments` (for example the fee divided by the Season's
+  Fixtures), which needs no model change.
+- **Charges for a cancelled match.** Choice: left as they are; the payment stays paid on
+  the Team account (chunk 8) and its value goes to the payer's wallet. Why: reversing the
+  charge as well would give the money back twice. If the answer differs: reverse an unpaid
+  match charge in `fallbacks.cancel_match`.
+- **Who is invited to a friendly.** Choice: both Teams out (FR-11): every Player opted into
+  the Night who is in neither Team. No replacement (FR-17, "all Players outside it"): the
+  remaining Team's Players and everyone in neither Team, opted into the Night. Goalkeepers
+  and outfield Players alike (the Player and Goalkeeper Request split is for requests). The
+  out Teams' Players get the General "Find a match" instead. If the answer differs: change
+  `fallbacks._friendly_recipients`.
+- **How a Player joins, until when, and how many.** Choice: "Confirm" on the friendly
+  Confirmation joins, "Decline" doesn't; changeable until kick-off while the match is still
+  a friendly for that kick-off; no cap on numbers. The Admin's fixture screen lists who
+  joined. Why: the PRD gives no cutoff or cap; kick-off is the latest a Player can still
+  turn up. If the answer differs: set `answer_by` in `fallbacks._open_friendly`, or refuse
+  joins past a cap in `fallbacks.invite_answered` (a cap would be a club setting).
+- **A fallback after kick-off.** Question: the Admin can rule both Teams out after
+  kick-off (chunk 13 has no deadline). Choice: a match whose kick-off has passed is
+  cancelled even when friendly-eligible. Why: no one can join a match that has started. If
+  the answer differs: change `friendly` in `fallbacks.fall_back`.
+- **Notifications on a cancellation.** Question: FR-17 says only "cancel it and apply
+  FR-43". Choice: the out Team(s) get a General with "Find a match", the remaining Team an
+  Update, and the Night's Admins and the pitch's Referee an Update (with the credit total);
+  the Team messages say "Anything paid for this match is now credit" when credit was
+  returned. No separate message to each credit holder. If the answer differs: notify each
+  payer in `fallbacks._cancel`.
+- **FR-17 after FR-13.** The out Team already had a General ("{Team} is out", chunk 14)
+  when the search opened; FR-17 sends another when the match becomes a friendly or is
+  cancelled, as the PRD lists it. If the answer differs: skip the out Team in
+  `fallbacks._open_friendly` and `_cancel` for the `no_replacement` cause.
+- **Friendly fees and the friendly's Captain (FR-24).** Not here: chunk 22. A friendly has
+  no fee yet and nothing is charged to those who join.
+- **Who decides friendly or cancelled.** Choice: the backend, at once, from the
+  friendly-eligible flag the Admin set beforehand (PRD Decisions: "Only when the Admin
+  lists the match as friendly-eligible"); the Admin isn't asked again.

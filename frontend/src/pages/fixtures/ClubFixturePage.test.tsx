@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { ADMIN_ME } from "../club/testing";
 import { openAs } from "../teams/testing";
-import { adminFixture, replacement } from "./testing";
+import { adminFixture, fallback, replacement } from "./testing";
 
 const DETAIL = "/api/v1/clubs/1/fixtures/30/";
 
@@ -130,5 +130,61 @@ describe("ClubFixturePage", () => {
     expect(rows[0]).toHaveTextContent("Status: No Team took it");
     expect(rows[1]).toHaveTextContent("Blue Bulls took the slot (Bongi), Tue 27 Oct · 15:00.");
     expect(rows[1]).toHaveTextContent("Status: Taken");
+  });
+
+  it("shows nothing about a friendly or cancellation while the match is on", async () => {
+    await openAs("/clubs/1/fixtures/30", { [`GET ${DETAIL}`]: { status: 200, body: adminFixture() } }, "Fixture", ADMIN_ME);
+
+    await screen.findByRole("list", { name: "History" });
+    expect(screen.queryByRole("list", { name: "Outcome" })).not.toBeInTheDocument();
+  });
+
+  it("shows the friendly and who joined it", async () => {
+    const fixture = adminFixture({
+      status: "friendly",
+      friendly_eligible: true,
+      fallback: fallback({
+        joined: [{ id: 21, name: "Kgosi", position: "goalkeeper", joined_at: "2026-10-27T12:05:00Z" }],
+      }),
+    });
+    await openAs("/clubs/1/fixtures/30", { [`GET ${DETAIL}`]: { status: 200, body: fixture } }, "Fixture", ADMIN_ME);
+
+    const outcome = within(await screen.findByRole("list", { name: "Outcome" })).getByRole("listitem");
+    expect(outcome).toHaveTextContent("Both Teams were out.");
+    expect(outcome).toHaveTextContent("Open to join until kick-off: 1 of 3 Players invited joined.");
+    expect(outcome).toHaveTextContent("Decided Tue 27 Oct · 13:40");
+    expect(outcome).toHaveTextContent("Status: Friendly");
+    const joined = within(screen.getByRole("list", { name: "Joined" })).getByRole("listitem");
+    expect(joined).toHaveTextContent("Kgosi");
+    expect(joined).toHaveTextContent("Goalkeeper · joined Tue 27 Oct · 14:05");
+  });
+
+  it("shows a cancellation and the credit returned", async () => {
+    const fixture = adminFixture({
+      status: "cancelled",
+      fallback: fallback({
+        cause: "no_replacement",
+        outcome: "cancelled",
+        remaining_team: { id: 8, name: "Old Boys" },
+        invited: 0,
+        credit_returned: "18550.00",
+        credits: 2,
+      }),
+    });
+    await openAs("/clubs/1/fixtures/30", { [`GET ${DETAIL}`]: { status: 200, body: fixture } }, "Fixture", ADMIN_ME);
+
+    const outcome = within(await screen.findByRole("list", { name: "Outcome" })).getByRole("listitem");
+    expect(outcome).toHaveTextContent("No new opponent for Old Boys.");
+    expect(outcome).toHaveTextContent("R 18,550 returned as credit to whoever paid (2 payments).");
+    expect(outcome).toHaveTextContent("Status: Cancelled");
+    expect(screen.queryByRole("list", { name: "Joined" })).not.toBeInTheDocument();
+  });
+
+  it("says when a cancelled match had nothing paid", async () => {
+    const fixture = adminFixture({ status: "cancelled", fallback: fallback({ outcome: "cancelled", invited: 0 }) });
+    await openAs("/clubs/1/fixtures/30", { [`GET ${DETAIL}`]: { status: 200, body: fixture } }, "Fixture", ADMIN_ME);
+
+    const outcome = within(await screen.findByRole("list", { name: "Outcome" })).getByRole("listitem");
+    expect(outcome).toHaveTextContent("Nothing was paid for this match, so no credit was returned.");
   });
 });

@@ -143,6 +143,9 @@ SPECTACULAR_SETTINGS = {
         "ReadinessDecisionEnum": "fixtures.readiness.Decision",
         "ReplacementStatusEnum": "fixtures.models.REPLACEMENT_STATUSES",
         "ReplacementSlotEnum": "fixtures.models.REPLACEMENT_SLOTS",
+        "CauseEnum": "fixtures.models.TRANSITION_CAUSES",
+        "FallbackCauseEnum": "fixtures.models.FALLBACK_CAUSES",
+        "FallbackOutcomeEnum": "fixtures.models.FALLBACK_OUTCOMES",
     },
 }
 

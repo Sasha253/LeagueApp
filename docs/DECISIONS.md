@@ -2,6 +2,26 @@
 
 Newest first. Each entry: the date, what was decided, and why.
 
+## 2026-10-23: Friendly fallback or cancellation (chunk 15) (provisional, unattended run)
+
+Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 15: Friendly fallback
+or cancellation".
+
+- **When (provisional, unattended run):** both Teams out at T-6h, or a replacement offer
+  that lapsed, falls back at once: a friendly if the Admin listed the match as
+  friendly-eligible and kick-off is still to come, otherwise a cancellation. Recorded once
+  per Fixture in `FixtureFallback` (never changed or deleted).
+- **Friendly (provisional, unattended run):** General with "Find a match" to the out
+  Team(s); a Confirmation ("free to join") to every Player opted into the Night outside the
+  out Team(s) (FR-11: outside both; FR-17: the remaining Team too); an Update to the
+  Night's Admins and the pitch's Referee. "Confirm" joins, changeable until kick-off, no
+  cap. No fee yet (chunk 22).
+- **Cancellation and credit (provisional, unattended run):** every payment recorded
+  against the cancelled Fixture comes back as credit to whoever paid (Player or Team,
+  FR-52), only what is left of it, never twice; season-fee payments and charges are left
+  as they are. The Teams and officials are told. `fallbacks.cancel_match` is reusable by
+  later chunks.
+
 ## 2026-10-23: One Team out: replacement opponent (chunk 14) (provisional, unattended run)
 
 Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 14: One Team out:

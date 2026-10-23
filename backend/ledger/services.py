@@ -454,3 +454,45 @@ def reverse(entry: LedgerEntry, *, reason: str, recorded_by: User | None) -> Led
             )
     except IntegrityError as error:
         raise Conflict(ALREADY_REVERSED) from error
+
+
+def fixture_payments(fixture: Fixture) -> QuerySet[LedgerEntry]:
+    """The payments recorded for one match (card, cash or credit), oldest first."""
+    return LedgerEntry.objects.filter(fixture=fixture, kind=Kind.PAYMENT).order_by(
+        "created_at", "pk"
+    )
+
+
+@transaction.atomic
+def return_fixture_payments(
+    fixture: Fixture, *, reason: str, recorded_by: User | None
+) -> list[LedgerEntry]:
+    """A paid match is cancelled: each payment for it becomes credit to whoever paid
+    (FR-43, FR-52). A Player's own payment becomes Player credit, a payment for the whole
+    Team becomes Team credit. Only what is left of each payment is returned, and a reversed
+    payment is skipped, so running it again adds nothing. No card refund is issued.
+    """
+    reason = _reason(reason)
+    credits = []
+    for payment in fixture_payments(fixture):
+        payment = LedgerEntry.objects.select_for_update().get(pk=payment.pk)
+        if LedgerEntry.objects.filter(reverses=payment).exists():
+            continue
+        left = _credit_left_of(payment)
+        if left <= 0:
+            continue
+        credits.append(
+            return_as_credit(
+                payment, reason=reason, recorded_by=recorded_by, amount=left, fixture=fixture
+            )
+        )
+    return credits
+
+
+def fixture_credit_returned(fixture: Fixture) -> tuple[Decimal, int]:
+    """The credit returned from this match's payments, less any reversed, and how many
+    credit entries still stand."""
+    entries = LedgerEntry.objects.filter(fixture=fixture, source__isnull=False)
+    total = _net(entries, Kind.CREDIT)
+    standing = entries.filter(kind=Kind.CREDIT, reversed_by__isnull=True).count()
+    return total, standing

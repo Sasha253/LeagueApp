@@ -23,7 +23,8 @@ S = Fixture.Status
 Outcome = TeamReadiness.Outcome
 Reason = TeamReadiness.Reason
 
-pytestmark = pytest.mark.django_db
+# What happens after both_teams_out or a lapsed offer is chunk 15's (test_fallbacks.py).
+pytestmark = [pytest.mark.django_db, pytest.mark.usefixtures("without_fallbacks")]
 
 
 @pytest.fixture

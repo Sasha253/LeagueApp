@@ -64,3 +64,23 @@ def lions_and_boys(make_team, make_user):
     thandi = make_user("thandi@example.com", position="outfield", name="Thandi")
     pieter = make_user("pieter@example.com", position="goalkeeper", name="Pieter")
     return make_team("Red Lions", thandi), make_team("Old Boys", pieter)
+
+
+@pytest.fixture
+def without_fallbacks():
+    """Disconnects chunk 15's friendly-or-cancel receivers, so a test of the T-6h check or
+    the replacement search sees the status it left the match in (both_teams_out,
+    replacement_offered). fixtures/tests/test_fallbacks.py tests what comes next."""
+    from fixtures import fallbacks
+    from fixtures.readiness import readiness_settled
+    from fixtures.replacements import replacement_lapsed
+
+    hooks = [
+        (readiness_settled, fallbacks.both_teams_out, "fixtures.fallback_on_both_teams_out"),
+        (replacement_lapsed, fallbacks.no_replacement, "fixtures.fallback_on_no_replacement"),
+    ]
+    for signal, _receiver, uid in hooks:
+        signal.disconnect(dispatch_uid=uid)
+    yield
+    for signal, receiver, uid in hooks:
+        signal.connect(receiver, dispatch_uid=uid)

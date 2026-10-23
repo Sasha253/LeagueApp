@@ -4,6 +4,7 @@ from .models import (
     ConfirmationAnswer,
     Fixture,
     FixtureCheckpoint,
+    FixtureFallback,
     FixtureTransition,
     ReplacementOffer,
     TeamReadiness,
@@ -94,6 +95,18 @@ class ReplacementOfferInline(admin.TabularInline):
         return False
 
 
+class FixtureFallbackInline(admin.TabularInline):
+    """A friendly or a cancellation: decided in the app (FR-10 to FR-12, FR-17), only shown."""
+
+    model = FixtureFallback
+    extra = 0
+    can_delete = False
+    readonly_fields = ["kick_off", "cause", "remaining_team", "outcome", "decided_at"]
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
 @admin.register(Fixture)
 class FixtureAdmin(admin.ModelAdmin):
     """Read-only: Fixtures change through the app, so every status move is logged."""
@@ -106,6 +119,7 @@ class FixtureAdmin(admin.ModelAdmin):
         ConfirmationAnswerInline,
         TeamReadinessInline,
         ReplacementOfferInline,
+        FixtureFallbackInline,
     ]
 
     def has_add_permission(self, request):

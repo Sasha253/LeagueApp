@@ -1303,6 +1303,8 @@ export interface components {
             readonly transitions: components["schemas"]["FixtureTransition"][];
             /** @description Searches for a new opponent, oldest first. */
             readonly replacements: components["schemas"]["ReplacementOffer"][];
+            /** @description A friendly or a cancellation once the match couldn't go ahead; else empty. */
+            readonly fallback: components["schemas"]["FixtureFallback"] | null;
         };
         /** @description A Team as its Club's Admin sees it, with who asked, who decided and its Players. */
         AdminTeam: {
@@ -1534,6 +1536,18 @@ export interface components {
             /** @description Most Teams this Division takes in one Season. Empty: no limit. */
             max_teams?: number | null;
         };
+        /**
+         * @description * `both_teams_out` - Both Teams out
+         *     * `no_replacement` - No replacement found
+         * @enum {string}
+         */
+        FallbackCauseEnum: "both_teams_out" | "no_replacement";
+        /**
+         * @description * `friendly` - Friendly
+         *     * `cancelled` - Cancelled
+         * @enum {string}
+         */
+        FallbackOutcomeEnum: "friendly" | "cancelled";
         /** @description For a record of the Club in the URL. The view puts that Club in the context. */
         Field: {
             readonly id: number;
@@ -1556,6 +1570,32 @@ export interface components {
              *     * `decline` - Not playing
              */
             answer: components["schemas"]["ConfirmationAnswerEnum"];
+        };
+        /** @description What became of a match that couldn't go ahead (FR-10 to FR-12, FR-17, FR-43). */
+        FixtureFallback: {
+            readonly id: number;
+            /**
+             * Format: date-time
+             * @description The kick-off it was decided for.
+             */
+            readonly kick_off: string;
+            readonly cause: components["schemas"]["FallbackCauseEnum"];
+            readonly outcome: components["schemas"]["FallbackOutcomeEnum"];
+            /** @description Empty when both Teams were out. */
+            readonly remaining_team: components["schemas"]["Named"] | null;
+            /** Format: date-time */
+            readonly decided_at: string;
+            /** @description Players invited to the friendly. */
+            readonly invited: number;
+            /** @description Invited Players who joined the friendly, by name. */
+            readonly joined: components["schemas"]["FriendlyPlayer"][];
+            /**
+             * Format: decimal
+             * @description Payments for the match returned as credit, in rand (a cancellation).
+             */
+            readonly credit_returned: string;
+            /** @description How many credit entries that was. */
+            readonly credits: number;
         };
         /**
          * @description * `create` - New Fixture
@@ -1644,6 +1684,14 @@ export interface components {
             readonly cause: components["schemas"]["CauseEnum"];
             readonly actor_name: string | null;
             readonly note: string;
+        };
+        FriendlyPlayer: {
+            readonly id: number;
+            readonly name: string;
+            /** @default  */
+            readonly position: components["schemas"]["PositionEnum"] | components["schemas"]["BlankEnum"];
+            /** Format: date-time */
+            readonly joined_at: string;
         };
         Health: {
             /**

@@ -2,7 +2,9 @@
 // and Referee, whether it may become a friendly, and every change of its status with who or
 // what made it. Whether the flag can still change is the API's decision (409 otherwise).
 // When one Team was out, the search for a new opponent (FR-13 to FR-16): who the slot was
-// offered to, until when, and who took it.
+// offered to, until when, and who took it. Once the match couldn't go ahead (FR-10 to FR-12,
+// FR-17, FR-43): the friendly and who joined it, or the cancellation and the credit returned.
+// The backend decides both; this only shows them.
 
 import { useState } from "react";
 import { useParams } from "react-router";
@@ -10,14 +12,35 @@ import { api, type Schemas } from "../../api/client";
 import { Banner } from "../../components/Banner";
 import { ChoiceChip } from "../../components/ChoiceChip";
 import { StatusChip, type Status } from "../../components/StatusChip";
-import { formatMoment } from "../../format";
+import { formatMoment, formatRand } from "../../format";
 import { LoadState, send, useClub, useLoad } from "../club/shared";
-import { ScreenHeader } from "../teams/shared";
+import { POSITION_LABELS, ScreenHeader } from "../teams/shared";
 import { FIXTURE_STATUS, MatchCard } from "./shared";
 import { NOT_AN_ADMIN } from "./ClubFixturesPage";
 
 type Transition = Schemas["FixtureTransition"];
 type Replacement = Schemas["ReplacementOffer"];
+type Fallback = Schemas["FixtureFallback"];
+
+const FALLBACK_OUTCOME: Record<Fallback["outcome"], { status: Status; label: string }> = {
+  friendly: { status: "info", label: "Friendly" },
+  cancelled: { status: "cancelled", label: "Cancelled" },
+};
+
+function fallbackWhy(f: Fallback): string {
+  if (f.cause === "both_teams_out") return "Both Teams were out.";
+  return f.remaining_team ? `No new opponent for ${f.remaining_team.name}.` : "No new opponent was found.";
+}
+
+function fallbackDetail(f: Fallback): string {
+  if (f.outcome === "friendly") {
+    const invited = f.invited === 1 ? "1 Player" : `${f.invited} Players`;
+    return `Open to join until kick-off: ${f.joined.length} of ${invited} invited joined.`;
+  }
+  if (f.credits === 0) return "Nothing was paid for this match, so no credit was returned.";
+  const entries = f.credits === 1 ? "1 payment" : `${f.credits} payments`;
+  return `${formatRand(f.credit_returned)} returned as credit to whoever paid (${entries}).`;
+}
 
 const REPLACEMENT_STATUS: Record<Replacement["status"], { status: Status; label: string }> = {
   open: { status: "pending", label: "Offered" },
@@ -146,6 +169,42 @@ export function ClubFixturePage() {
                     </li>
                   ))}
                 </ul>
+              </section>
+            )}
+
+            {match.fallback && (
+              <section className="la-stack-2" aria-labelledby="fallback">
+                <h2 id="fallback" className="la-overline">
+                  {FALLBACK_OUTCOME[match.fallback.outcome].label}
+                </h2>
+                <ul className="la-group" aria-label="Outcome">
+                  <li className="la-item">
+                    <span className="la-item__body">
+                      <span className="body-strong">{fallbackWhy(match.fallback)}</span>
+                      <span className="caption la-muted">{fallbackDetail(match.fallback)}</span>
+                      <span className="caption la-muted">Decided {formatMoment(match.fallback.decided_at)}</span>
+                    </span>
+                    <StatusChip status={FALLBACK_OUTCOME[match.fallback.outcome].status}>
+                      {FALLBACK_OUTCOME[match.fallback.outcome].label}
+                    </StatusChip>
+                  </li>
+                </ul>
+                {match.fallback.joined.length > 0 && (
+                  <ul className="la-group" aria-label="Joined">
+                    {match.fallback.joined.map((p) => (
+                      <li key={p.id} className="la-item">
+                        <span className="la-item__body">
+                          <span className="body-strong">{p.name}</span>
+                          <span className="caption la-muted">
+                            {[POSITION_LABELS[p.position], `joined ${formatMoment(p.joined_at)}`]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </section>
             )}
 

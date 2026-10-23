@@ -122,6 +122,9 @@ class FixtureTransition(models.Model):
         raise ValueError("A FixtureTransition is never deleted.")
 
 
+TRANSITION_CAUSES = FixtureTransition.Cause
+
+
 class FixtureCheckpoint(models.Model):
     """A timed checkpoint that has run for a Fixture (FR-1, FR-2, FR-4). Never changed.
 
@@ -380,3 +383,88 @@ class ReplacementCandidate(models.Model):
 
 REPLACEMENT_STATUSES = ReplacementOffer.Status
 REPLACEMENT_SLOTS = ReplacementOffer.Slot
+
+
+class FixtureFallback(models.Model):
+    """What became of a match that couldn't go ahead as a league match (FR-10 to FR-12,
+    FR-17, FR-43).
+
+    Both Teams were out at T-6h, or one was and no Team took its slot. A friendly-eligible
+    match whose kick-off is still to come becomes a friendly open to other Players
+    (FriendlyInvite); any other is cancelled and every payment for it becomes credit to
+    whoever paid. One per Fixture. Only fixtures/fallbacks.py writes these; they are never
+    changed or deleted.
+    """
+
+    class Cause(models.TextChoices):
+        BOTH_TEAMS_OUT = "both_teams_out", "Both Teams out"
+        NO_REPLACEMENT = "no_replacement", "No replacement found"
+
+    class Outcome(models.TextChoices):
+        FRIENDLY = "friendly", "Friendly"
+        CANCELLED = "cancelled", "Cancelled"
+
+    fixture = models.OneToOneField(Fixture, on_delete=models.PROTECT, related_name="fallback")
+    kick_off = models.DateTimeField(help_text="The kick-off it was decided for.")
+    cause = models.CharField(max_length=16, choices=Cause.choices)
+    remaining_team = models.ForeignKey(
+        Team,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+        help_text="The Team that was still in; empty when both were out.",
+    )
+    outcome = models.CharField(max_length=10, choices=Outcome.choices)
+    decided_at = models.DateTimeField()
+
+    class Meta:
+        ordering = ["decided_at", "pk"]
+
+    def __str__(self) -> str:
+        return f"{self.fixture}: {self.get_outcome_display()} ({self.get_cause_display()})"
+
+    def save(self, *args, **kwargs):
+        if self.pk is not None:
+            raise ValueError("A FixtureFallback is never changed.")
+        super().save(*args, **kwargs)
+
+    def get_club_id(self) -> int:
+        return self.fixture.club_id
+
+    def delete(self, *args, **kwargs):
+        raise ValueError("A FixtureFallback is never deleted.")
+
+
+class FriendlyInvite(models.Model):
+    """A Player invited to join a friendly, and their invite (a Confirmation Notification).
+
+    "Confirm" on that Notification joins the friendly, "Decline" doesn't; the Player can
+    change it until kick-off (FR-11, FR-17). The answer lives on the Notification.
+    """
+
+    fallback = models.ForeignKey(FixtureFallback, on_delete=models.PROTECT, related_name="invites")
+    player = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="friendly_invites"
+    )
+    notification = models.OneToOneField(
+        "notifications.Notification", on_delete=models.CASCADE, related_name="friendly_invite"
+    )
+
+    class Meta:
+        ordering = ["pk"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["fallback", "player"], name="one_friendly_invite_per_player"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.player} for {self.fallback}"
+
+    def delete(self, *args, **kwargs):
+        raise ValueError("A FriendlyInvite is never deleted.")
+
+
+FALLBACK_CAUSES = FixtureFallback.Cause
+FALLBACK_OUTCOMES = FixtureFallback.Outcome

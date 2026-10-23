@@ -40,6 +40,7 @@ export function adminFixture(overrides: object = {}) {
       },
     ],
     replacements: [],
+    fallback: null,
     ...overrides,
   };
 }
@@ -64,6 +65,24 @@ export function replacement(overrides: object = {}) {
     accepted_by_name: null,
     accepted_at: null,
     ended_at: null,
+    ...overrides,
+  };
+}
+
+/** A friendly or a cancellation, as the Admin's fixture detail sends it. */
+export function fallback(overrides: object = {}) {
+  return {
+    id: 6,
+    kick_off: "2026-10-27T17:40:00Z",
+    cause: "both_teams_out" as const,
+    outcome: "friendly" as const,
+    remaining_team: null,
+    // 13:40 in South Africa.
+    decided_at: "2026-10-27T11:40:00Z",
+    invited: 3,
+    joined: [],
+    credit_returned: "0.00",
+    credits: 0,
     ...overrides,
   };
 }

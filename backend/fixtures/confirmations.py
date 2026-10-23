@@ -38,7 +38,13 @@ from teams.models import Team, TeamMembership
 
 from . import lifecycle
 from .checkpoints import confirmation_cutoff
-from .models import ConfirmationAnswer, Fixture, ReplacementCandidate, ReplacementOffer
+from .models import (
+    ConfirmationAnswer,
+    Fixture,
+    FriendlyInvite,
+    ReplacementCandidate,
+    ReplacementOffer,
+)
 
 S = Fixture.Status
 Value = ConfirmationAnswer.Value
@@ -152,6 +158,8 @@ def confirmation_answered(sender, notification: Notification, previous: str, **k
         return
     if ReplacementCandidate.objects.filter(notification_id=notification.pk).exists():
         return  # A Captain's replacement offer: fixtures/replacements.py answers it.
+    if FriendlyInvite.objects.filter(notification_id=notification.pk).exists():
+        return  # An invite to join a friendly: fixtures/fallbacks.py answers it.
     answer(notification.fixture, notification.recipient, notification.answer, via=Via.NOTIFICATION)
 
 

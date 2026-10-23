@@ -6,12 +6,15 @@ from accounts.models import PlayerProfile
 from clubs.models import Night, Season
 from clubs.serializers import ClubSummarySerializer
 from ledger.serializers import MONEY
+from ledger.services import fixture_credit_returned
 from teams.serializers import NamedSerializer
 
+from . import fallbacks
 from .imports import Action
 from .models import (
     ConfirmationAnswer,
     Fixture,
+    FixtureFallback,
     FixtureTransition,
     ReplacementOffer,
     TeamReadiness,
@@ -147,14 +150,87 @@ class ReplacementOfferSerializer(serializers.ModelSerializer):
         return NamedSerializer([c.team for c in offer.candidates.all()], many=True).data
 
 
+class FriendlyPlayerSerializer(serializers.Serializer):
+    id = serializers.IntegerField(source="player.pk", read_only=True)
+    name = serializers.CharField(source="player.name", read_only=True)
+    position = serializers.ChoiceField(
+        source="player.player_profile.position",
+        choices=PlayerProfile.Position.choices,
+        allow_blank=True,
+        read_only=True,
+        default="",
+    )
+    joined_at = serializers.DateTimeField(source="notification.answered_at", read_only=True)
+
+
+class FixtureFallbackSerializer(serializers.ModelSerializer):
+    """What became of a match that couldn't go ahead (FR-10 to FR-12, FR-17, FR-43)."""
+
+    remaining_team = NamedSerializer(
+        read_only=True, allow_null=True, help_text="Empty when both Teams were out."
+    )
+    invited = serializers.SerializerMethodField(help_text="Players invited to the friendly.")
+    joined = serializers.SerializerMethodField(
+        help_text="Invited Players who joined the friendly, by name."
+    )
+    credit_returned = serializers.SerializerMethodField(
+        help_text="Payments for the match returned as credit, in rand (a cancellation)."
+    )
+    credits = serializers.SerializerMethodField(help_text="How many credit entries that was.")
+
+    class Meta:
+        model = FixtureFallback
+        fields = [
+            "id",
+            "kick_off",
+            "cause",
+            "outcome",
+            "remaining_team",
+            "decided_at",
+            "invited",
+            "joined",
+            "credit_returned",
+            "credits",
+        ]
+        read_only_fields = fields
+
+    def get_invited(self, fallback: FixtureFallback) -> int:
+        return fallback.invites.count()
+
+    @extend_schema_field(FriendlyPlayerSerializer(many=True))
+    def get_joined(self, fallback: FixtureFallback) -> list[dict]:
+        return FriendlyPlayerSerializer(fallbacks.joined(fallback), many=True).data
+
+    @extend_schema_field(serializers.DecimalField(**MONEY))
+    def get_credit_returned(self, fallback: FixtureFallback) -> str:
+        total, _count = fixture_credit_returned(fallback.fixture)
+        return f"{total:.2f}"
+
+    def get_credits(self, fallback: FixtureFallback) -> int:
+        _total, count = fixture_credit_returned(fallback.fixture)
+        return count
+
+
 class AdminFixtureDetailSerializer(AdminFixtureSerializer):
     transitions = FixtureTransitionSerializer(many=True, read_only=True)
     replacements = ReplacementOfferSerializer(
         many=True, read_only=True, help_text="Searches for a new opponent, oldest first."
     )
+    fallback = serializers.SerializerMethodField(
+        help_text="A friendly or a cancellation once the match couldn't go ahead; else empty."
+    )
 
     class Meta(AdminFixtureSerializer.Meta):
-        fields = [*AdminFixtureSerializer.Meta.fields, "transitions", "replacements"]
+        fields = [*AdminFixtureSerializer.Meta.fields, "transitions", "replacements", "fallback"]
+
+    @extend_schema_field(FixtureFallbackSerializer(allow_null=True))
+    def get_fallback(self, fixture: Fixture) -> dict | None:
+        fallback = (
+            FixtureFallback.objects.filter(fixture=fixture)
+            .select_related("remaining_team", "fixture")
+            .first()
+        )
+        return FixtureFallbackSerializer(fallback).data if fallback else None
 
 
 class FriendlyEligibleSerializer(serializers.Serializer):
