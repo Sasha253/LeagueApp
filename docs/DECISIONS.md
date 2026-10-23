@@ -26,6 +26,10 @@ Captain requests".
   and match; a reschedule closes the others. The Captain is told of the decision.
 - **Not built (provisional, unattended run):** an Admin cancelling a match outright without
   a Captain request.
+- **Back to an earlier kick-off (provisional, unattended run; chunk 16 review):** refused
+  (409) when the match already has Confirmations, answers, a readiness check or a
+  replacement offer for that kick-off, since all of these are kept per kick-off and would
+  come back. The Admin picks another kick-off.
 
 ## 2026-10-23: Friendly fallback or cancellation (chunk 15) (provisional, unattended run)
 

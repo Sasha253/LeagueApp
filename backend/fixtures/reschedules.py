@@ -51,11 +51,24 @@ from notifications.services import match_day, match_time
 from teams.models import Team
 
 from . import checkpoints, lifecycle, replacements
-from .models import CaptainRequest, Fixture, FixtureReschedule, FixtureTransition
+from .models import (
+    CaptainRequest,
+    ConfirmationAnswer,
+    Fixture,
+    FixtureCheckpoint,
+    FixtureReschedule,
+    FixtureTransition,
+    ReplacementOffer,
+    TeamReadiness,
+)
 
 S = Fixture.Status
 RequestKind = CaptainRequest.Kind
 RequestStatus = CaptainRequest.Status
+
+# Everything kept per kick-off. A new kick-off starts with none of these; moving back to a
+# kick-off the match already had would bring back its old answers and skip its checkpoints.
+PER_KICK_OFF = (FixtureCheckpoint, ConfirmationAnswer, TeamReadiness, ReplacementOffer)
 
 # A match still on its way to being played as a league match.
 OPEN_STATUSES = (S.SCHEDULED, S.CONFIRMING, S.READY)
@@ -73,6 +86,9 @@ OUTSIDE_SEASON = "{day} is outside the {season} Season."
 WRONG_NIGHT = "{day} isn't a {weekday}, this Division's Night."
 PITCH_TAKEN = "{pitch} already has a match at {day}, {time}."
 TEAM_BUSY = "{team} already has a match on {day}."
+KICK_OFF_USED = (
+    "This match already had Confirmations or checks for {day}, {time}. Pick another kick-off."
+)
 MOVE_RACE = "The Fixtures changed while rescheduling. Try again."
 
 NOT_CAPTAIN = "Only the Captain of a Team in this match can ask to cancel or postpone it."
@@ -156,6 +172,8 @@ def _check(fixture: Fixture, kick_off: datetime, pitch: Field, now: datetime) ->
             raise ValidationError(
                 {"kick_off": [WRONG_NIGHT.format(day=day, weekday=night.get_weekday_display())]}
             )
+        if any(m.objects.filter(fixture=fixture, kick_off=kick_off).exists() for m in PER_KICK_OFF):
+            raise Conflict(KICK_OFF_USED.format(day=day, time=match_time(kick_off)))
     others = Fixture.objects.exclude(pk=fixture.pk).exclude(status=S.CANCELLED)
     if others.filter(pitch=pitch, kick_off=kick_off).exists():
         raise Conflict(

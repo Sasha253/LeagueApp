@@ -519,3 +519,11 @@ docs/DECISIONS.md under "2026-10-23: Teams (chunk 5)".
   Captain requests only, although the PRD Admin role lists "cancel or reschedule fixtures"
   and Screens.md Admin 2 shows "cancel". `fallbacks.cancel_match` is ready for it. If
   wanted: an Admin cancel endpoint calling it, with FR-43 credit and notifications.
+- **Moving a match back to a kick-off it already had (chunk 16 review).** Question: answers,
+  checkpoints, readiness checks and replacement offers are all kept per kick-off, so moving
+  a match A to B and back to A would bring back A's old answers and treat A's checkpoints as
+  done (no new Confirmations go out). Choice: refuse (409) a reschedule to a kick-off the
+  match already has any of these for; the Admin picks another time (19:45 instead of
+  19:40). Why: the most conservative option that needs no model change and never revives
+  stale replies. If the answer differs (allow it as a fresh start): key those records by a
+  per-reschedule "round" instead of the kick-off.

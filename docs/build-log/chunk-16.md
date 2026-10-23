@@ -99,3 +99,30 @@ By hand: run `make migrate` (one new migration).
 
 Checks: make test (589 passed), make lint (passed), npm test (204 passed), npm run build
 (passed).
+
+## Review (fix: chunk 16 review)
+
+Checked commit bb31f47 against the chunk prompt and CLAUDE.md: club isolation (the Admin
+viewsets use `ClubAdminMixin`, pitches are checked against the Club in the serializer and
+the service, a Captain withdraws only their own Team's requests), targeting (one Update to
+both Teams' opted-in Players and only the Night's Admins and the old and new pitch's
+Referee, FR-7, FR-8), FR-9 Confirmations at once through the T-36h checkpoint, cutoffs read
+from ClubSettings, no money touched, append-only records (`CaptainRequest` and
+`FixtureReschedule` refuse delete), UI only from `la-` classes, schema.d.ts in sync, nothing
+from later chunks.
+
+Found and fixed:
+- **Rescheduling back to an earlier kick-off revived its old state.** Answers, checkpoints,
+  readiness checks and replacement offers are keyed by kick-off. Moving A to B and back to
+  A made the T-36h checkpoint think A's Confirmations had already gone out (none were sent,
+  so both Teams would fail at T-6h) and brought back A's old answers. `reschedules._check`
+  now refuses (409) a kick-off the match already has any of these for. Test:
+  `test_moving_back_to_a_kick_off_that_already_had_confirmations_is_refused`. Logged in
+  docs/OPEN_QUESTIONS.md and docs/DECISIONS.md (provisional).
+
+Not changed (noted): a pitch clash is checked only at the exact kick-off, as the fixture
+import does; the postponement Accept button sends the time under Reschedule without a
+preview (the backend still checks everything).
+
+Checks: make test (590 passed), make lint (passed), npm test (204 passed), npm run build
+(passed).

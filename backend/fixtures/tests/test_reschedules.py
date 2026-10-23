@@ -160,6 +160,25 @@ def test_within_36_hours_confirmations_go_out_now_and_the_lifecycle_restarts(mat
     assert "going out now" in updates(fixture).first().body
 
 
+def test_moving_back_to_a_kick_off_that_already_had_confirmations_is_refused(match, admin, clock):
+    fixture, people = match
+    original = fixture.kick_off
+    clock(fixture, hours=36)
+    checkpoints.run_due()
+    fixture.refresh_from_db()
+    confirmations.answer(fixture, people["thandi"], "confirm", via="fixture")
+    clock(fixture, hours=30)
+    reschedules.reschedule(fixture, original + dt.timedelta(hours=1), admin=admin)
+    fixture.refresh_from_db()
+
+    # Its old answers and checkpoints would come back: the match would skip its
+    # Confirmations and start with stale replies.
+    with pytest.raises(Conflict, match="already had Confirmations or checks"):
+        reschedules.reschedule(fixture, original, admin=admin)
+    fixture.refresh_from_db()
+    assert fixture.kick_off == original + dt.timedelta(hours=1)
+
+
 def test_a_ready_match_moved_a_week_goes_back_to_scheduled_and_runs_again(match, admin, clock):
     fixture, _ = match
     lifecycle.transition(fixture, S.CONFIRMING, cause=FixtureTransition.Cause.CHECKPOINT)
