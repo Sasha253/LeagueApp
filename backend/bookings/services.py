@@ -179,7 +179,9 @@ def availability(
                 continue
             starts.append(start)
         result.append(FieldSlots(field, starts))
-    fee = club_settings.booking_hourly_fee
+    # A reschedule keeps the hourly fee the Booking was requested at (see `reschedule`),
+    # so the price shown is the one it will cost.
+    fee = exclude.hourly_fee if exclude is not None else club_settings.booking_hourly_fee
     return Availability(date, hours, fee, money.price(fee, hours), result)
 
 

@@ -119,3 +119,43 @@ NotificationPage cases.
 - make lint: ruff check and format clean
 - npm test: 298 passed
 - npm run build: built
+
+## Review (2026-10-23, unattended)
+
+Plan: read the commit against the chunk prompt and CLAUDE.md rules (Decimal money, club
+isolation, settings as data, append-only logs, notification targeting, design-system UI,
+tests, gen:api, scope), run the four checks, fix real defects only.
+
+Checked and fine:
+- Money is Decimal throughout (`bookings/money.py`); the price is decided in the backend
+  and only shown by the app.
+- Club isolation: club screens use `ClubAdminMixin`; `accept`/`decline` also check the
+  Admin role (a former Admin answering an old Notification is refused); a Booking User
+  only sees their own Bookings (others 404); a field must belong to the Booking's club;
+  the gate only finds the scanning club's Barcodes.
+- The hourly fee and match length are club settings (data); `BookingEvent` refuses
+  update and delete; Booking Notifications go only to the club's Admins, Updates only to
+  the Booking User (accept/decline) or the Admins (an accepted booking cancelled).
+- UI uses `la-` components and tokens; the day picker, slots and stepper are listed in
+  docs/DECISIONS.md as proposed components. `npm run gen:api` leaves no diff.
+- Nothing from chunk 24 (payments, policy, credit) was built.
+
+Fixed:
+- Rescheduling showed the wrong price. The availability endpoint priced a reschedule at
+  the club's current hourly fee, but `reschedule` keeps the fee the Booking was requested
+  at. If the Admin changed the fee in between, the picker showed a price the Booking
+  would not cost. `availability(..., exclude=booking)` now uses the Booking's own fee.
+  Test: `test_availability_for_a_reschedule_prices_at_the_booking_fee`.
+
+Not changed (noted):
+- The app's hours stepper stops at 24 and the day picker shows 14 days. Both only limit
+  what the screen offers; the backend enforces the real rules (1 to 24 hours, ending by
+  midnight).
+- If two gates scan one booking Barcode at the same moment, the loser's "used" reason
+  says "once per match". The wording is a little off, but the result is right.
+
+Review results:
+- make test: 878 passed
+- make lint: ruff check and format clean
+- npm test: 298 passed
+- npm run build: built

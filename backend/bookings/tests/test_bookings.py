@@ -480,6 +480,20 @@ def test_availability_for_a_reschedule_is_only_for_ones_own_booking(
     assert free(api, booking.club, day, 1, booking=booking.pk).status_code == 404
 
 
+def test_availability_for_a_reschedule_prices_at_the_booking_fee(booker, book, takes_bookings, day):
+    """A reschedule keeps the fee the Booking was requested at, so its free times show
+    the price it will cost, not the club's new fee."""
+    booking = book(booker.user)
+    takes_bookings.booking_hourly_fee = Decimal("800")
+    takes_bookings.save()
+
+    shown = free(booker, booking.club, day, 2, booking=booking.pk).json()
+    new = free(booker, booking.club, day, 2).json()
+
+    assert (shown["hourly_fee"], shown["price"]) == ("600.00", "1200.00")
+    assert (new["hourly_fee"], new["price"]) == ("800.00", "1600.00")
+
+
 # The log
 
 
