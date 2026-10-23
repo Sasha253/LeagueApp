@@ -14,6 +14,14 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* The installed app draws edge to edge (viewport-fit=cover), so keep content clear of the
+   notch, the status bar and the home bar. The insets are 0 in a desktop browser. */
+#root {
+  min-height: 100dvh;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+}
+
 h1,
 h2,
 h3,

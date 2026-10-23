@@ -2,6 +2,8 @@
 
 Transcribed from `docs/League_Management_App_PRD.pdf` (Oct 20, 2026, @Sasha). The PDF is the
 source: if the two ever differ, the PDF wins. Decisions made since are in `docs/DECISIONS.md`.
+Additions made after the PDF are marked *(added 2026-10-23)*; they fill gaps the PDF leaves
+open and do not change anything it says.
 
 ## Overview
 
@@ -9,7 +11,7 @@ A mobile app that automates running a social football league: team sign-up, fixt
 confirmation, cancellations and rescheduling, payments, field bookings and player sourcing,
 with every team payment tracked in a built-in finance view.
 
-**Problem.** League managers (Admins at Old Parks) spend hours chasing teams to confirm
+**Problem.** League managers (Admins at clubs such as Old Parks) spend hours chasing teams to confirm
 fixtures and pay, and lose revenue when matches fall through at short notice. Captains
 struggle to know who will turn up. Payment is tracked by hand, often with physical tokens at
 the gate.
@@ -21,7 +23,8 @@ gate with a scannable Payment Barcode.
 
 **Target customer.** Venue operators and league managers running weekly 5-a-side style
 leagues across multiple nights and divisions, who may already have a website, fixtures system
-or accounting package.
+or accounting package. *(Added 2026-10-23)* One app serves every club: each club's data,
+settings and Admins are its own (see `docs/DECISIONS.md`).
 
 ## Goals and success metrics
 
@@ -53,6 +56,7 @@ so a club can launch with no accounting setup or extra subscription.
 | Team payments | Tracked in the in-app finance tracker | Also synced to Xero |
 | Booking and friendly income | Shown in the finance tracker | Also synced to Xero |
 | Accountant hand-off | CSV / Excel export | Xero, or other packages through Xero |
+| Payment gateway *(added 2026-10-23)* | PayFast | Peach Payments and Yoco added as alternatives |
 
 ## User roles and permissions
 
@@ -61,7 +65,7 @@ or both.
 
 | Role | Who | Can do |
 | --- | --- | --- |
-| Admin | League managers at Old Parks | Load available Nights and Divisions (e.g. from Excel); confirm or decline Captain requests to create a Team; assign a Captain to a Team; accept Captain cancellation requests; cancel or reschedule fixtures; confirm or decline Booking Notifications; scan Barcodes to confirm Team and Booking User payment; confirm cash payments (no-gateway mode) |
+| Admin | League managers at a club | Load available Nights and Divisions (e.g. from Excel); confirm or decline Captain requests to create a Team; assign a Captain to a Team; accept Captain cancellation requests; cancel or reschedule fixtures; confirm or decline Booking Notifications; scan Barcodes to confirm Team and Booking User payment; confirm cash payments (no-gateway mode) |
 | Referee | Match officials per pitch | Scan a Barcode to confirm a Team has paid |
 | Captain | Team lead (also a Player) | Request creation of a Team by choosing an available Night and Division; confirm Player requests to join; send a cancel/postpone request to Admin; receive the Payment Barcode; raise a Player or Goalkeeper Request when short |
 | Player | Registered player | Search for and request to join a Team; choose which Nights to get notifications for; accept or decline Confirmation Notifications; receive Reminder and Player Request Notifications; join another Team's match via a Player/Goalkeeper Request |
@@ -155,6 +159,10 @@ automatically on payment or by an Admin for cash.
 3. **FR-21** Captains see which Players have paid; Admins see which Teams have paid.
 4. **FR-22** Cash paid to the club remains an option alongside card payment.
 
+*(Added 2026-10-23)* Phase 1 uses PayFast as the payment gateway. Peach Payments and Yoco
+follow later, so the gateway sits behind one interface and a club picks its provider in
+setup.
+
 ### Barcode authorisation
 
 | Mode | How the Barcode is issued | Validity |
@@ -172,6 +180,14 @@ automatically on payment or by an Admin for cash.
 
 **FR-43** When a paid match is cancelled, each Player's payment becomes credit towards a future
 match; no card refund is issued.
+
+**FR-52** *(added 2026-10-23)* Credit is held by a Player or by a Team:
+
+- **Player credit** belongs to the Player and can be spent on any Team's match that Player
+  plays in, so it moves with them between Teams.
+- **Team credit** belongs to the Team and only that Team's Captain can spend or manage it.
+- Credit goes back to whoever paid: a Player's own contribution becomes Player credit, and a
+  payment made for the whole Team becomes Team credit.
 
 ### Finance tracker (phase 1)
 
@@ -255,6 +271,9 @@ rather than replacing it.
 ### Integrations
 
 - **FR-39** Import Nights and Divisions from the Admin's existing tool (e.g. Excel).
+- **FR-53** *(added 2026-10-23)* The Admin imports each Season's Fixtures (date, time, pitch,
+  both Teams) the same way, from Excel. Syncing Fixtures from an external system comes later
+  under FR-40.
 - **FR-40** Integrate with the club's current website or fixtures system via its developer.
 - **FR-41** Phase 1: in-app finance tracker with CSV / Excel export. Phase 2: accounting via
   Xero; other platforms and accounting packages connect through Xero.
@@ -271,7 +290,11 @@ rather than replacing it.
 - **Barcode integrity:** Barcodes must be unique, tied to a Team or Booking, and impossible to
   reuse or forge.
 - **Configurability:** fees, cutoffs and payment windows are set per club without code changes.
-- **Platforms:** iOS and Android.
+- **Platforms:** iOS and Android. *(Added 2026-10-23)* Not a native app: one web app,
+  wrapped with Capacitor and installed from the App Store and Google Play, with native push
+  notifications and native camera scanning.
+- **Scheduling:** *(added 2026-10-23)* timed checkpoints (T-36h, T-6h, booking payment
+  cutoff) run on Celery Beat.
 
 ## Decisions
 
@@ -287,3 +310,8 @@ rather than replacing it.
 | Payments for a cancelled match | Credit towards a future match |
 | Booking cancellation and refunds | Proposed policy in Bookings |
 | Existing platforms and accounting | Phase 1: in-app finance tracker and export; phase 2: Xero |
+| App platform *(added 2026-10-23)* | One web app wrapped with Capacitor, installed from the App Store and Google Play; not native |
+| Payment gateway *(added 2026-10-23)* | PayFast now; Peach Payments and Yoco later |
+| Timed jobs *(added 2026-10-23)* | Celery Beat |
+| Where Fixtures come from *(added 2026-10-23)* | Admin import from Excel |
+| Who holds credit *(added 2026-10-23)* | Players and Teams; Player credit moves between Teams; Team credit is managed only by its Captain |

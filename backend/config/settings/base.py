@@ -97,4 +97,8 @@ SPECTACULAR_SETTINGS = {
     "ENUM_NAME_OVERRIDES": {"HealthStateEnum": "core.views.HEALTH_STATES"},
 }
 
-CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])
+# The installed app (Capacitor) always calls the API from these origins, in every
+# environment: capacitor://localhost on iOS, https://localhost on Android. The app uses
+# token auth, so CORS never needs credentials (cookies).
+CAPACITOR_ORIGINS = ["capacitor://localhost", "https://localhost"]
+CORS_ALLOWED_ORIGINS = [*env.list("CORS_ALLOWED_ORIGINS", default=[]), *CAPACITOR_ORIGINS]
