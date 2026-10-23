@@ -333,3 +333,22 @@ def test_division_max_teams_is_set_by_the_admin(admin_of, club_a, division):
 
     assert answer.json()["max_teams"] == 8
     assert Division.objects.get(pk=division.pk).max_teams == 8
+
+
+@pytest.mark.django_db
+def test_an_admin_cannot_reach_another_clubs_team_through_their_own_club(
+    admin_of, club_a, club_b, player, make_team
+):
+    sipho = player("sipho")
+    team = make_team("Red Lions", sipho.user, status=Team.Status.REQUESTED)
+    other_admin = admin_of(club_b)
+
+    assert other_admin.get(club_team(club_b, team)).status_code == 404
+    assert other_admin.post(club_team(club_b, team, "confirm")).status_code == 404
+    assert other_admin.post(club_team(club_b, team, "decline")).status_code == 404
+    answer = other_admin.post(
+        club_team(club_b, team, "captain"), {"player": sipho.user.pk}, format="json"
+    )
+    assert answer.status_code == 404
+    team.refresh_from_db()
+    assert team.status == Team.Status.REQUESTED

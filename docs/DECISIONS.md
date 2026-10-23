@@ -23,7 +23,8 @@ Decided by @Sasha while building chunk 5 (the Captain and Admin rows of the role
   own or the club's). This is the block on Team sign-up promised in chunk 3.
 - **The requester is Captain** and the Team's first Player as soon as they ask. If the
   Admin declines, the Team's Players leave it, so they can request or join another Team.
-- **Joining:** Players ask to join active Teams only. The Captain accepts or declines, and
+- **Joining:** Players ask to join active Teams only. No joining, or accepting a Player into, a Team
+  whose Season has ended (provisional, unattended run). The Captain accepts or declines, and
   the Player can withdraw while the request is pending.
 - **Captain:** the Admin can make any current Player of the Team its Captain. The old
   Captain stays in the Team as a Player. A Captain can't leave their Team until the Admin

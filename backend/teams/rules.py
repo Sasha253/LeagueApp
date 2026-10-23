@@ -60,6 +60,10 @@ def _is_full(division: Division, season_id: int) -> bool:
     return active.count() >= division.max_teams
 
 
+def _season_ended(team: Team) -> bool:
+    return team.season.ends_on < timezone.localdate()
+
+
 def _join(team: Team, player, when) -> TeamMembership:
     return TeamMembership.objects.create(team=team, player=player, joined_at=when)
 
@@ -161,6 +165,8 @@ def ask_to_join(team: Team, player) -> JoinRequest:
     team = _lock_team(team)
     if team.status != Team.Status.ACTIVE:
         raise Conflict(NOT_ACTIVE)
+    if _season_ended(team):
+        raise Conflict(SEASON_ENDED)
     if team.current_memberships().filter(player=player).exists():
         raise Conflict(ALREADY_MEMBER)
     if team.join_requests.filter(player=player, status=JoinRequest.Status.PENDING).exists():
@@ -193,6 +199,8 @@ def accept_join(join_request: JoinRequest, captain) -> TeamMembership:
     player = join_request.player
     if team.status != Team.Status.ACTIVE:
         raise Conflict(NOT_ACTIVE)
+    if _season_ended(team):
+        raise Conflict(SEASON_ENDED)
     if _in_another_team(player, team.season_id, team.division_id, team):
         raise Conflict(PLAYER_IN_DIVISION)
     _answer(join_request, JoinRequest.Status.ACCEPTED, captain)

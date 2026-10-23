@@ -270,3 +270,17 @@ def test_a_teams_page_counts_each_player_once(player, make_team):
     assert player("zanele").get(team_url(active, "detail")).json()["players"] == 3
     assert sipho.get(team_url(active, "detail")).json()["players"] == 3
     assert sipho.get(team_url(waiting, "detail")).json()["players"] == 2
+
+
+@pytest.mark.django_db
+def test_no_joining_a_team_once_its_season_has_ended(player, make_team, season):
+    sipho, naledi = player("sipho"), player("naledi")
+    team = make_team("Red Lions", sipho.user)
+    join_request = asks(naledi, team)
+    season.ends_on = timezone.localdate() - dt.timedelta(days=1)
+    season.starts_on = season.ends_on - dt.timedelta(days=60)
+    season.save()
+
+    assert sipho.post(request_url(join_request, "accept")).status_code == 409
+    assert player("thabo").post(team_url(team, "join")).status_code == 409
+    assert not team.current_memberships().filter(player=naledi.user).exists()

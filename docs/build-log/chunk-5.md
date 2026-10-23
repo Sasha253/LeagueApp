@@ -46,3 +46,31 @@ By hand: nothing.
 
 Checks: make test 159 passed; make lint clean; npm test 70 passed (15 files);
 npm run build ok.
+
+## Review (fix: chunk 5 review)
+
+Independent review of ecf96f9 against the chunk prompt and CLAUDE.md.
+
+Checked and fine: Admin views are limited to their own Club (`ClubAdminMixin` filters on
+`club_id`, `IsClubAdmin` guards the URL); a Team's Club comes from its Season and its
+Division must be in that Club; Captain is checked on the record (`IsTeamCaptain`), never
+stored as a role; `max_teams` is data on the Division, the league fee is read from data
+and money stays Decimal; no ledger, notification or UI code (those are later chunks);
+`npm run gen:api` gives no diff, so the frontend types match the API.
+
+Fixed:
+- A Player could ask to join, and a Captain could accept a Player into, a Team whose
+  Season had ended, though a Team can't be requested for an ended Season. Both now
+  return 409 "This Season has ended." Test:
+  `test_no_joining_a_team_once_its_season_has_ended`.
+- Test gap: nothing showed that an Admin of another Club can't reach a Team through
+  their own Club's URL. Added
+  `test_an_admin_cannot_reach_another_clubs_team_through_their_own_club` (404 on detail,
+  confirm, decline and captain).
+
+Noted, not changed: `GET seasons/` and `GET seasons/{id}/divisions/` let in any signed-in
+user, not only Players. They show nothing private (Season names and dates, Division fees
+and counts), so they were left as they are.
+
+Checks after the review: make test 161 passed; make lint clean; npm test 70 passed
+(15 files); npm run build ok.
