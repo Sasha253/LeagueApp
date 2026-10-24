@@ -68,3 +68,35 @@ PRD: FR-25, FR-26, FR-27, FR-49. Unattended run.
 - make lint: all checks passed, 181 files formatted.
 - npm test: 52 files, 308 tests passed.
 - npm run build: built.
+
+## Review
+
+Independent review of 2df5ad0 against the chunk prompt and CLAUDE.md.
+
+- Money: every figure is Decimal from grouped `Sum`s over `LedgerEntry`, quantized to cents;
+  serializers use `DecimalField`. No floats.
+- Club isolation: every ledger query filters `club=club`; Season, Night, Division and Team
+  lookups are scoped to the URL's Club (404 otherwise); `IsClubAdmin` checks the URL's Club.
+  Tests cover another Club's Admin, Player and Referee being refused.
+- Append-only ledger: the app is read-only; nothing writes or edits an entry (tested).
+- Configurable values: expected comes from fees as charged; no constants added.
+- Figures checked by hand against ledger writers: reversals copy kind, method, team and
+  source, so "less reversals" is right; Player credit returned from a league payment is
+  found through the payment's Team; Team credit is only league category (spend_credit
+  always writes league), so per-Division Team credit held is complete; friendly payments
+  are on no Team, so friendly income never touches Team balances.
+- `npm run gen:api` re-run: schema already current. No UI in this chunk (chunk 26), and
+  nothing from later chunks.
+
+### Fixed
+
+- Bad query ids gave a 500: `str.isdigit()` accepts characters such as "²" that `int()`
+  refuses, so `?season=²` (or `night`, `division`, `seasons`) raised `ValueError`. Ids are
+  now ASCII digits only (`_is_id` in `backend/finance/views.py`); tests added.
+
+### Checks after the fix
+
+- make test: 935 passed.
+- make lint: all checks passed, 181 files formatted.
+- npm test: 52 files, 308 tests passed.
+- npm run build: built.

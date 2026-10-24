@@ -160,6 +160,8 @@ def test_summary_checks_its_query(books, admin_of, club_a, club_b, season, frida
 
     assert client.get(summary).status_code == 400
     assert client.get(summary, {"season": "spring"}).status_code == 400
+    assert client.get(summary, {"season": "\u00b2"}).status_code == 400
+    assert client.get(summary, {"season": season.pk, "night": "\u00b2"}).status_code == 400
     assert client.get(summary, {"season": other_season.pk}).status_code == 404
     tuesday_id = books["lions"].division.night_id
     mismatch = {"season": season.pk, "night": tuesday_id, "division": friday_division.pk}
@@ -217,6 +219,7 @@ def test_comparison_takes_only_this_clubs_seasons(books, admin_of, club_a, club_
 
     assert client.get(url("comparison", club_a), {"seasons": f"{other.pk}"}).status_code == 400
     assert client.get(url("comparison", club_a), {"seasons": "1,x"}).status_code == 400
+    assert client.get(url("comparison", club_a), {"seasons": "\u00b2"}).status_code == 400
     both = client.get(url("comparison", club_a), {"seasons": f"{season.pk},{other.pk}"})
     assert both.status_code == 400
 

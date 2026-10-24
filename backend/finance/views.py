@@ -19,13 +19,18 @@ from . import services
 from .serializers import SeasonIncomeSerializer, SeasonSummarySerializer, TeamLedgerSerializer
 
 
+def _is_id(value: str) -> bool:
+    """ASCII digits only: str.isdigit() also accepts "²", which int() refuses."""
+    return value.isascii() and value.isdigit()
+
+
 def _id(request, name: str, *, required: bool = False) -> int | None:
     value = request.query_params.get(name, "")
     if not value:
         if required:
             raise ValidationError({name: "Required."})
         return None
-    if not value.isdigit():
+    if not _is_id(value):
         raise ValidationError({name: "An id."})
     return int(value)
 
@@ -80,7 +85,7 @@ class IncomeComparisonView(APIView):
         wanted = request.query_params.get("seasons", "").strip()
         if wanted:
             ids = [part.strip() for part in wanted.split(",")]
-            if not all(part.isdigit() for part in ids):
+            if not all(_is_id(part) for part in ids):
                 raise ValidationError({"seasons": "Comma-separated Season ids."})
             ids = {int(part) for part in ids}
             seasons = seasons.filter(pk__in=ids)
