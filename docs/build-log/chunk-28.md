@@ -77,3 +77,40 @@ chosen without asking (docs/OPEN_QUESTIONS.md "Chunk 28: Accountant export").
 
 - make test: 971 passed. make lint: ruff check and format clean (after `ruff format`).
 - npm test: 57 files, 340 tests passed. npm run build: built (chunk size warning only).
+
+## Review (fix: chunk 28 review)
+
+Checked commit 3d3c49d against the chunk prompt and CLAUDE.md:
+
+- Club isolation: `IsClubAdmin` on the club URL, and `entries` filters on `club=club`. A
+  Referee or another Club's Admin gets 403. An unknown Club gets 404. Tested.
+- Money: Decimal from the ledger through to CSV ("350.00") and Excel (number cells,
+  `#,##0.00`). No float.
+- Append-only: the export only reads. Corrections are their own rows, linked by
+  "Corrects entry".
+- Money in/out: reversals keep the original method (`ledger.services.reverse`), so a
+  corrected card or cash payment shows as money out. Correct.
+- Times: South African days for the period, local time in the rows.
+- UI: `la-` components and tokens only. No new components.
+- Scope: nothing from chunk 29. `npm run gen:api` re-run, and the schema had not drifted.
+- The columns were never confirmed by a person. This is already logged as provisional in
+  OPEN_QUESTIONS.md and DECISIONS.md. No new PRD questions.
+
+Defect fixed:
+
+- **One control character failed the whole Excel export (500).** openpyxl raises
+  `IllegalCharacterError` on characters such as a vertical tab (`\x0b`), which can come
+  from a pasted reason or name. `safe_text` now drops the characters a worksheet can't
+  hold (openpyxl's `ILLEGAL_CHARACTERS_RE`; tab, newline and CR are kept) before it escapes
+  formulas. The CSV output gets the same cleanup. New test:
+  `test_control_characters_do_not_break_the_export`.
+
+Not changed (not defects):
+
+- The installed app sends the export request and then says to use a browser. That is the
+  same pattern as the import templates (`native/files.ts`).
+
+### Review results
+
+- make test: 972 passed. make lint: ruff check and format clean.
+- npm test: 57 files, 340 tests passed. npm run build: built (chunk size warning only).

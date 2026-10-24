@@ -229,6 +229,26 @@ def test_text_that_looks_like_a_formula_is_escaped(admin_of, club_a, make_team, 
     assert team_cell.value == '\'=HYPERLINK("http://x")'
 
 
+@pytest.mark.django_db
+def test_control_characters_do_not_break_the_export(admin_of, club_a, make_team, people):
+    team = make_team("Lions\x0b", people["thandi"])
+    admin = admin_of(club_a)
+    ledger.issue_credit(
+        club=club_a, amount=Decimal("5"), reason="Pasted\x0bnote\x1f", recorded_by=admin.user,
+        team=team,
+    )  # fmt: skip
+
+    answer = admin.get(url(club_a), period())
+    assert answer.status_code == 200
+    sheet = load_workbook(io.BytesIO(answer.content))["Ledger"]
+    header = [cell.value for cell in sheet[1]]
+    assert sheet.cell(row=2, column=header.index("Reason") + 1).value == "Pastednote"
+    assert sheet.cell(row=2, column=header.index("Team") + 1).value == "Lions"
+
+    [row] = csv_rows(admin.get(url(club_a), period(file_type="csv")))
+    assert row["Reason"] == "Pastednote"
+
+
 # The period
 
 

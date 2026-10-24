@@ -21,6 +21,7 @@ from decimal import Decimal
 from django.db.models import QuerySet
 from django.utils import timezone
 from openpyxl import Workbook
+from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 from openpyxl.styles import Font
 
 from clubs.models import Club
@@ -75,7 +76,10 @@ CASH_MOVES = {Method.CARD, Method.CASH}
 
 
 def safe_text(value: str) -> str:
-    """Text as a spreadsheet shows it, never run as a formula."""
+    """Text as a spreadsheet shows it, never run as a formula. Control characters a
+    worksheet can't hold (a pasted vertical tab in a reason) are dropped, so one odd name
+    or reason can't fail the whole export."""
+    value = ILLEGAL_CHARACTERS_RE.sub("", value)
     return f"'{value}" if value.startswith(FORMULA_STARTS) else value
 
 
