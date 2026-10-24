@@ -265,8 +265,11 @@ function Row({
 function Teams({ season, night, division }: { season: number; night: ClubNight | null; division: number | null }) {
   const { clubId } = useClub();
   const [teams, reload] = useLoad(
-    () => api.GET("/api/v1/clubs/{club_id}/team-payments/", { params: { path: { club_id: clubId } } }),
-    `club-team-payments-${clubId}`,
+    () =>
+      api.GET("/api/v1/clubs/{club_id}/team-payments/", {
+        params: { path: { club_id: clubId }, query: { season } },
+      }),
+    `club-team-payments-${clubId}-${season}`,
   );
   const inNight = new Set(night?.divisions.map((d) => d.id));
   return (

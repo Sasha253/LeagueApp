@@ -30,11 +30,16 @@ const TEAM_ROWS = [
   teamRow(12, "Last Season FC", { id: 3, name: "Division 2" }, { season: { id: 4, name: "Autumn 2026" } }),
 ];
 
+let teamQueries: URLSearchParams[] = [];
+
 function routes(queries: URLSearchParams[], answer: (query: URLSearchParams) => object = () => summary()) {
   return {
     [SEASONS]: { status: 200, body: [SPRING, AUTUMN] },
     [NIGHTS]: { status: 200, body: [TUESDAY_NIGHT, THURSDAY_NIGHT] },
-    [TEAMS]: { status: 200, body: TEAM_ROWS },
+    [TEAMS]: (request: Request) => {
+      teamQueries.push(new URL(request.url).searchParams);
+      return json(200, TEAM_ROWS);
+    },
     [SUMMARY]: (request: Request) => {
       const query = new URL(request.url).searchParams;
       queries.push(query);
@@ -81,9 +86,11 @@ describe("FinancesPage", () => {
   });
 
   it("lists the Season's Teams, each opening its Team ledger", async () => {
+    teamQueries = [];
     await openAs("/clubs/1/finances", routes([]), "Finances", ADMIN);
 
     const teams = await screen.findByRole("list", { name: "Teams" });
+    expect(teamQueries[0]!.get("season")).toBe("5");
     const links = within(teams).getAllByRole("link");
     expect(links).toHaveLength(2);
     expect(links[0]).toHaveAttribute("href", "/clubs/1/finances/teams/7");

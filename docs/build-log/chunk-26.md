@@ -73,3 +73,30 @@ PRD: FR-25, FR-26, FR-27, FR-49 (screens on the chunk 25 API). Design: Screens.m
 - make lint: all checks passed, 181 files formatted.
 - npm test: 55 files, 324 tests passed.
 - npm run build: built (existing chunk-size warning only).
+
+## Review (fix: chunk 26 review)
+
+Checked commit 50d629d against the chunk prompt and CLAUDE.md.
+
+- Money: every amount is an API decimal string shown through `formatRand`; no sums in
+  the app. `Number()` is used only to compare a backend figure with zero (chips, captions).
+- Club isolation: no backend change; the screens call the chunk 25 finance endpoints and
+  `team-payments`, all `IsClubAdmin` and scoped to the URL's Club. 403 shows the
+  "Only this club's Admins" state.
+- Ledger: read-only screens; nothing edits or deletes an entry.
+- Design system: only `la-` classes from bundle.css / proposed.css and type styles.
+- Scope: no planner, Outstanding list or export (chunks 27, 28).
+- No API change, so gen:api not needed.
+
+Fixed:
+
+- The Team ledgers list on Finances fetched every active Team of every Season and filtered
+  in the browser. It now asks `team-payments` for the picked Season only (`?season=`),
+  so the list stays bounded as Seasons pile up. Test asserts the query.
+
+Checks after the fix:
+
+- make test: 935 passed (backend unchanged by the fix).
+- make lint: all checks passed, 181 files formatted.
+- npm test: 55 files, 324 tests passed.
+- npm run build: built (existing chunk-size warning only).
