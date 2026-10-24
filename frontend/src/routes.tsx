@@ -37,6 +37,9 @@ import { BookingPage } from "./pages/bookings/BookingPage";
 import { BookPage } from "./pages/bookings/BookPage";
 import { ClubBookingsPage } from "./pages/bookings/ClubBookingsPage";
 import { MyBookingsPage } from "./pages/bookings/MyBookingsPage";
+import { ComparisonPage } from "./pages/finance/ComparisonPage";
+import { FinancesPage } from "./pages/finance/FinancesPage";
+import { TeamLedgerPage } from "./pages/finance/TeamLedgerPage";
 import { InboxPage } from "./pages/inbox/InboxPage";
 import { NotificationPage } from "./pages/inbox/NotificationPage";
 import { PushBridge } from "./push/PushBridge";
@@ -75,6 +78,9 @@ const screens: RouteObject[] = [
       { path: "/clubs/:clubId/requests", element: <ClubRequestsPage /> },
       { path: "/clubs/:clubId/payments", element: <ClubPaymentsPage /> },
       { path: "/clubs/:clubId/payments/:teamId", element: <ClubTeamPaymentPage /> },
+      { path: "/clubs/:clubId/finances", element: <FinancesPage /> },
+      { path: "/clubs/:clubId/finances/compare", element: <ComparisonPage /> },
+      { path: "/clubs/:clubId/finances/teams/:teamId", element: <TeamLedgerPage /> },
       { path: "/clubs/:clubId/scan", element: <ScanPage /> },
       { path: "/clubs/:clubId/bookings", element: <ClubBookingsPage /> },
       { path: "/book", element: <BookPage /> },

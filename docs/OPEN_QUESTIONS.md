@@ -1018,3 +1018,35 @@ docs/DECISIONS.md under "2026-10-23: Teams (chunk 5)".
   there is no "current Season" default. Why: the UI filters by Season (Screens.md Admin 5)
   and the app has no rule for which Season is current. If the answer differs: default to
   the Season whose dates include today.
+
+## Chunk 26: Finance tracker (UI)
+
+- **Which Season Finances opens on.** Question: the summary needs a Season and the app has
+  no "current Season" rule (chunk 25). Choice: the screen opens on the earliest-starting
+  Season that hasn't ended (South African date), else the latest Season; the Admin can pick
+  any other. Why: it matches the Fixtures list, which shows Seasons that haven't ended, and
+  it only picks a filter, never a figure. If the answer differs: change `openingSeason` in
+  `frontend/src/pages/finance/shared.tsx`.
+- **The four FinanceSummary totals.** Question: the design shows "Due to date", "Received",
+  "Outstanding" and "Season expected"; the chunk 25 API has one expected figure (league fees
+  charged) and no due-to-date. Choice: Expected (league fees charged), Received (league card
+  and cash), Outstanding (owed, in pending ink) and Team credit held. Friendly and booking
+  money are their own income lines, with "All income received" (the API's `received`)
+  below them. Why: no figure is computed in the app, and FR-49 keeps booking and friendly
+  income apart from league income. If the answer differs: due-to-date and season-expected
+  need new API figures (chunk 27's planner works week by week), then the card changes.
+- **How a Team ledger is opened.** Choice: Finances lists the Season's active Teams in
+  scope (from the existing team-payments list) and each opens its Team ledger. Withdrawn
+  Teams are not listed, though the ledger endpoint serves them. Why: no API change in a UI
+  chunk. If withdrawn Teams' ledgers must be reachable: add the Teams in scope to the
+  summary, or a status filter to team-payments.
+- **Ledger entry wording.** Choice: Fee charged, Payment, Credit given, Refund, and
+  "Correction of entry N" for a reversal (with its reason); each line shows its entry
+  number, the date and time in South African time, the Player if any, the amount, a Card /
+  Cash / Credit chip, and "Recorded by" the Admin or "the app". Amounts are shown as the
+  ledger stores them (above zero); the kind says which way the money went. If the answer
+  differs: change `entryTitle` in `frontend/src/pages/finance/shared.tsx`.
+- **Comparison.** Choice: a "Compare Seasons" screen, every Season by default, narrowed by
+  multi-select Season chips; each Season shows received, the League, Friendlies and
+  Bookings lines, and each Night's league and friendly income. If the answer differs (a
+  table across Seasons, Leagues as something else): only `ComparisonPage.tsx` changes.

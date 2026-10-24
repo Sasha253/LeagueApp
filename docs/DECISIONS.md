@@ -2,6 +2,27 @@
 
 Newest first. Each entry: the date, what was decided, and why.
 
+## 2026-10-24: Finance tracker (UI) (chunk 26) (provisional, unattended run)
+
+Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 26: Finance tracker
+(UI)".
+
+- **Screens (provisional, unattended run):** Finances (`/clubs/{id}/finances`, from an
+  Admin's Profile), Team ledger (`/clubs/{id}/finances/teams/{team_id}`) and Compare Seasons
+  (`/clubs/{id}/finances/compare`). They only draw the chunk 25 API's figures; nothing is
+  added up in the app.
+- **Opening Season (provisional, unattended run):** the earliest-starting Season that hasn't
+  ended, else the latest. Night filter, then Division filter for that Night.
+- **FinanceSummary totals (provisional, unattended run):** Expected (league fees charged),
+  Received (league card and cash), Outstanding, Team credit held. Friendly and booking
+  income are separate lines; "All income received" is the API's total.
+- **Team ledgers (provisional, unattended run):** opened from the Season's active Teams on
+  Finances; read-only, newest first, a reversal shown as "Correction of entry N" with its
+  reason.
+- **Proposed component:** MethodChip, the word Card, Cash or Credit in `.la-chip
+  .la-chip--info` without an icon (a method is not a status), in
+  `frontend/src/pages/finance/shared.tsx`. No new CSS.
+
 ## 2026-10-24: Finance tracker (backend) (chunk 25) (provisional, unattended run)
 
 Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 25: Finance tracker
