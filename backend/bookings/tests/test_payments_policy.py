@@ -248,7 +248,21 @@ def test_a_cash_only_club_asks_for_cash(booker, accepted, clock, takes_bookings)
     assert (
         "Pay R 600 to the club before you play" in user_updates(booking, "Payment due").get().body
     )
+    assert booker.get(mine(booking.pk)).json()["can_pay"] is False  # No Pay button.
     assert booker.post(mine(booking.pk, "pay")).status_code == 409
+
+
+def test_a_cash_only_club_can_be_paid_from_credit(booker, accepted, clock, takes_bookings):
+    takes_bookings.payment_mode = PaymentMode.CASH_ONLY
+    takes_bookings.save()
+    booking = accepted()
+    clock(before(booking, 23))
+    services.take_due_payments()
+    give_credit(booking, booker.user, "600")
+
+    assert booker.get(mine(booking.pk)).json()["can_pay"] is True
+    body = booker.post(mine(booking.pk, "pay")).json()
+    assert (body["credit_amount"], body["card_amount"]) == ("600.00", "0.00")
 
 
 # Paying by card

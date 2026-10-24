@@ -29,6 +29,22 @@ describe("Booking payments", () => {
     expect(screen.getByText("Still to pay")).toBeInTheDocument();
   });
 
+  it("asks for cash at the club when it can't be paid in the app", async () => {
+    await openAs(
+      "/bookings/70",
+      {
+        [ONE]: { status: 200, body: booking({ status: "accepted", payment_requested: true, can_pay: false, outstanding: "1200.00" }) },
+        [OUTCOME]: { status: 200, body: outcome() },
+        [BARCODE]: UNPAID,
+      },
+      "Booking",
+      BOOKER,
+    );
+
+    expect(await screen.findByText("Pay R 1,200 to the club before you play.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Pay/ })).not.toBeInTheDocument();
+  });
+
   it("pays what is due on PayFast, then shows the result", async () => {
     const { calls } = await openAs(
       "/bookings/70",

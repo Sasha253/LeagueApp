@@ -537,6 +537,25 @@ def _card_options(club: Club) -> tuple[bool, Decimal | None]:
     return payments.club_card_options(club)
 
 
+def can_pay_in_app(booking: Booking) -> bool:
+    """The Booking User can pay what is left in the app now: payment is due, and their
+    credit covers it or the club takes cards for what credit leaves (the same rules as
+    payments.services.start_booking_payment). Otherwise they pay the club in cash."""
+    if (
+        booking.status != S.ACCEPTED
+        or booking.payment_requested_at is None
+        or booking.ends_at <= _now()
+    ):
+        return False
+    owed = money.outstanding(booking)
+    if owed <= 0:
+        return False
+    if ledger.booking_credit(booking.club, booking.user) >= owed:
+        return True
+    card_enabled, minimum = _card_options(booking.club)
+    return card_enabled and owed >= minimum
+
+
 def due_for_payment(now: dt.datetime | None = None):
     """Accepted Bookings still to come whose payment cutoff has passed and whose payment
     hasn't been taken for their current slot."""

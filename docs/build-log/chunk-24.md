@@ -131,3 +131,35 @@ BookPage and PaymentResultPage cases, existing booking tests updated.
 - make lint: ruff check and format clean
 - npm test: 307 passed
 - npm run build: built
+
+## Review (2026-10-24)
+
+Independent review of 9525c53 against the chunk prompt and CLAUDE.md. Money is Decimal
+throughout; every policy number comes from ClubSettings; ledger changes are new entries
+only (credits returned through `return_as_credit`, never edits); club endpoints go through
+`ClubAdminMixin` and the services re-check `is_admin` for the Booking's club; Booking User
+endpoints are scoped to the user's own Bookings; notifications go only to the Booking User
+or that club's Admins. The tokenisation question was answered conservatively (no stored
+card details, hosted PayFast page) and logged; accepted as not a blocker.
+
+Fixed (an earlier interrupted review started the first two; finished here):
+- `can_pay` said yes whenever payment was due and something was owed, so a cash-only club
+  showed a Pay button that always answered 409, and a cash-only club whose user held
+  enough credit was not offered paying from credit consistently. New
+  `services.can_pay_in_app` applies the same rules as `payments.start_booking_payment`
+  (credit covers it, or the club takes cards for at least the gateway minimum). Tests: a
+  cash-only club has no Pay button; a cash-only club can be paid from credit.
+- The club-cancelled banner said "What you paid came back as credit", which is wrong when
+  nothing was paid or the club's percent is under 100. It now says any credit returned is
+  used first, and points to the Update that gives the reason.
+- A booking whose payment is due but can't be paid in the app (cash-only club, or less
+  than the card minimum) showed "Still to pay" with no instruction. It now shows
+  "Payment due" with "Pay R … to the club before you play." Vitest case added.
+
+No API shape changed, so `npm run gen:api` was not needed.
+
+Review results:
+- make test: 917 passed
+- make lint: ruff check and format clean
+- npm test: 308 passed
+- npm run build: built

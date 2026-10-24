@@ -10,7 +10,7 @@ from clubs.models import Club, Field
 from clubs.serializers import ClubSummarySerializer
 from teams.serializers import NamedSerializer
 
-from . import money, policy
+from . import money, policy, services
 from .models import BOOKING_STATUSES, MOST_HOURS, Booking
 
 UTC_NOTE = "Stored in UTC; sent with its offset. Show it in Africa/Johannesburg."
@@ -133,12 +133,7 @@ class BookingSerializer(serializers.ModelSerializer):
         return booking.payment_requested_at is not None
 
     def get_can_pay(self, booking: Booking) -> bool:
-        return (
-            booking.status == Booking.Status.ACCEPTED
-            and booking.payment_requested_at is not None
-            and booking.ends_at > timezone.now()
-            and money.outstanding(booking) > 0
-        )
+        return services.can_pay_in_app(booking)
 
     def get_is_over(self, booking: Booking) -> bool:
         return booking.ends_at <= timezone.now()

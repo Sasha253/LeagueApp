@@ -90,13 +90,18 @@ function Detail({ initial }: { initial: Booking }) {
       )}
       {b.status === "cancelled" && b.cancelled_by_club && (
         <Banner status="cancelled" title="The club cancelled this booking">
-          What you paid for it came back as credit, used first on your next booking.
+          Any credit it returned is used first on your next booking. Your Updates say why it was cancelled.
         </Banner>
       )}
       {b.status === "accepted" && !b.is_over && owes && !b.payment_requested && (
         <p className="caption la-muted">{`Payment is taken ${formatMoment(b.payment_due_at)}.`}</p>
       )}
       {b.can_pay && <PayNow booking={b} />}
+      {b.status === "accepted" && !b.is_over && owes && b.payment_requested && !b.can_pay && (
+        <Banner status="pending" title={`Payment due: ${formatRand(b.outstanding)}`}>
+          {`Pay ${formatRand(b.outstanding)} to the club before you play.`}
+        </Banner>
+      )}
       {b.status === "accepted" && !b.is_over && <EntryBarcode booking={b} />}
 
       {(b.can_cancel || b.can_reschedule) && <Changes booking={b} onChanged={setB} />}
