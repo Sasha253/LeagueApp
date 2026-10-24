@@ -1050,3 +1050,45 @@ docs/DECISIONS.md under "2026-10-23: Teams (chunk 5)".
   multi-select Season chips; each Season shows received, the League, Friendlies and
   Bookings lines, and each Night's league and friendly income. If the answer differs (a
   table across Seasons, Leagues as something else): only `ComparisonPage.tsx` changes.
+
+## Chunk 27: Outstanding list and income planner
+
+- **How a Season fee becomes "expected week by week".** Question: the league fee is one
+  charge per Team per Season (chunk 8), but FR-47 wants expected income per week from the
+  fixture list. Choice: each Team's league fees charged are spread evenly over its
+  Fixtures in the Season (to the cent, the odd cents on the last), in the week each kicks
+  off. Cancelled Fixtures are left out; a Team with no Fixtures yet is "unscheduled" (in
+  the Season's expected, in no week). Weeks are the Season's own: week 1 starts on its
+  first day. Why: it uses only the fee as charged and the fixture list, and the Season's
+  expected stays equal to the Finances summary's. If the answer differs (fees per match,
+  calendar weeks Monday to Sunday): only `backend/finance/planner.py` changes.
+- **What "received overlaid" means per week.** Choice: each Team's payments (card, cash
+  and credit, never more than charged) cover its own Fixtures in date order; a week that
+  has started and isn't covered is short. "Paid to date", "Behind" and the bars use this.
+  Card and cash actually taken each week are also given per week ("received that week").
+  Why: paying the Season upfront would otherwise show as one huge week, and one Team
+  paying ahead must not hide another's shortfall. If the answer differs (raw takings per
+  week as the bars): the API already gives `received` per week; the bars change.
+- **Who counts as a Player who owes.** Question: the ledger charges Teams, not Players.
+  Choice: a current Player of an active Team that owes owes their share (what is due over
+  the Team's current Players, rounded up to the cent, as "Pay my share") less what they
+  have paid towards it, never more than the Team still owes. Money paid for the whole
+  Team isn't split across Players, so the Players' sum can exceed the Team's figure.
+  Friendly fees and Booking Users are not on the list (no per-Player charges exist).
+  Withdrawn Teams are left out (cash can't be recorded for them). If the answer differs:
+  `backend/finance/outstanding.py`.
+- **Who Remind reaches and what it says.** Choice: an Update notification (message only).
+  A Team's Remind goes to its Captain and its current Players who still owe their share;
+  a Player's Remind to that Player. Only those opted into the Team's Night receive it
+  (targeting rule); the Admin is told who wasn't reached, and a Player not opted in has
+  Remind turned off. The message names the Team, the amount and how to pay (in the app
+  only if the club takes cards). No limit on how often an Admin may remind. If the answer
+  differs (a limit, the Captain only, a new notification kind): `remind` in
+  `backend/finance/outstanding.py` and `payment_reminder_recipients` in targeting.py.
+- **What Mark cash paid records.** Choice: exactly what the row owes, as one cash ledger
+  entry through `record_cash` (FR-22): for the Team (no Player) on a Team row, for that
+  Player on a Player row, with the reason "Cash paid, marked on the Outstanding list".
+  The app sends the amount it showed; if what is owed has changed, nothing is recorded
+  (409) and the list reloads. A part payment uses the existing Record cash screen. The
+  screen asks once more before recording. If the answer differs (an editable amount):
+  the endpoint already takes `amount`; drop the equality check and add a field.

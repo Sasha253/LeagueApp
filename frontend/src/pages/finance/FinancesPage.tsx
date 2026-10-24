@@ -2,8 +2,9 @@
 // f14-finances.mjs): a Season's money for the club's Admin, filtered by Season, Night and
 // Division. FinanceSummary at the top, then league money by method, the income lines
 // (League, Friendlies, Bookings) and credit held, the Nights and Divisions, and the Teams,
-// each opening its Team ledger. Every amount is the API's (chunk 25); nothing is added up
-// here. The week-by-week planner, the Outstanding list and Export come in later chunks.
+// each opening its Team ledger. The week-by-week planner (FR-47) sits under FinanceSummary
+// and the Outstanding list (FR-48) after the money by method, as in the design. Every
+// amount is the API's (chunks 25 and 27); nothing is added up here. Export comes later.
 
 import { useState } from "react";
 import { Link } from "react-router";
@@ -11,6 +12,8 @@ import { api, type Schemas } from "../../api/client";
 import { ChoiceChip } from "../../components/ChoiceChip";
 import { formatRand, WEEKDAYS } from "../../format";
 import { LoadState, useClub, useLoad } from "../club/shared";
+import { Outstanding } from "./Outstanding";
+import { Planner } from "./Planner";
 import { PaidChip } from "../payments/shared";
 import { ScreenHeader } from "../teams/shared";
 import { IncomeRow, NOT_AN_ADMIN, openingSeason, Stat, type SeasonSummary } from "./shared";
@@ -106,6 +109,9 @@ export function FinancesPage() {
 function SeasonFinances({ season, night, division }: { season: number; night: ClubNight | null; division: number | null }) {
   const { clubId } = useClub();
   const nightId = night?.id ?? null;
+  // Bumped when cash is marked paid, so the totals, planner and Team list load again.
+  const [version, setVersion] = useState(0);
+  const scope = { season, night: nightId, division };
   const [summary, reload] = useLoad(
     () =>
       api.GET("/api/v1/clubs/{club_id}/finance/summary/", {
@@ -114,13 +120,14 @@ function SeasonFinances({ season, night, division }: { season: number; night: Cl
           query: { season, ...(nightId !== null && { night: nightId }), ...(division !== null && { division }) },
         },
       }),
-    `finance-summary-${clubId}-${season}-${nightId}-${division}`,
+    `finance-summary-${clubId}-${season}-${nightId}-${division}-${version}`,
   );
   return (
     <LoadState result={summary} retry={reload} what="finances" forbidden={NOT_AN_ADMIN}>
       {(data) => (
         <>
           <FinanceSummary summary={data} />
+          <Planner scope={scope} label={scopeLabel(data)} version={version} />
           <section className="la-stack-2" aria-labelledby="by-method">
             <h2 id="by-method" className="la-overline">
               League money by method
@@ -132,22 +139,27 @@ function SeasonFinances({ season, night, division }: { season: number; night: Cl
               <Stat label="Returned as credit" amount={data.totals.league.returned_as_credit} />
             </div>
           </section>
+          <Outstanding scope={scope} onPaid={() => setVersion((n) => n + 1)} />
           <IncomeLines summary={data} />
           <Breakdown summary={data} />
-          <Teams season={season} night={night} division={division} />
+          <Teams season={season} night={night} division={division} version={version} />
         </>
       )}
     </LoadState>
   );
 }
 
-/** FinanceSummary from the design system: the scope and four totals. */
-function FinanceSummary({ summary }: { summary: SeasonSummary }) {
-  const scope = [
+function scopeLabel(summary: SeasonSummary): string {
+  return [
     summary.season.name,
     summary.night ? WEEKDAYS[summary.night.weekday] : "All Nights",
     ...(summary.division ? [summary.division.name] : []),
   ].join(" · ");
+}
+
+/** FinanceSummary from the design system: the scope and four totals. */
+function FinanceSummary({ summary }: { summary: SeasonSummary }) {
+  const scope = scopeLabel(summary);
   const { totals } = summary;
   return (
     <section className="la-card la-stack" aria-label={`Finances, ${scope}`}>
@@ -262,14 +274,24 @@ function Row({
 }
 
 /** The Season's active Teams in scope, each opening its Team ledger (FR-26). */
-function Teams({ season, night, division }: { season: number; night: ClubNight | null; division: number | null }) {
+function Teams({
+  season,
+  night,
+  division,
+  version,
+}: {
+  season: number;
+  night: ClubNight | null;
+  division: number | null;
+  version: number;
+}) {
   const { clubId } = useClub();
   const [teams, reload] = useLoad(
     () =>
       api.GET("/api/v1/clubs/{club_id}/team-payments/", {
         params: { path: { club_id: clubId }, query: { season } },
       }),
-    `club-team-payments-${clubId}-${season}`,
+    `club-team-payments-${clubId}-${season}-${version}`,
   );
   const inNight = new Set(night?.divisions.map((d) => d.id));
   return (

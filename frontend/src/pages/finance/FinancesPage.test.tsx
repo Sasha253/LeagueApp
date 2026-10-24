@@ -4,12 +4,25 @@ import { describe, expect, it } from "vitest";
 import { json } from "../../test/fakeApi";
 import { openAs } from "../teams/testing";
 import { openingSeason } from "./shared";
-import { ADMIN, AUTUMN, figures, line, SPRING, summary, THURSDAY_NIGHT, TUESDAY_NIGHT } from "./testing";
+import {
+  ADMIN,
+  AUTUMN,
+  figures,
+  line,
+  outstanding,
+  plan,
+  SPRING,
+  summary,
+  THURSDAY_NIGHT,
+  TUESDAY_NIGHT,
+} from "./testing";
 
 const SEASONS = "GET /api/v1/clubs/1/seasons/";
 const NIGHTS = "GET /api/v1/clubs/1/nights/";
 const SUMMARY = "GET /api/v1/clubs/1/finance/summary/";
 const TEAMS = "GET /api/v1/clubs/1/team-payments/";
+const PLANNER = "GET /api/v1/clubs/1/finance/planner/";
+const OUTSTANDING = "GET /api/v1/clubs/1/finance/outstanding/";
 
 function teamRow(id: number, name: string, division: { id: number; name: string }, overrides: object = {}) {
   return {
@@ -36,6 +49,8 @@ function routes(queries: URLSearchParams[], answer: (query: URLSearchParams) => 
   return {
     [SEASONS]: { status: 200, body: [SPRING, AUTUMN] },
     [NIGHTS]: { status: 200, body: [TUESDAY_NIGHT, THURSDAY_NIGHT] },
+    [PLANNER]: { status: 200, body: plan() },
+    [OUTSTANDING]: { status: 200, body: outstanding() },
     [TEAMS]: (request: Request) => {
       teamQueries.push(new URL(request.url).searchParams);
       return json(200, TEAM_ROWS);

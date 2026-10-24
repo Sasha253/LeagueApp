@@ -1,4 +1,7 @@
-"""The finance tracker API (FR-25 to FR-27, FR-49). Admins of the Club only; read-only.
+"""The finance tracker API (FR-25 to FR-27, FR-47 to FR-49). Admins of the Club only.
+
+Read-only except the Outstanding list's actions (FR-48): Remind sends a notification and
+Mark cash paid adds a cash ledger entry through payments.services.record_cash.
 
 Every figure is computed from the ledger by finance.services. Another Club's Season,
 Night, Division or Team is 404, so its existence doesn't show.
@@ -6,6 +9,7 @@ Night, Division or Team is 404, so its existence doesn't show.
 
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, extend_schema
+from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -13,10 +17,20 @@ from rest_framework.views import APIView
 from accounts.permissions import IsClubAdmin
 from clubs.models import Club, Division, Night, Season
 from ledger import services as ledger
+from ledger.serializers import LedgerEntrySerializer
 from teams.models import Team
 
-from . import services
-from .serializers import SeasonIncomeSerializer, SeasonSummarySerializer, TeamLedgerSerializer
+from . import outstanding, planner, services
+from .serializers import (
+    MarkCashPaidSerializer,
+    OutstandingRowSerializer,
+    OutstandingSerializer,
+    PlannerSerializer,
+    RemindedSerializer,
+    SeasonIncomeSerializer,
+    SeasonSummarySerializer,
+    TeamLedgerSerializer,
+)
 
 
 def _is_id(value: str) -> bool:
@@ -35,31 +49,37 @@ def _id(request, name: str, *, required: bool = False) -> int | None:
     return int(value)
 
 
+SCOPE = [
+    OpenApiParameter("season", int, required=True, description="The Season."),
+    OpenApiParameter("night", int, description="Only this Night."),
+    OpenApiParameter("division", int, description="Only this Division."),
+]
+
+
+def scope(request, club_id: int):
+    """The Club, and the Season, Night and Division asked for, all of that Club (else 404)."""
+    club = get_object_or_404(Club, pk=club_id)
+    season = get_object_or_404(Season, club=club, pk=_id(request, "season", required=True))
+    night_id = _id(request, "night")
+    division_id = _id(request, "division")
+    night = get_object_or_404(Night, club=club, pk=night_id) if night_id else None
+    division = (
+        get_object_or_404(Division, night__club=club, pk=division_id) if division_id else None
+    )
+    if night and division and division.night_id != night.pk:
+        raise ValidationError({"division": "That Division isn't on this Night."})
+    return club, season, night, division
+
+
 class SeasonSummaryView(APIView):
     """A Season's totals per Night and Division, with friendly and booking income as their
     own lines (FR-25, FR-49)."""
 
     permission_classes = [IsClubAdmin]
 
-    @extend_schema(
-        parameters=[
-            OpenApiParameter("season", int, required=True, description="The Season."),
-            OpenApiParameter("night", int, description="Only this Night."),
-            OpenApiParameter("division", int, description="Only this Division."),
-        ],
-        responses=SeasonSummarySerializer,
-    )
+    @extend_schema(parameters=SCOPE, responses=SeasonSummarySerializer)
     def get(self, request, club_id: int):
-        club = get_object_or_404(Club, pk=club_id)
-        season = get_object_or_404(Season, club=club, pk=_id(request, "season", required=True))
-        night_id = _id(request, "night")
-        division_id = _id(request, "division")
-        night = get_object_or_404(Night, club=club, pk=night_id) if night_id else None
-        division = (
-            get_object_or_404(Division, night__club=club, pk=division_id) if division_id else None
-        )
-        if night and division and division.night_id != night.pk:
-            raise ValidationError({"division": "That Division isn't on this Night."})
+        club, season, night, division = scope(request, club_id)
         summary = services.season_summary(club, season, night=night, division=division)
         return Response(SeasonSummarySerializer(summary).data)
 
@@ -126,3 +146,75 @@ class TeamLedgerView(APIView):
             "entries": entries,
         }
         return Response(TeamLedgerSerializer(data).data)
+
+
+class PlannerView(APIView):
+    """Expected league income week by week, from the fixture list, with what Teams have
+    paid overlaid (FR-47)."""
+
+    permission_classes = [IsClubAdmin]
+
+    @extend_schema(parameters=SCOPE, responses=PlannerSerializer)
+    def get(self, request, club_id: int):
+        club, season, night, division = scope(request, club_id)
+        plan = planner.planner(club, season, night=night, division=division)
+        return Response(PlannerSerializer(plan).data)
+
+
+class OutstandingView(APIView):
+    """Teams and Players who owe, largest first (FR-48)."""
+
+    permission_classes = [IsClubAdmin]
+
+    @extend_schema(parameters=SCOPE, responses=OutstandingSerializer)
+    def get(self, request, club_id: int):
+        club, season, night, division = scope(request, club_id)
+        owed = outstanding.outstanding(club, season, night=night, division=division)
+        return Response(OutstandingSerializer(owed).data)
+
+
+def row(club_id: int, data: dict):
+    """The Team (of this Club, else 404) and the Player (a current one, else 400)."""
+    team = get_object_or_404(
+        Team.objects.select_related("club", "season", "division__night"),
+        club_id=club_id,
+        pk=data["team_id"],
+    )
+    player = None
+    if data.get("player_id") is not None:
+        player = outstanding.is_current_player(team, data["player_id"])
+        if player is None:
+            raise ValidationError({"player_id": "That Player isn't in this Team."})
+    return team, player
+
+
+class RemindView(APIView):
+    """Remind a Team or a Player on the Outstanding list (FR-48): an Update notification,
+    only to those opted into the Team's Night."""
+
+    permission_classes = [IsClubAdmin]
+
+    @extend_schema(request=OutstandingRowSerializer, responses=RemindedSerializer)
+    def post(self, request, club_id: int):
+        body = OutstandingRowSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        team, player = row(club_id, body.validated_data)
+        reminded = outstanding.remind(team=team, player=player)
+        return Response(RemindedSerializer(reminded).data)
+
+
+class MarkCashPaidView(APIView):
+    """Mark cash paid on the Outstanding list (FR-48, FR-22): what the row owes, as a cash
+    ledger entry. Refused (409) if what is owed has changed since it was shown."""
+
+    permission_classes = [IsClubAdmin]
+
+    @extend_schema(request=MarkCashPaidSerializer, responses={201: LedgerEntrySerializer})
+    def post(self, request, club_id: int):
+        body = MarkCashPaidSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        team, player = row(club_id, body.validated_data)
+        entry = outstanding.mark_cash_paid(
+            team=team, admin=request.user, amount=body.validated_data["amount"], player=player
+        )
+        return Response(LedgerEntrySerializer(entry).data, status=status.HTTP_201_CREATED)

@@ -1,5 +1,7 @@
 """Finance tracker responses. Every amount is Decimal rand, computed from the ledger."""
 
+from decimal import Decimal
+
 from rest_framework import serializers
 
 from clubs.models import Night
@@ -107,4 +109,109 @@ class TeamLedgerSerializer(serializers.Serializer):
     team_credit_held = serializers.DecimalField(**MONEY)
     entries = LedgerEntrySerializer(
         many=True, read_only=True, help_text="Every line on the Team's account, newest first."
+    )
+
+
+# Planner (FR-47)
+
+
+class PlannerWeekSerializer(serializers.Serializer):
+    week = serializers.IntegerField(read_only=True, help_text="Week of the Season, from 1.")
+    starts_on = serializers.DateField(read_only=True)
+    ends_on = serializers.DateField(read_only=True)
+    is_due = serializers.BooleanField(read_only=True, help_text="The week has started.")
+    is_current = serializers.BooleanField(read_only=True, help_text="Today is in this week.")
+    matches = serializers.IntegerField(read_only=True, help_text="Fixtures, not cancelled.")
+    expected = serializers.DecimalField(
+        **MONEY, help_text="League fees spread over the week's Fixtures."
+    )
+    covered = serializers.DecimalField(
+        **MONEY, help_text="How much of `expected` Teams have paid (card, cash, credit)."
+    )
+    short = serializers.DecimalField(
+        **MONEY, help_text="Expected less covered once the week is due; else 0."
+    )
+    received = serializers.DecimalField(**MONEY, help_text="Card and cash taken that week.")
+
+
+class PlannerSerializer(serializers.Serializer):
+    season = NamedSerializer(read_only=True)
+    night = FinanceNightSerializer(read_only=True, allow_null=True)
+    division = NamedSerializer(read_only=True, allow_null=True)
+    current_week = serializers.IntegerField(
+        read_only=True, allow_null=True, help_text="The week today is in; null outside it."
+    )
+    season_expected = serializers.DecimalField(
+        **MONEY, help_text="League fees charged: every week plus unscheduled."
+    )
+    due_to_date = serializers.DecimalField(**MONEY, help_text="Expected in the weeks due.")
+    covered_to_date = serializers.DecimalField(**MONEY, help_text="Covered in the weeks due.")
+    behind = serializers.DecimalField(**MONEY, help_text="Due to date less covered to date.")
+    unscheduled = serializers.DecimalField(
+        **MONEY, help_text="Fees of Teams with no Fixtures yet: in no week."
+    )
+    received = serializers.DecimalField(**MONEY, help_text="Card and cash, every week.")
+    weeks = PlannerWeekSerializer(many=True, read_only=True)
+
+
+# Outstanding list (FR-48)
+
+
+class PlayerOwedSerializer(serializers.Serializer):
+    player = NamedSerializer(read_only=True)
+    team = NamedSerializer(read_only=True)
+    share = serializers.DecimalField(**MONEY, help_text="Due over the Team's current Players.")
+    paid = serializers.DecimalField(**MONEY, help_text="Paid towards the Team, net.")
+    owes = serializers.DecimalField(
+        **MONEY, help_text="Share less paid, never more than the Team still owes."
+    )
+    gets_notifications = serializers.BooleanField(
+        read_only=True, help_text="Opted into the Team's Night, so Remind reaches them."
+    )
+
+
+class TeamOwedSerializer(serializers.Serializer):
+    team = NamedSerializer(read_only=True)
+    division = NamedSerializer(read_only=True, source="team.division")
+    night = FinanceNightSerializer(read_only=True, source="team.division.night")
+    due = serializers.DecimalField(**MONEY)
+    paid = serializers.DecimalField(**MONEY)
+    outstanding = serializers.DecimalField(**MONEY)
+    short_since_week = serializers.IntegerField(
+        read_only=True, allow_null=True, help_text="The first planner week not fully paid."
+    )
+    unpaid_players = serializers.ListField(
+        child=serializers.CharField(), read_only=True, help_text="Players who owe, most first."
+    )
+
+
+class OutstandingSerializer(serializers.Serializer):
+    season = NamedSerializer(read_only=True)
+    night = FinanceNightSerializer(read_only=True, allow_null=True)
+    division = NamedSerializer(read_only=True, allow_null=True)
+    total = serializers.DecimalField(**MONEY, help_text="What the listed Teams owe.")
+    teams = TeamOwedSerializer(many=True, read_only=True, help_text="Largest first.")
+    players = PlayerOwedSerializer(many=True, read_only=True, help_text="Largest first.")
+
+
+class OutstandingRowSerializer(serializers.Serializer):
+    team_id = serializers.IntegerField()
+    player_id = serializers.IntegerField(
+        required=False, allow_null=True, help_text="A Player's row; empty for the Team's."
+    )
+
+
+class MarkCashPaidSerializer(OutstandingRowSerializer):
+    amount = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        min_value=Decimal("0.01"),
+        help_text="What the row showed as owed; refused if it has changed.",
+    )
+
+
+class RemindedSerializer(serializers.Serializer):
+    sent_to = NamedSerializer(many=True, read_only=True)
+    not_reached = NamedSerializer(
+        many=True, read_only=True, help_text="Not opted into the Team's Night, so not told."
     )

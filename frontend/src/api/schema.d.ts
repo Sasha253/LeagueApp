@@ -483,6 +483,83 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clubs/{club_id}/finance/outstanding/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Teams and Players who owe, largest first (FR-48). */
+        get: operations["clubs_finance_outstanding_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/finance/outstanding/cash/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Mark cash paid on the Outstanding list (FR-48, FR-22): what the row owes, as a cash
+         *     ledger entry. Refused (409) if what is owed has changed since it was shown.
+         */
+        post: operations["clubs_finance_outstanding_cash_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/finance/outstanding/remind/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Remind a Team or a Player on the Outstanding list (FR-48): an Update notification,
+         *     only to those opted into the Team's Night.
+         */
+        post: operations["clubs_finance_outstanding_remind_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/finance/planner/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Expected league income week by week, from the fixture list, with what Teams have
+         *     paid overlaid (FR-47).
+         */
+        get: operations["clubs_finance_planner_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clubs/{club_id}/finance/summary/": {
         parameters: {
             query?: never;
@@ -3491,6 +3568,16 @@ export interface components {
          * @enum {string}
          */
         LedgerSubjectEnum: "team" | "player" | "booking_user";
+        MarkCashPaidRequest: {
+            team_id: number;
+            /** @description A Player's row; empty for the Team's. */
+            player_id?: number | null;
+            /**
+             * Format: decimal
+             * @description What the row showed as owed; refused if it has changed.
+             */
+            amount: string;
+        };
         /** @description My Team's requests for borrowed Players, and whether I can raise one. */
         MatchPlayerRequests: {
             /** @description I'm the Captain of my Team in this match. */
@@ -3693,6 +3780,25 @@ export interface components {
         NotificationKindEnum: "confirmation" | "reminder" | "general" | "update" | "player_request" | "goalkeeper_request" | "booking";
         /** @enum {unknown} */
         NullEnum: null;
+        Outstanding: {
+            readonly season: components["schemas"]["Named"];
+            readonly night: components["schemas"]["FinanceNight"] | null;
+            readonly division: components["schemas"]["Named"] | null;
+            /**
+             * Format: decimal
+             * @description What the listed Teams owe.
+             */
+            readonly total: string;
+            /** @description Largest first. */
+            readonly teams: components["schemas"]["TeamOwed"][];
+            /** @description Largest first. */
+            readonly players: components["schemas"]["PlayerOwed"][];
+        };
+        OutstandingRowRequest: {
+            team_id: number;
+            /** @description A Player's row; empty for the Team's. */
+            player_id?: number | null;
+        };
         /** @description The Booking a payment is for. */
         PaidBooking: {
             readonly id: number;
@@ -3878,6 +3984,99 @@ export interface components {
          * @enum {string}
          */
         PaymentStatusEnum: "pending" | "complete" | "failed" | "cancelled";
+        Planner: {
+            readonly season: components["schemas"]["Named"];
+            readonly night: components["schemas"]["FinanceNight"] | null;
+            readonly division: components["schemas"]["Named"] | null;
+            /** @description The week today is in; null outside it. */
+            readonly current_week: number | null;
+            /**
+             * Format: decimal
+             * @description League fees charged: every week plus unscheduled.
+             */
+            readonly season_expected: string;
+            /**
+             * Format: decimal
+             * @description Expected in the weeks due.
+             */
+            readonly due_to_date: string;
+            /**
+             * Format: decimal
+             * @description Covered in the weeks due.
+             */
+            readonly covered_to_date: string;
+            /**
+             * Format: decimal
+             * @description Due to date less covered to date.
+             */
+            readonly behind: string;
+            /**
+             * Format: decimal
+             * @description Fees of Teams with no Fixtures yet: in no week.
+             */
+            readonly unscheduled: string;
+            /**
+             * Format: decimal
+             * @description Card and cash, every week.
+             */
+            readonly received: string;
+            readonly weeks: components["schemas"]["PlannerWeek"][];
+        };
+        PlannerWeek: {
+            /** @description Week of the Season, from 1. */
+            readonly week: number;
+            /** Format: date */
+            readonly starts_on: string;
+            /** Format: date */
+            readonly ends_on: string;
+            /** @description The week has started. */
+            readonly is_due: boolean;
+            /** @description Today is in this week. */
+            readonly is_current: boolean;
+            /** @description Fixtures, not cancelled. */
+            readonly matches: number;
+            /**
+             * Format: decimal
+             * @description League fees spread over the week's Fixtures.
+             */
+            readonly expected: string;
+            /**
+             * Format: decimal
+             * @description How much of `expected` Teams have paid (card, cash, credit).
+             */
+            readonly covered: string;
+            /**
+             * Format: decimal
+             * @description Expected less covered once the week is due; else 0.
+             */
+            readonly short: string;
+            /**
+             * Format: decimal
+             * @description Card and cash taken that week.
+             */
+            readonly received: string;
+        };
+        PlayerOwed: {
+            readonly player: components["schemas"]["Named"];
+            readonly team: components["schemas"]["Named"];
+            /**
+             * Format: decimal
+             * @description Due over the Team's current Players.
+             */
+            readonly share: string;
+            /**
+             * Format: decimal
+             * @description Paid towards the Team, net.
+             */
+            readonly paid: string;
+            /**
+             * Format: decimal
+             * @description Share less paid, never more than the Team still owes.
+             */
+            readonly owes: string;
+            /** @description Opted into the Team's Night, so Remind reaches them. */
+            readonly gets_notifications: boolean;
+        };
         PlayerPaid: {
             readonly player_id: number;
             readonly name: string;
@@ -4027,6 +4226,11 @@ export interface components {
             readonly access: string;
             readonly refresh: string;
             readonly user: components["schemas"]["Me"];
+        };
+        Reminded: {
+            readonly sent_to: components["schemas"]["Named"][];
+            /** @description Not opted into the Team's Night, so not told. */
+            readonly not_reached: components["schemas"]["Named"][];
         };
         /** @description A search for a new opponent once one Team was out (FR-13 to FR-16), as the Admin sees it. */
         ReplacementOffer: {
@@ -4382,6 +4586,21 @@ export interface components {
             readonly team_credit_held: string;
             /** @description Every line on the Team's account, newest first. */
             readonly entries: components["schemas"]["LedgerEntry"][];
+        };
+        TeamOwed: {
+            readonly team: components["schemas"]["Named"];
+            readonly division: components["schemas"]["Named"];
+            readonly night: components["schemas"]["FinanceNight"];
+            /** Format: decimal */
+            readonly due: string;
+            /** Format: decimal */
+            readonly paid: string;
+            /** Format: decimal */
+            readonly outstanding: string;
+            /** @description The first planner week not fully paid. */
+            readonly short_since_week: number | null;
+            /** @description Players who owe, most first. */
+            readonly unpaid_players: string[];
         };
         /** @description One Team's payment status, for its club's Admins (FR-21). */
         TeamPaymentStatus: {
@@ -5306,6 +5525,116 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SeasonIncome"][];
+                };
+            };
+        };
+    };
+    clubs_finance_outstanding_retrieve: {
+        parameters: {
+            query: {
+                /** @description Only this Division. */
+                division?: number;
+                /** @description Only this Night. */
+                night?: number;
+                /** @description The Season. */
+                season: number;
+            };
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Outstanding"];
+                };
+            };
+        };
+    };
+    clubs_finance_outstanding_cash_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MarkCashPaidRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["MarkCashPaidRequest"];
+                "multipart/form-data": components["schemas"]["MarkCashPaidRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LedgerEntry"];
+                };
+            };
+        };
+    };
+    clubs_finance_outstanding_remind_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OutstandingRowRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["OutstandingRowRequest"];
+                "multipart/form-data": components["schemas"]["OutstandingRowRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Reminded"];
+                };
+            };
+        };
+    };
+    clubs_finance_planner_retrieve: {
+        parameters: {
+            query: {
+                /** @description Only this Division. */
+                division?: number;
+                /** @description Only this Night. */
+                night?: number;
+                /** @description The Season. */
+                season: number;
+            };
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Planner"];
                 };
             };
         };

@@ -16,4 +16,16 @@ club_urlpatterns = [
         views.TeamLedgerView.as_view(),
         name="club-finance-team-ledger",
     ),
+    path("finance/planner/", views.PlannerView.as_view(), name="club-finance-planner"),
+    path("finance/outstanding/", views.OutstandingView.as_view(), name="club-finance-outstanding"),
+    path(
+        "finance/outstanding/remind/",
+        views.RemindView.as_view(),
+        name="club-finance-outstanding-remind",
+    ),
+    path(
+        "finance/outstanding/cash/",
+        views.MarkCashPaidView.as_view(),
+        name="club-finance-outstanding-cash",
+    ),
 ]

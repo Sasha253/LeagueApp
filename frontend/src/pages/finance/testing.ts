@@ -112,3 +112,92 @@ export function income(season: { id: number; name: string }, overrides: object =
     ...overrides,
   };
 }
+
+function week(n: number, overrides: object = {}) {
+  const start = new Date(Date.UTC(2026, 8, 1 + 7 * (n - 1)));
+  const end = new Date(Date.UTC(2026, 8, 7 + 7 * (n - 1)));
+  return {
+    week: n,
+    starts_on: start.toISOString().slice(0, 10),
+    ends_on: end.toISOString().slice(0, 10),
+    is_due: n <= 7,
+    is_current: n === 7,
+    matches: 4,
+    expected: "2800.00",
+    covered: n <= 7 ? "2800.00" : "0.00",
+    short: "0.00",
+    received: n === 1 ? "19110.00" : "0.00",
+    ...overrides,
+  };
+}
+
+/** Spring 2026 · Tuesday · Div 2 from the design: 10 weeks of R 2,800; week 4 R 350 short,
+ * week 7 (now) R 140 short. */
+export function plan(overrides: object = {}) {
+  const weeks = Array.from({ length: 10 }, (_, i) => week(i + 1));
+  weeks[3] = week(4, { covered: "2450.00", short: "350.00" });
+  weeks[6] = week(7, { covered: "2660.00", short: "140.00" });
+  return {
+    season: { id: 5, name: "Spring 2026" },
+    night: null,
+    division: null,
+    current_week: 7,
+    season_expected: "28000.00",
+    due_to_date: "19600.00",
+    covered_to_date: "19110.00",
+    behind: "490.00",
+    unscheduled: "0.00",
+    received: "19110.00",
+    weeks,
+    ...overrides,
+  };
+}
+
+export function teamOwed(overrides: object = {}) {
+  return {
+    team: { id: 7, name: "Hammers" },
+    division: { id: 3, name: "Division 2" },
+    night: { id: 2, weekday: 1 },
+    due: "3500.00",
+    paid: "3150.00",
+    outstanding: "350.00",
+    short_since_week: 4,
+    unpaid_players: [],
+    ...overrides,
+  };
+}
+
+export function playerOwed(overrides: object = {}) {
+  return {
+    player: { id: 21, name: "Werner Smit" },
+    team: { id: 8, name: "Old Boys" },
+    share: "70.00",
+    paid: "0.00",
+    owes: "70.00",
+    gets_notifications: true,
+    ...overrides,
+  };
+}
+
+export function outstanding(overrides: object = {}) {
+  return {
+    season: { id: 5, name: "Spring 2026" },
+    night: null,
+    division: null,
+    total: "490.00",
+    teams: [
+      teamOwed(),
+      teamOwed({
+        team: { id: 8, name: "Old Boys" },
+        outstanding: "140.00",
+        short_since_week: 7,
+        unpaid_players: ["Werner Smit", "Dylan Jacobs"],
+      }),
+    ],
+    players: [
+      playerOwed(),
+      playerOwed({ player: { id: 22, name: "Dylan Jacobs" }, gets_notifications: false }),
+    ],
+    ...overrides,
+  };
+}

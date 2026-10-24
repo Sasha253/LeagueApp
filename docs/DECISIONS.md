@@ -2,6 +2,39 @@
 
 Newest first. Each entry: the date, what was decided, and why.
 
+## 2026-10-24: Outstanding list and income planner (chunk 27) (provisional, unattended run)
+
+Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 27: Outstanding list
+and income planner".
+
+- **Planner (FR-47):** `GET /api/v1/clubs/{club_id}/finance/planner/?season=&night=&division=`.
+  Weeks are the Season's own (week 1 from its first day, South African dates). Each Team's
+  league fees charged are spread evenly over its Fixtures (not cancelled), to the cent;
+  Teams with no Fixtures are "unscheduled". Each Team's payments (card, cash, credit,
+  capped at what it was charged) cover its own Fixtures in date order; a week that has
+  started and isn't covered is short. Totals: season expected (equal to the summary's
+  expected), due to date, covered to date, behind, unscheduled, and card and cash received
+  per week (money before or after the Season counts in its first or last week).
+- **Outstanding list (FR-48):** `GET /api/v1/clubs/{club_id}/finance/outstanding/`, same
+  filters. Active Teams that owe, largest first, with the first short planner week and the
+  Players who still owe. Players who owe: their share (due over current Players, rounded up)
+  less what they paid, never more than the Team owes, largest first. Friendly fees and
+  Booking Users are not listed.
+- **Remind:** `POST .../finance/outstanding/remind/` `{team_id, player_id?}`: an Update
+  notification to the Team's Captain and Players who owe, or to the one Player, only those
+  opted into the Team's Night (`targeting.payment_reminder_recipients`). The answer says who
+  was told and who wasn't. No rate limit.
+- **Mark cash paid:** `POST .../finance/outstanding/cash/` `{team_id, player_id?, amount}`:
+  records exactly what the row owes as cash through `payments.services.record_cash` (so the
+  Barcode follows as for any payment). Refused with 409 if `amount` isn't what is owed now.
+- Admins of the Club only; another Club's Team is 404, a Player not in the Team 400.
+- **Proposed components** (`frontend/src/styles/proposed.css`): OwedRow (`.la-owed`,
+  `.la-owed__amount` in pending ink, `.la-owed__actions`), from the design's owedRow; the
+  planner key swatches (`.la-planner__swatch-exp`, `.la-planner__swatch-got`) and the
+  current week's axis number (`.la-planner__now`), which the design drew inline. Who owes
+  is picked with ChoiceChips ("Teams · 2", "Players · 2") in place of the design's
+  segmented control, which the frontend doesn't have yet.
+
 ## 2026-10-24: Finance tracker (UI) (chunk 26) (provisional, unattended run)
 
 Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 26: Finance tracker
