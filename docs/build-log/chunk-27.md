@@ -90,3 +90,51 @@ Unattended run.
 - make lint: all checks passed, 184 files formatted.
 - npm test: 56 files, 334 tests passed.
 - npm run build: built (existing chunk-size warning only).
+
+## Review (independent, unattended run)
+
+Compared commit 61e9022 with the chunk 27 prompt (FR-47, FR-48) and the CLAUDE.md rules.
+
+### Plan
+
+Read the diff; check money, club isolation, configurable values, the append-only ledger,
+notification targeting, design-system-only UI, tests, gen:api and scope; run the four
+checks; fix real defects only.
+
+### Findings
+
+- Money: every amount is Decimal (`DecimalField` in, `Decimal` sums out); the fee split
+  rounds down to the cent with the odd cents on the last Fixture; shares round up as "Pay
+  my share" does. Messages use `payments._rand` ("R 18,550").
+- Club isolation: every endpoint is `IsClubAdmin`; Season, Night, Division and Team are
+  looked up within the Club (404 otherwise); Fixtures and ledger entries are filtered by
+  Club; a `player_id` must be a current Player of that Team (400). Tests cover another
+  Club's Admin (403), a Player (403) and another Club's Season and Team (404).
+- Configurable values: none hard-coded; the fee comes from the charges on the ledger.
+- Ledger: Mark cash paid only adds an entry through `payments.services.record_cash`
+  (FR-22), under a row lock, and is refused (409) if the amount shown is stale. The
+  Player figure on the list and the one checked by the action are the same sums
+  (`_paid_by_player` and `ledger.paid_by_payer` both net payments, refunds and reversals
+  across card, cash and credit), so a Player's row can be marked paid without a false 409.
+- Targeting: Remind goes only to current Players of the Team who opted into its Night
+  (`notifications.targeting.payment_reminder_recipients`); the others are reported back,
+  and a Player's Remind button is disabled when it can't reach them.
+- UI: only design-system classes (`la-planner__*`, `la-stats`, `la-btn--sm`, ...) and the
+  existing proposed ones; the new OwedRow and planner swatch styles are tokens only and
+  listed in docs/DECISIONS.md as proposed. No figures are worked out in the frontend.
+- Tests: 21 pytest tests (spreading, coverage, order, shares, Remind targeting, cash,
+  stale amount, permissions, isolation) and 10 Vitest tests for both screens.
+- `npm run gen:api` re-run: schema.d.ts unchanged, so it was in sync.
+- Scope: nothing from chunk 28 (export) or later.
+
+No real defects found; no code changed. Notes, not defects: the sum of Player rows can be
+more than the Team owes when someone paid for the whole Team (each row is capped at the
+Team's figure, as recorded in the provisional decisions); Remind has no rate limit
+(listed under Not built).
+
+### Checks (review)
+
+- make test: 956 passed.
+- make lint: all checks passed, 184 files already formatted.
+- npm test: 56 files, 334 tests passed.
+- npm run build: built (existing chunk-size warning only).
