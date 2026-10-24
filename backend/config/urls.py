@@ -6,6 +6,7 @@ from barcodes.urls import club_urlpatterns as club_barcode_urls
 from bookings.urls import club_urlpatterns as club_booking_urls
 from clubs.views import NightListView
 from core.views import HealthView
+from finance.urls import club_urlpatterns as club_finance_urls
 from fixtures.urls import club_urlpatterns as club_fixture_urls
 from payments.urls import club_urlpatterns as club_payment_urls
 from teams.urls import club_urlpatterns as club_team_urls
@@ -20,6 +21,7 @@ api_v1 = [
     path("clubs/<int:club_id>/", include(club_payment_urls)),
     path("clubs/<int:club_id>/", include(club_barcode_urls)),
     path("clubs/<int:club_id>/", include(club_booking_urls)),
+    path("clubs/<int:club_id>/", include(club_finance_urls)),
     path("", include("ledger.urls")),
     path("", include("payments.urls")),
     path("", include("barcodes.urls")),

@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "payments",
     "barcodes",
     "bookings",
+    "finance",
 ]
 
 MIDDLEWARE = [

@@ -466,6 +466,63 @@ export interface paths {
         patch: operations["clubs_fields_partial_update"];
         trace?: never;
     };
+    "/api/v1/clubs/{club_id}/finance/comparison/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Income per Season and Night, side by side (FR-27). Oldest Season first. */
+        get: operations["clubs_finance_comparison_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/finance/summary/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description A Season's totals per Night and Division, with friendly and booking income as their
+         *     own lines (FR-25, FR-49).
+         */
+        get: operations["clubs_finance_summary_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/finance/teams/{team_id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description A Team's ledger for its Club's Admins (FR-26): what it owes, has paid and still
+         *     owes, and every line on its account, newest first.
+         */
+        get: operations["clubs_finance_teams_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clubs/{club_id}/fixtures/": {
         parameters: {
             query?: never;
@@ -2790,6 +2847,23 @@ export interface components {
          * @enum {string}
          */
         ConfirmationAnswerEnum: "confirm" | "decline";
+        CreditHeld: {
+            /**
+             * Format: decimal
+             * @description Unspent credit of the Teams in scope.
+             */
+            readonly team: string;
+            /**
+             * Format: decimal
+             * @description All Players' credit at the Club. Null if filtered.
+             */
+            readonly player: string | null;
+            /**
+             * Format: decimal
+             * @description All Booking Users' credit at the Club. Null if filtered.
+             */
+            readonly booking_user: string | null;
+        };
         /** @description The Captain's Barcode now, or why there is none (only a valid one is shown). */
         CurrentBarcode: {
             readonly state: components["schemas"]["BarcodeStateEnum"];
@@ -2845,6 +2919,28 @@ export interface components {
             readonly effective_league_fee: string | null;
             /** @description Most Teams this Division takes in one Season. Empty: no limit. */
             max_teams?: number | null;
+        };
+        DivisionFigures: {
+            /** @description Active Teams. */
+            readonly teams: number;
+            /**
+             * Format: decimal
+             * @description League fees charged (Teams x fee), less reversals.
+             */
+            readonly expected: string;
+            /**
+             * Format: decimal
+             * @description What Teams still owe; a Team that paid more owes nothing.
+             */
+            readonly outstanding: string;
+            /**
+             * Format: decimal
+             * @description Unspent Team credit.
+             */
+            readonly team_credit_held: string;
+            readonly league: components["schemas"]["IncomeLine"];
+            readonly friendly: components["schemas"]["IncomeLine"];
+            readonly division: components["schemas"]["Named"];
         };
         /** @description A Division a Captain can choose for a new Team in one Season. */
         DivisionOption: {
@@ -2906,6 +3002,10 @@ export interface components {
             readonly field: components["schemas"]["Named"];
             /** @description Free start times for the hours asked. Stored in UTC; sent with its offset. Show it in Africa/Johannesburg. */
             readonly starts: string[];
+        };
+        FinanceNight: {
+            readonly id: number;
+            readonly weekday: components["schemas"]["WeekdayEnum"];
         };
         /** @description A Fixture as a Player in one of its Teams sees it. */
         Fixture: {
@@ -3259,6 +3359,33 @@ export interface components {
             readonly unread: number;
             readonly needs_reply: number;
         };
+        IncomeLine: {
+            /**
+             * Format: decimal
+             * @description Card taken, less refunds and reversals.
+             */
+            readonly card: string;
+            /**
+             * Format: decimal
+             * @description Cash taken, less refunds and reversals.
+             */
+            readonly cash: string;
+            /**
+             * Format: decimal
+             * @description Card plus cash: money taken in.
+             */
+            readonly received: string;
+            /**
+             * Format: decimal
+             * @description Paid from credit. Not new money, so not in `received`.
+             */
+            readonly credit_spent: string;
+            /**
+             * Format: decimal
+             * @description Given back as credit from these payments, less reversals.
+             */
+            readonly returned_as_credit: string;
+        };
         JoinRequest: {
             readonly id: number;
             readonly team: components["schemas"]["Team"];
@@ -3279,6 +3406,27 @@ export interface components {
          * @enum {string}
          */
         JoinRequestStatusEnum: "pending" | "accepted" | "declined" | "withdrawn";
+        LeagueFigures: {
+            /** @description Active Teams. */
+            readonly teams: number;
+            /**
+             * Format: decimal
+             * @description League fees charged (Teams x fee), less reversals.
+             */
+            readonly expected: string;
+            /**
+             * Format: decimal
+             * @description What Teams still owe; a Team that paid more owes nothing.
+             */
+            readonly outstanding: string;
+            /**
+             * Format: decimal
+             * @description Unspent Team credit.
+             */
+            readonly team_credit_held: string;
+            readonly league: components["schemas"]["IncomeLine"];
+            readonly friendly: components["schemas"]["IncomeLine"];
+        };
         /**
          * @description * `league` - League
          *     * `friendly` - Friendly
@@ -3464,6 +3612,34 @@ export interface components {
             readonly id: number;
             readonly club: components["schemas"]["ClubSummary"];
             weekday: components["schemas"]["WeekdayEnum"];
+        };
+        NightFigures: {
+            /** @description Active Teams. */
+            readonly teams: number;
+            /**
+             * Format: decimal
+             * @description League fees charged (Teams x fee), less reversals.
+             */
+            readonly expected: string;
+            /**
+             * Format: decimal
+             * @description What Teams still owe; a Team that paid more owes nothing.
+             */
+            readonly outstanding: string;
+            /**
+             * Format: decimal
+             * @description Unspent Team credit.
+             */
+            readonly team_credit_held: string;
+            readonly league: components["schemas"]["IncomeLine"];
+            readonly friendly: components["schemas"]["IncomeLine"];
+            readonly night: components["schemas"]["FinanceNight"];
+            readonly divisions: components["schemas"]["DivisionFigures"][];
+        };
+        NightIncome: {
+            readonly night: components["schemas"]["FinanceNight"];
+            readonly league: components["schemas"]["IncomeLine"];
+            readonly friendly: components["schemas"]["IncomeLine"];
         };
         Notification: {
             readonly id: number;
@@ -4011,6 +4187,18 @@ export interface components {
             /** Format: date */
             ends_on: string;
         };
+        SeasonIncome: {
+            readonly season: components["schemas"]["Named"];
+            /**
+             * Format: decimal
+             * @description All money taken in this Season.
+             */
+            readonly received: string;
+            readonly league: components["schemas"]["IncomeLine"];
+            readonly friendly: components["schemas"]["IncomeLine"];
+            readonly booking: components["schemas"]["IncomeLine"];
+            readonly nights: components["schemas"]["NightIncome"][];
+        };
         SeasonOption: {
             readonly id: number;
             readonly club: components["schemas"]["ClubSummary"];
@@ -4027,6 +4215,21 @@ export interface components {
             starts_on: string;
             /** Format: date */
             ends_on: string;
+        };
+        SeasonSummary: {
+            readonly season: components["schemas"]["Named"];
+            readonly night: components["schemas"]["FinanceNight"] | null;
+            readonly division: components["schemas"]["Named"] | null;
+            /**
+             * Format: decimal
+             * @description League, friendly and (unfiltered) booking money taken in.
+             */
+            readonly received: string;
+            readonly totals: components["schemas"]["LeagueFigures"];
+            /** @description Bookings starting in the Season's dates. Null with a Night or Division filter. */
+            readonly booking: components["schemas"]["IncomeLine"] | null;
+            readonly credit_held: components["schemas"]["CreditHeld"];
+            readonly nights: components["schemas"]["NightFigures"][];
         };
         SlotRequest: {
             field: number;
@@ -4152,6 +4355,33 @@ export interface components {
             /** @description Credits, credit spent, and their reversals. */
             readonly entries: components["schemas"]["LedgerEntry"][];
             readonly team: components["schemas"]["Named"];
+        };
+        TeamLedger: {
+            readonly team: components["schemas"]["Named"];
+            readonly season: components["schemas"]["Named"];
+            readonly division: components["schemas"]["Named"];
+            readonly night: components["schemas"]["FinanceNight"];
+            /**
+             * Format: decimal
+             * @description Charges, less their reversals.
+             */
+            readonly due: string;
+            /**
+             * Format: decimal
+             * @description Card, cash and credit paid, net.
+             */
+            readonly paid: string;
+            /**
+             * Format: decimal
+             * @description Due less paid. Below zero when the Team has paid more.
+             */
+            readonly outstanding: string;
+            readonly paid_by_method: components["schemas"]["PaidByMethod"];
+            readonly is_paid: boolean;
+            /** Format: decimal */
+            readonly team_credit_held: string;
+            /** @description Every line on the Team's account, newest first. */
+            readonly entries: components["schemas"]["LedgerEntry"][];
         };
         /** @description One Team's payment status, for its club's Admins (FR-21). */
         TeamPaymentStatus: {
@@ -5052,6 +5282,80 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Field"];
+                };
+            };
+        };
+    };
+    clubs_finance_comparison_list: {
+        parameters: {
+            query?: {
+                /** @description Comma-separated Season ids. Empty: every Season of the Club. */
+                seasons?: string;
+            };
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeasonIncome"][];
+                };
+            };
+        };
+    };
+    clubs_finance_summary_retrieve: {
+        parameters: {
+            query: {
+                /** @description Only this Division. */
+                division?: number;
+                /** @description Only this Night. */
+                night?: number;
+                /** @description The Season. */
+                season: number;
+            };
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeasonSummary"];
+                };
+            };
+        };
+    };
+    clubs_finance_teams_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+                team_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamLedger"];
                 };
             };
         };

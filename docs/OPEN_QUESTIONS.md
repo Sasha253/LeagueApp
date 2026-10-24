@@ -974,3 +974,47 @@ docs/DECISIONS.md under "2026-10-23: Teams (chunk 5)".
   reschedule and decline. Why: money the gateway took is never lost.
 - **Who sees a payment.** Choice: `GET /api/v1/payments/{reference}/` and `me/payments/` serve
   whoever made the payment (Booking Users aren't Players). Others get 404 as before.
+
+## Chunk 25: Finance tracker (backend)
+
+- **What "received" means when credit is involved.** Question: FR-25 asks for received
+  split by card and cash; credit spent and credit returned are neither. Choice: `received`
+  is card plus cash taken, less refunds and reversals: money the club actually took.
+  Credit spent is its own figure (`credit_spent`) and counts towards what a Team has paid
+  (so outstanding matches the Team ledger), but not towards received. Credit given back
+  from payments is `returned_as_credit`; it does not reduce received. Why: a payment
+  returned as credit and spent again would otherwise be counted twice as income, and the
+  chunk 8 decision keeps a Team's paid amount unchanged when credit is returned. If the
+  answer differs (e.g. income net of credit returned, or credit spent as income): change
+  `IncomeLine.received` in `backend/finance/services.py`; no model changes.
+- **Expected is from the ledger.** Question: "Teams x fee" could be the current fee times
+  the active Teams. Choice: the league fees actually charged (each Team's fee is fixed when
+  it is confirmed, chunk 8), less reversed charges; `teams` counts active Teams. Why: the
+  chunk prompt says every figure is computed from the ledger, and a later fee change doesn't
+  rewrite what a Team owes. If the answer differs: compute expected from
+  `Division.effective_league_fee` x active Teams in `season_summary`.
+- **Outstanding with an overpaid Team.** Choice: outstanding is summed Team by Team, and a
+  Team that paid more than it owes counts as owing nothing (it doesn't hide another Team's
+  debt). The Team ledger still shows its own negative outstanding. If the answer differs:
+  sum the raw `expected - paid` instead (`_team_figures`).
+- **Credit held per Night and Division.** Question: Player and Booking User credit is held
+  per Club (chunk 8) and moves between Teams, so it has no Division. Choice: Team credit is
+  shown per Division (its Teams'), Player and Booking User credit club-wide only, and only
+  in the unfiltered view (null with a Night or Division filter). Credit held is the balance
+  now, not as of the Season's end. If the answer differs: attribute Player credit by the
+  Fixture or Team of the payment it came from, in `finance/services.py`.
+- **Booking income in a Season.** Question: bookings have no Season, Night or Division.
+  Choice: a Season's booking income is from Bookings starting within the Season's dates
+  (South African time), club-wide; it is left out (null) when a Night or Division filter is
+  set. Friendly income goes by the Fixture's Season and Division. If the answer differs:
+  change `booking_line` (e.g. by payment date) in `finance/services.py`.
+- **What a "League" is in FR-27.** Question: the data model has no League apart from a
+  Night's league and its Divisions. Choice: "compare across Leagues and Nights" is income per
+  Season, Night by Night (`GET /clubs/{id}/finance/comparison/?seasons=`), with league,
+  friendly and booking lines; the summary already compares Divisions within a Night. Why: no
+  new model on a guess. If a League is something else (e.g. several leagues on one Night):
+  that needs a League model and is a later change.
+- **Season is required on the summary.** Choice: `season` is a required query parameter;
+  there is no "current Season" default. Why: the UI filters by Season (Screens.md Admin 5)
+  and the app has no rule for which Season is current. If the answer differs: default to
+  the Season whose dates include today.

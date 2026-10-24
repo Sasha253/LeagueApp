@@ -2,6 +2,30 @@
 
 Newest first. Each entry: the date, what was decided, and why.
 
+## 2026-10-24: Finance tracker (backend) (chunk 25) (provisional, unattended run)
+
+Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 25: Finance tracker
+(backend)".
+
+- **Computed from the ledger (provisional, unattended run):** the `finance` app has no
+  models and writes nothing; every figure is a sum of ledger entries, each less its
+  reversals. Admins of the Club only (`IsClubAdmin`); another Club's Season, Night,
+  Division or Team is 404.
+- **Figures (provisional, unattended run):** expected is the league fees charged to the
+  Teams in scope (Teams x fee as charged), less reversed charges; card and cash are money
+  taken by that method less refunds and reversals; received is card plus cash; credit spent
+  and credit returned from payments are their own figures, never in received; outstanding
+  is summed Team by Team, an overpaid Team owing nothing; credit held is the balance now.
+- **Scope (provisional, unattended run):** league by the Team's Season, Night and Division;
+  friendly by the Fixture's Season and Division; bookings by Bookings starting in the
+  Season's dates (South African time), club-wide. Team credit per Division; Player and
+  Booking User credit club-wide. Club-wide lines are null with a Night or Division filter.
+- **Endpoints (provisional, unattended run):** `GET /api/v1/clubs/{id}/finance/summary/
+  ?season=&night=&division=` (FR-25, FR-49; season required),
+  `GET /api/v1/clubs/{id}/finance/comparison/?seasons=1,2` (FR-27: income per Season and
+  Night; a "League" is a Night's league, no League model), and
+  `GET /api/v1/clubs/{id}/finance/teams/{team_id}/` (FR-26: the Team ledger, newest first).
+
 ## 2026-10-24: Booking payments and cancellation policy (chunk 24) (provisional, unattended run)
 
 Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 24: Booking payments and
