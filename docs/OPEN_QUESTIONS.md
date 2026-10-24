@@ -1092,3 +1092,28 @@ docs/DECISIONS.md under "2026-10-23: Teams (chunk 5)".
   (409) and the list reloads. A part payment uses the existing Record cash screen. The
   screen asks once more before recording. If the answer differs (an editable amount):
   the endpoint already takes `amount`; drop the equality check and add a field.
+
+## Chunk 28: Accountant export
+
+- **Which columns.** Question: the chunk asks to propose the columns and ask before
+  building; nobody could answer. Choice: one row per ledger entry with Entry, Date, Time,
+  Kind, Category, Method, Amount (R), Money in (R), Money out (R), Account, Team, Player or
+  Booking User, Season, Night, Division, Fixture, Booking, Corrects entry, Credit from
+  entry, Reason, Recorded by. Why: it is every field of the entry an accountant could need
+  to reconcile, nothing computed but money in/out, and corrections stay visible as their
+  own rows (FR-50). If the answer differs (fewer columns, a Xero import layout, totals):
+  only `backend/finance/export.py` changes (COLUMNS and `row`).
+- **Which date the period filters on.** Choice: when the entry was recorded
+  (`created_at`), South African days, both ends inclusive. Why: ledger entries have no
+  other date, and it is when the money moved in the app. If the answer differs (by the
+  Fixture's or Booking's date): `entries` in `export.py`.
+- **How money and dates are written.** Choice: plain decimals ("350.00") and ISO dates
+  ("2026-10-27"), times "19:40" South African; Excel cells are real numbers and dates.
+  Why: accounting packages and spreadsheets import these without cleanup; "R 350" and
+  "Tue 27 Oct" are screen formats. If the answer differs: `_csv_value` and `to_xlsx`.
+- **What Money in / Money out mean.** Choice: card and cash only (payments in, refunds
+  out, corrections of either the other way); charges, credits and credit spent leave both
+  empty. Why: that is money the club actually took or paid back, the accountant's cash
+  book. If the answer differs (credit as money): `money_in_out` in `export.py`.
+- **Limits.** Choice: no cap on the period length or row count. Why: a club's ledger is a
+  few thousand rows a year. If exports get large: stream the CSV and cap the period.

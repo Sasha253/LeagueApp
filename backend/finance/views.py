@@ -1,5 +1,7 @@
 """The finance tracker API (FR-25 to FR-27, FR-47 to FR-49). Admins of the Club only.
 
+The accountant export (FR-51) sends a Club's ledger entries for a period as CSV or Excel.
+
 Read-only except the Outstanding list's actions (FR-48): Remind sends a notification and
 Mark cash paid adds a cash ledger entry through payments.services.record_cash.
 
@@ -7,8 +9,10 @@ Every figure is computed from the ledger by finance.services. Another Club's Sea
 Night, Division or Team is 404, so its existence doesn't show.
 """
 
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import OpenApiParameter, extend_schema
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
@@ -20,8 +24,9 @@ from ledger import services as ledger
 from ledger.serializers import LedgerEntrySerializer
 from teams.models import Team
 
-from . import outstanding, planner, services
+from . import export, outstanding, planner, services
 from .serializers import (
+    ExportQuerySerializer,
     MarkCashPaidSerializer,
     OutstandingRowSerializer,
     OutstandingSerializer,
@@ -218,3 +223,29 @@ class MarkCashPaidView(APIView):
             team=team, admin=request.user, amount=body.validated_data["amount"], player=player
         )
         return Response(LedgerEntrySerializer(entry).data, status=status.HTTP_201_CREATED)
+
+
+class LedgerExportView(APIView):
+    """Every ledger entry the Club recorded in a period, for its accountant (FR-51): an
+    Excel or CSV file, one row per entry, oldest first."""
+
+    permission_classes = [IsClubAdmin]
+
+    @extend_schema(
+        summary="Export ledger entries for the club's accountant",
+        parameters=[ExportQuerySerializer],
+        responses={
+            (200, export.XLSX): OpenApiResponse(OpenApiTypes.BINARY),
+            (200, "text/csv"): OpenApiResponse(OpenApiTypes.BINARY),
+        },
+    )
+    def get(self, request, club_id: int):
+        club = get_object_or_404(Club, pk=club_id)
+        query = ExportQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        period = export.Period(query.validated_data["starts_on"], query.validated_data["ends_on"])
+        body, content_type, name = export.export(club, period, query.validated_data["file_type"])
+        response = HttpResponse(body, content_type=content_type)
+        response["Content-Disposition"] = f'attachment; filename="{name}"'
+        response["Cache-Control"] = "no-store"
+        return response

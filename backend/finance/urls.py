@@ -28,4 +28,5 @@ club_urlpatterns = [
         views.MarkCashPaidView.as_view(),
         name="club-finance-outstanding-cash",
     ),
+    path("finance/export/", views.LedgerExportView.as_view(), name="club-finance-export"),
 ]

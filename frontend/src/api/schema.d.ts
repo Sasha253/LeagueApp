@@ -483,6 +483,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clubs/{club_id}/finance/export/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export ledger entries for the club's accountant
+         * @description Every ledger entry the Club recorded in a period, for its accountant (FR-51): an
+         *     Excel or CSV file, one row per entry, oldest first.
+         */
+        get: operations["clubs_finance_export_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clubs/{club_id}/finance/outstanding/": {
         parameters: {
             query?: never;
@@ -5525,6 +5546,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SeasonIncome"][];
+                };
+            };
+        };
+    };
+    clubs_finance_export_retrieve: {
+        parameters: {
+            query: {
+                /** @description The last day, YYYY-MM-DD. */
+                ends_on: string;
+                /**
+                 * @description * `xlsx` - xlsx
+                 *     * `csv` - csv
+                 */
+                file_type?: "xlsx" | "csv";
+                /** @description The first day, YYYY-MM-DD. */
+                starts_on: string;
+            };
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": Blob;
+                    "text/csv": Blob;
                 };
             };
         };

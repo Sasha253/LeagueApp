@@ -160,6 +160,7 @@ describe("FinancesPage", () => {
   it("links to the Season comparison", async () => {
     await openAs("/clubs/1/finances", routes([]), "Finances", ADMIN);
     expect(screen.getByRole("link", { name: "Compare Seasons" })).toHaveAttribute("href", "/clubs/1/finances/compare");
+    expect(screen.getByRole("link", { name: "Export" })).toHaveAttribute("href", "/clubs/1/finances/export");
   });
 
   it("says when the club has no Seasons", async () => {

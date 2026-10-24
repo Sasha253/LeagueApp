@@ -38,6 +38,7 @@ import { BookPage } from "./pages/bookings/BookPage";
 import { ClubBookingsPage } from "./pages/bookings/ClubBookingsPage";
 import { MyBookingsPage } from "./pages/bookings/MyBookingsPage";
 import { ComparisonPage } from "./pages/finance/ComparisonPage";
+import { ExportPage } from "./pages/finance/ExportPage";
 import { FinancesPage } from "./pages/finance/FinancesPage";
 import { TeamLedgerPage } from "./pages/finance/TeamLedgerPage";
 import { InboxPage } from "./pages/inbox/InboxPage";
@@ -80,6 +81,7 @@ const screens: RouteObject[] = [
       { path: "/clubs/:clubId/payments/:teamId", element: <ClubTeamPaymentPage /> },
       { path: "/clubs/:clubId/finances", element: <FinancesPage /> },
       { path: "/clubs/:clubId/finances/compare", element: <ComparisonPage /> },
+      { path: "/clubs/:clubId/finances/export", element: <ExportPage /> },
       { path: "/clubs/:clubId/finances/teams/:teamId", element: <TeamLedgerPage /> },
       { path: "/clubs/:clubId/scan", element: <ScanPage /> },
       { path: "/clubs/:clubId/bookings", element: <ClubBookingsPage /> },

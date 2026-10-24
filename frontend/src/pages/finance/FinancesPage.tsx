@@ -4,7 +4,8 @@
 // (League, Friendlies, Bookings) and credit held, the Nights and Divisions, and the Teams,
 // each opening its Team ledger. The week-by-week planner (FR-47) sits under FinanceSummary
 // and the Outstanding list (FR-48) after the money by method, as in the design. Every
-// amount is the API's (chunks 25 and 27); nothing is added up here. Export comes later.
+// amount is the API's (chunks 25 and 27); nothing is added up here. Export opens the
+// accountant export (FR-51, chunk 28).
 
 import { useState } from "react";
 import { Link } from "react-router";
@@ -47,6 +48,9 @@ export function FinancesPage() {
       <div className="la-actions">
         <Link className="la-btn la-btn--secondary" to={`/clubs/${clubId}/finances/compare`}>
           Compare Seasons
+        </Link>
+        <Link className="la-btn la-btn--quiet" to={`/clubs/${clubId}/finances/export`}>
+          Export
         </Link>
       </div>
       <LoadState result={seasons} retry={reloadSeasons} what="Seasons" forbidden={NOT_AN_ADMIN}>

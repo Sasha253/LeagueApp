@@ -2,6 +2,30 @@
 
 Newest first. Each entry: the date, what was decided, and why.
 
+## 2026-10-24: Accountant export (chunk 28) (provisional, unattended run)
+
+Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 28: Accountant export".
+
+- **Export (FR-51) (provisional, unattended run):**
+  `GET /api/v1/clubs/{club_id}/finance/export/?starts_on=&ends_on=&file_type=xlsx|csv`,
+  Admins of the Club only. Every ledger entry the Club recorded in the period (South African
+  days, both inclusive, by when it was recorded), one row each, oldest first. Corrections
+  are their own rows (FR-50). Built in `backend/finance/export.py`.
+- **Columns (provisional, unattended run):** Entry, Date, Time, Kind, Category, Method,
+  Amount (R), Money in (R), Money out (R), Account, Team, Player or Booking User, Season,
+  Night, Division, Fixture, Booking, Corrects entry, Credit from entry, Reason, Recorded by.
+- **Money in a file (provisional, unattended run):** amounts are plain decimal rand
+  ("18550.00") so spreadsheets and accounting packages read them as numbers; Excel shows
+  them as #,##0.00. The "R 18,550" display rule is for screens. Money in / Money out are
+  card and cash only: payments in, refunds out, a correction of either the other way;
+  charges, credits and credit spent leave both empty.
+- **Dates in a file (provisional, unattended run):** "2026-10-27" and "19:40" (South
+  African time), not "Tue 27 Oct": an accountant's software sorts and imports ISO dates.
+- **Formula injection (provisional, unattended run):** text starting with =, +, -, @, tab
+  or CR gets a leading apostrophe in both formats.
+- **Installed app (provisional, unattended run):** as for import templates, the export
+  downloads only in a browser; the app says to use one.
+
 ## 2026-10-24: Outstanding list and income planner (chunk 27) (provisional, unattended run)
 
 Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 27: Outstanding list

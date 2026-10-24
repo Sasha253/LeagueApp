@@ -215,3 +215,16 @@ class RemindedSerializer(serializers.Serializer):
     not_reached = NamedSerializer(
         many=True, read_only=True, help_text="Not opted into the Team's Night, so not told."
     )
+
+
+class ExportQuerySerializer(serializers.Serializer):
+    """The accountant export's period (FR-51): South African days, both inclusive."""
+
+    starts_on = serializers.DateField(help_text="The first day, YYYY-MM-DD.")
+    ends_on = serializers.DateField(help_text="The last day, YYYY-MM-DD.")
+    file_type = serializers.ChoiceField(choices=["xlsx", "csv"], default="xlsx")
+
+    def validate(self, attrs):
+        if attrs["ends_on"] < attrs["starts_on"]:
+            raise serializers.ValidationError({"ends_on": "On or after the first day."})
+        return attrs
