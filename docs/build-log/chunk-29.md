@@ -106,3 +106,33 @@ docs/OPEN_QUESTIONS.md "Chunk 29: Store release".
 Checks: make test 978 passed; make lint clean; npm test 364 passed (60 files); npm run
 build ok; npx cap sync ok; iOS simulator build ok; Android assembleDebug and signed
 bundleRelease ok.
+
+## Review (independent, of 67d565f)
+
+Compared the commit with the chunk 29 prompt and the CLAUDE.md rules.
+
+- Prompt coverage: icons and splash from the tokens (`npm run assets`), app name, version
+  and build (`release.json`, Gradle, `version:apply|bump|set`), Android signing only from
+  env with keystores git-ignored, iOS signing checklist, permission texts (camera in
+  Info.plist; `POST_NOTIFICATIONS` and `CAMERA` in the Android manifest), privacy policy
+  in the app and as a public page, Guideline 4.2 and Google Play checklists, listing
+  fields, TestFlight and Play internal testing steps (docs/STORE_RELEASE.md). All present.
+- Money, ledger, notification targeting: untouched by this chunk.
+- Club isolation: the only new endpoint, `GET /api/v1/legal/privacy/`, is deliberately
+  public and returns no club or personal data; no club name in code (operator from env).
+- Configurable values: none added; operator and contact email are env settings.
+- Design system: the screen uses existing `la-` classes and type styles; `la-link` is
+  added to `proposed.css` and listed in DECISIONS.md. The Django page copies the Night
+  token values exactly (checked against `tokens.css`).
+- API types: `npm run gen:api` re-run, no diff. `npm run version:apply` re-run, no diff
+  (release.json and the iOS project agree; CFBundleVersion reads CURRENT_PROJECT_VERSION).
+- Privacy manifest data types match the policy and the User model (name, email, phone,
+  user id, purchases, replies, push token).
+- Tests: backend endpoint, page escaping and schema; Vitest screen, Profile line and both
+  scripts. Nothing from later chunks; account deletion and the real home screen are
+  correctly left as open questions (they block store review, not this chunk).
+
+Defects found: none needing a code change.
+
+Checks: make test 978 passed; make lint clean; npm test 364 passed (60 files); npm run
+build ok.
