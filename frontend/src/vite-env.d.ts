@@ -8,3 +8,7 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+/** The app's store version ("1.0.0") and build number ("12"), from release.json. */
+declare const __APP_VERSION__: string;
+declare const __APP_BUILD__: string;

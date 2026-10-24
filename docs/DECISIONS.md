@@ -2,6 +2,43 @@
 
 Newest first. Each entry: the date, what was decided, and why.
 
+## 2026-10-24: Store release (chunk 29) (provisional, unattended run)
+
+Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 29: Store release" and
+docs/STORE_RELEASE.md.
+
+- **App icon and splash (provisional, unattended run):** no logo exists, so the icon is a
+  pitch outline in `accent` on the Night `ground`, no text and no crest, drawn from the
+  tokens by `frontend/scripts/app-assets.mjs` (`npm run assets`). Splash: the same mark,
+  small, on `ground` (iOS launch screen background, Android 12+ splash colour). Replace
+  the mark when a brand one is made.
+- **Version and build (provisional, unattended run):** `frontend/release.json` holds the
+  version ("1.0.0") and one build number for both stores (iOS CURRENT_PROJECT_VERSION,
+  Android versionCode). Profile and the privacy screen show "Version 1.0.0 (1)".
+- **Android signing (provisional, unattended run):** a Play App Signing upload key, read
+  only from `LEAGUEAPP_KEYSTORE_FILE`, `LEAGUEAPP_KEYSTORE_PASSWORD`,
+  `LEAGUEAPP_KEY_ALIAS`, `LEAGUEAPP_KEY_PASSWORD`; keystores and Apple signing files are
+  git-ignored.
+- **Privacy policy (provisional, unattended run):** one text in `backend/core/legal.py`,
+  served as data at `GET /api/v1/legal/privacy/` (the app's `/privacy` screen, open
+  without signing in) and as a plain public page at `/privacy/` (the store URL). The
+  operator's name and contact email come from `PRIVACY_OPERATOR_NAME` and
+  `PRIVACY_CONTACT_EMAIL`. Written for POPIA; financial records kept as long as the law
+  requires; the app is for adults, a Player under 18 needs a parent's or guardian's
+  consent.
+- **Permissions (provisional, unattended run):** camera text "League App uses the camera to
+  scan Payment Barcodes at the gate. Nothing the camera sees is saved."; notifications use
+  the system prompt right after sign-in, with no extra screen first.
+- **Export compliance (provisional, unattended run):** `ITSAppUsesNonExemptEncryption`
+  false (HTTPS only). iOS privacy manifest declares no tracking and the data in the policy.
+- **Minimum Android version (provisional, unattended run):** Android 8.0 (API 26), not 7.0
+  (24): `@capacitor/barcode-scanner` (chunk 21) needs 26 and the Android build failed
+  without it.
+- **Proposed component:** `la-link`, an inline text link in `accent-ink`, underlined
+  (frontend/src/styles/proposed.css).
+- **Not built (needed before review):** in-app account deletion and a real home screen;
+  see docs/STORE_RELEASE.md section 7.
+
 ## 2026-10-24: Accountant export (chunk 28) (provisional, unattended run)
 
 Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 28: Accountant export".

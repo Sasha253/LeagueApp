@@ -58,4 +58,6 @@ screen designs in design/ (open design/key-moments-draft.html).
 - npm run dev / npm test / npm run build / npm run gen:api (frontend, in frontend/)
 - npm run cap:sync / npm run cap:ios / npm run cap:android (build, then sync or run the
   installed app; in frontend/, needs VITE_API_BASE_URL, see frontend/.env.example)
+- npm run assets (app icons and splash from the tokens) / npm run version:bump (next store
+  build number; frontend/release.json); store release steps in docs/STORE_RELEASE.md
 - node design/src/build.mjs draft (rebuilds the design canvas)

@@ -249,3 +249,9 @@ PAYFAST_TRUSTED_PROXIES = env.int("PAYFAST_TRUSTED_PROXIES", default=0)
 # production; empty falls back to a key derived from DJANGO_SECRET_KEY. Changing it makes
 # every Barcode issued so far fail its check (Admins reissue them).
 BARCODE_SIGNING_KEY = env("BARCODE_SIGNING_KEY", default="")
+
+# The privacy policy (core/legal.py, /privacy/ and /api/v1/legal/privacy/). Who runs the
+# app and where to write about personal information: the store listings link to the page,
+# so production sets both. No club's name: the operator runs the app for every club.
+PRIVACY_OPERATOR_NAME = env("PRIVACY_OPERATOR_NAME", default="")
+PRIVACY_CONTACT_EMAIL = env("PRIVACY_CONTACT_EMAIL", default="")

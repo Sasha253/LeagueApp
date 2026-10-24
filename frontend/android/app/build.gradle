@@ -1,5 +1,17 @@
 apply plugin: 'com.android.application'
 
+import groovy.json.JsonSlurper
+
+// Version and build number for both stores live in frontend/release.json
+// (npm run version:bump). Google Play refuses a versionCode it has seen before.
+def appRelease = new JsonSlurper().parse(file('../../release.json'))
+
+// Release signing comes only from the environment; the keystore is never committed
+// (docs/STORE_RELEASE.md, "Android signing"). Without these a release build is unsigned.
+def keystoreFile = System.getenv('LEAGUEAPP_KEYSTORE_FILE')
+def signRelease = keystoreFile && System.getenv('LEAGUEAPP_KEYSTORE_PASSWORD') &&
+        System.getenv('LEAGUEAPP_KEY_ALIAS') && System.getenv('LEAGUEAPP_KEY_PASSWORD')
+
 android {
     namespace = "za.co.leagueapp"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +19,8 @@ android {
         applicationId "za.co.leagueapp"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode appRelease.build as int
+        versionName appRelease.version
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,8 +28,21 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        if (signRelease) {
+            release {
+                storeFile file(keystoreFile)
+                storePassword System.getenv('LEAGUEAPP_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('LEAGUEAPP_KEY_ALIAS')
+                keyPassword System.getenv('LEAGUEAPP_KEY_PASSWORD')
+            }
+        }
+    }
     buildTypes {
         release {
+            if (signRelease) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

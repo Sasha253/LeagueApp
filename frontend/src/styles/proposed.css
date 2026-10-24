@@ -168,3 +168,8 @@
 .la-planner__swatch-exp { border: 1px solid var(--line-strong); }
 .la-planner__swatch-got { background: var(--accent-ink); }
 .la-planner__now { color: var(--ink); }
+
+/* An inline text link (privacy policy, email addresses): accent-ink, as the README says for
+   links, underlined so it never relies on colour alone. */
+.la-link { color: var(--accent-ink); text-decoration: underline; text-underline-offset: 2px; }
+.la-link:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }

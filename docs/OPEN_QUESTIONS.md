@@ -1117,3 +1117,51 @@ docs/DECISIONS.md under "2026-10-23: Teams (chunk 5)".
   book. If the answer differs (credit as money): `money_in_out` in `export.py`.
 - **Limits.** Choice: no cap on the period length or row count. Why: a club's ledger is a
   few thousand rows a year. If exports get large: stream the CSV and cap the period.
+
+## Chunk 29: Store release
+
+- **Who the privacy policy names.** Question: who runs the app and answers for personal
+  information under POPIA (the responsible party and Information Officer), and at what
+  address? Choice: both come from the environment (`PRIVACY_OPERATOR_NAME`,
+  `PRIVACY_CONTACT_EMAIL`); without them the page says "The business that runs League
+  App" and sends questions to the Club's Admin. The policy says the operator and each Club
+  are both responsible. Why: no club's name in code, and the operator is not named
+  anywhere in the PRD. If the answer differs: set the env vars; a different split of
+  responsibility changes the "Who we are" text in `backend/core/legal.py`.
+- **What the privacy policy promises.** Choice: financial records are kept as long as the
+  law requires, even after someone leaves; the app is for adults and a Club needs a
+  parent's or guardian's consent for a Player under 18; PayFast, Firebase and the host are
+  service providers; no advertising or tracking. Why: the ledger is append-only (FR-50)
+  and POPIA treats under-18s as children. If the answer differs: the sections in
+  `legal.py` (and the store privacy answers in docs/STORE_RELEASE.md section 6). Have the
+  text checked by whoever answers for POPIA before launch.
+- **Account deletion.** Question: Apple (5.1.1(v)) and Google Play require deleting an
+  account from inside the app; how does that meet the append-only ledger and the Club's
+  financial records? Not built in this chunk (a wrong guess would rework accounts and the
+  ledger). Suggested: delete or anonymise the account and profile, keep ledger entries
+  with the person's name replaced by "Deleted user". The apps cannot pass review without
+  it.
+- **The home screen.** The app still opens on the chunk 1 placeholder ("API connected").
+  No chunk builds the real home and tab bar; reviewers will reject the placeholder (2.1,
+  4.2). Needs a chunk before submission.
+- **The app icon.** Choice: a pitch outline in `accent` on the Night `ground`, no text, no
+  crest. Why: the design system has no logo and says never to draw a club crest. If a
+  brand mark is made: replace `pitchMark` in `frontend/scripts/app-assets.mjs`, run `npm
+  run assets`.
+- **Version numbers.** Choice: start at 1.0.0 build 1; one build number shared by both
+  stores, raised before every upload (`npm run version:bump`). If the answer differs
+  (separate numbers per store): split `build` in `release.json`.
+- **Asking for notifications.** Choice: the system prompt right after sign-in (as built in
+  chunk 10), no explanation screen first; iOS allows no custom text for it. If a priming
+  screen is wanted: a design-system screen before `registerPush` in `PushBridge.tsx`.
+- **iPad.** Choice: left as built (iPhone and iPad). Why: changing supported devices is a
+  product decision; the checklist says it then needs iPad screenshots. If iPhone only:
+  set `TARGETED_DEVICE_FAMILY = 1` before the first upload.
+- **Export compliance.** Choice: `ITSAppUsesNonExemptEncryption` false. Why: the app uses
+  only the system's HTTPS. If the app ever adds its own encryption: answer the export
+  questions in App Store Connect.
+- **Minimum Android version.** Found: the Android build failed (manifest merge) because
+  the barcode scanner library from chunk 21 needs API 26 and the app said 24. Choice:
+  raise `minSdkVersion` to 26 (Android 8.0). Why: the other way is dropping camera
+  scanning on Android. If phones older than Android 8.0 must be supported: scanning on
+  Android needs another library.

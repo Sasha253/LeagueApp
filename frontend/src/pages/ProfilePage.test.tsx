@@ -35,6 +35,13 @@ describe("ProfilePage", () => {
     expect(await within(inbox).findByText("3 unread")).toBeInTheDocument();
   });
 
+  it("links the privacy policy and shows the app version and build", async () => {
+    await openProfile();
+
+    expect(screen.getByRole("link", { name: "Privacy policy" })).toHaveAttribute("href", "/privacy");
+    expect(screen.getByText(/Version 1\.0\.0 \(1\)/)).toBeInTheDocument();
+  });
+
   it("sends a signed-out visitor to Log in", async () => {
     fakeApi({});
     const router = renderApp("/profile");

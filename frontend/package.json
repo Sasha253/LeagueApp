@@ -16,7 +16,11 @@
     "gen:api": "node scripts/gen-api.mjs",
     "cap:sync": "npm run build && cap sync",
     "cap:ios": "npm run build && cap run ios",
-    "cap:android": "npm run build && cap run android"
+    "cap:android": "npm run build && cap run android",
+    "assets": "node scripts/app-assets.mjs",
+    "version:apply": "node scripts/app-version.mjs apply",
+    "version:bump": "node scripts/app-version.mjs bump",
+    "version:set": "node scripts/app-version.mjs set"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",
@@ -44,6 +48,7 @@
     "@vitejs/plugin-react": "^4.7.0",
     "jsdom": "^26.1.0",
     "openapi-typescript": "^7.13.0",
+    "sharp": "^0.35.5",
     "typescript": "~5.9.3",
     "vite": "^6.4.5",
     "vitest": "^4.1.12"

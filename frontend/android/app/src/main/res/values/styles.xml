@@ -16,7 +16,11 @@
     </style>
 
 
+    <!-- Launch: Android 12 and later show the app icon on windowSplashScreenBackground
+         (the design system's Night ground); older versions show @drawable/splash. -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
+        <item name="windowSplashScreenBackground">@color/ic_launcher_background</item>
+        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
     </style>
 </resources>

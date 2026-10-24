@@ -214,6 +214,13 @@ export function SignUpPage() {
           </button>
         </div>
       </form>
+      <p className="caption la-muted">
+        Creating an account means your Club and League App keep your details as the{" "}
+        <Link className="la-link" to="/privacy">
+          privacy policy
+        </Link>{" "}
+        says.
+      </p>
       <p className="body la-muted">
         Have an account?{" "}
         <Link className="la-btn la-btn--quiet" to="/login">

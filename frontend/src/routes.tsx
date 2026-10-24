@@ -4,6 +4,7 @@ import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { SignUpPage } from "./pages/SignUpPage";
+import { PrivacyPage } from "./pages/legal/PrivacyPage";
 import { ClubSettingsPage } from "./pages/club/ClubSettingsPage";
 import { ClubSetupPage } from "./pages/club/ClubSetupPage";
 import { FieldsPage } from "./pages/club/FieldsPage";
@@ -59,6 +60,8 @@ const screens: RouteObject[] = [
   { path: "/", element: <HomePage /> },
   { path: "/login", element: <LoginPage /> },
   { path: "/signup", element: <SignUpPage /> },
+  // Open without signing in: the stores require the policy to be reachable in the app.
+  { path: "/privacy", element: <PrivacyPage /> },
   {
     element: <RequireAuth />,
     children: [

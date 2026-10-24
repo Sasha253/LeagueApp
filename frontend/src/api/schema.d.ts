@@ -1560,6 +1560,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/legal/privacy/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The privacy policy the app shows and the store listings link to. Open to everyone. */
+        get: operations["legal_privacy_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/bookings/": {
         parameters: {
             query?: never;
@@ -4206,6 +4223,21 @@ export interface components {
          * @enum {string}
          */
         PositionEnum: "outfield" | "goalkeeper" | "both";
+        PrivacyPolicy: {
+            title: string;
+            /** Format: date */
+            updated_on: string;
+            /** @description Who runs the app (PRIVACY_OPERATOR_NAME). */
+            operator: string;
+            /** @description Where to write about personal information; may be empty. */
+            contact_email: string;
+            sections: components["schemas"]["PrivacySection"][];
+        };
+        PrivacySection: {
+            heading: string;
+            /** @description Plain text. */
+            paragraphs: string[];
+        };
         /**
          * @description * `play` - Let them play
          *     * `out` - Rule out
@@ -7252,6 +7284,25 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JoinRequest"];
+                };
+            };
+        };
+    };
+    legal_privacy_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrivacyPolicy"];
                 };
             };
         };

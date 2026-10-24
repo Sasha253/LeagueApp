@@ -29,3 +29,11 @@ Thumbs.db
 # Firebase app config: each environment adds its own (docs/build-log/chunk-10.md)
 frontend/android/app/google-services.json
 frontend/ios/App/App/GoogleService-Info.plist
+
+# Store signing: Android keystores and Apple certificates and profiles never go in git
+# (docs/STORE_RELEASE.md).
+*.jks
+*.keystore
+*.p12
+*.p8
+*.mobileprovision

@@ -379,6 +379,13 @@ export function ProfilePage() {
           Log out
         </button>
       </div>
+
+      <p className="caption la-muted">
+        <Link className="la-link" to="/privacy">
+          Privacy policy
+        </Link>{" "}
+        · Version {__APP_VERSION__} ({__APP_BUILD__})
+      </p>
     </main>
   );
 }
