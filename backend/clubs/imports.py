@@ -1,4 +1,4 @@
-"""Importing a Club's Nights and Divisions from the Admin's spreadsheet (FR-39).
+"""The Nights and Divisions sheet of the league import (FR-39; fixtures/league_import.py).
 
 One row per Division: Night (a weekday), Division, and optionally Min players and League
 fee. A Division is matched on its Night and its name, ignoring case and outer spaces, so
@@ -12,16 +12,11 @@ importing the same file twice changes nothing (docs/DECISIONS.md):
 plan() checks every row and writes nothing. apply() writes a plan with no errors.
 """
 
-import csv
-import io
 import re
 from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
 
-from django.db import models
-from openpyxl import Workbook
-from openpyxl.styles import Font
-
+from core.tables import ImportAction as Action
 from core.tables import Row
 
 from .models import Club, Division, Night
@@ -40,14 +35,11 @@ TEMPLATE_ROWS = [
     ("Thursday", "Division 1", None, 400),
 ]
 TEMPLATE_HELP = [
-    ("Column", "What to put in it"),
     ("Night", "The weekday: Monday to Sunday, or Mon to Sun. Required."),
     ("Division", "The Division's name, e.g. Division 1. Required."),
     ("Min players", "Fewer confirmed Players and the Team is out. Blank: the club's minimum."),
     ("League fee", "Fee per Team in rand, e.g. 350. Blank: the club's league fee."),
-    ("", "Re-importing the same file creates nothing twice."),
     ("", "A blank cell keeps what a Division already has."),
-    ("", "Divisions missing from the file are left as they are."),
 ]
 
 NAME_MAX = Division._meta.get_field("name").max_length
@@ -55,13 +47,6 @@ SMALL_INT_MAX = 32767
 FEE_MAX = Decimal("99999999.99")  # The ledger's money fields: 10 digits, 2 after the point.
 FEE_FORMAT = re.compile(r"^(\d{1,3}(,\d{3})+|\d+)(\.\d{1,2})?$")
 WEEKDAYS = {label[:3].lower(): value for value, label in Night.Weekday.choices}
-
-
-class Action(models.TextChoices):
-    CREATE = "create", "New Division"
-    UPDATE = "update", "Division changes"
-    UNCHANGED = "unchanged", "No change"
-    ERROR = "error", "Has errors"
 
 
 @dataclass
@@ -241,36 +226,3 @@ def apply(club: Club, import_plan: Plan) -> None:
             division.min_players = row.min_players
             division.league_fee = row.league_fee
             division.save(update_fields=["min_players", "league_fee"])
-
-
-def template_xlsx() -> bytes:
-    workbook = Workbook()
-    sheet = workbook.active
-    sheet.title = "Nights and Divisions"
-    sheet.append([headers[0] for headers in COLUMNS.values()])
-    for row in TEMPLATE_ROWS:
-        sheet.append(list(row))
-    for cell in sheet[1]:
-        cell.font = Font(bold=True)
-    for letter, width in zip("ABCD", (14, 24, 14, 14), strict=True):
-        sheet.column_dimensions[letter].width = width
-
-    help_sheet = workbook.create_sheet("How to fill it in")
-    for row in TEMPLATE_HELP:
-        help_sheet.append(list(row))
-    help_sheet["A1"].font = help_sheet["B1"].font = Font(bold=True)
-    help_sheet.column_dimensions["A"].width = 14
-    help_sheet.column_dimensions["B"].width = 80
-
-    out = io.BytesIO()
-    workbook.save(out)
-    return out.getvalue()
-
-
-def template_csv() -> bytes:
-    out = io.StringIO()
-    writer = csv.writer(out)
-    writer.writerow([headers[0] for headers in COLUMNS.values()])
-    for row in TEMPLATE_ROWS:
-        writer.writerow(["" if value is None else value for value in row])
-    return out.getvalue().encode("utf-8-sig")

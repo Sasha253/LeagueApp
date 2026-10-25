@@ -181,6 +181,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clubs/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Every Club in the app, for a superuser choosing which Club to open. */
+        get: operations["clubs_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The Club in the URL, for the header of its screens. Its Admins and Referees only. */
+        get: operations["clubs_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clubs/{club_id}/bookings/": {
         parameters: {
             query?: never;
@@ -743,7 +777,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/clubs/{club_id}/imports/fixtures/commit/": {
+    "/api/v1/clubs/{club_id}/imports/league/commit/": {
         parameters: {
             query?: never;
             header?: never;
@@ -753,17 +787,17 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Import a Season's Fixtures
-         * @description Checks the file again and saves every row in one transaction. If any row has an error, nothing is saved and the answer is 400 with the rows and their errors.
+         * Import Seasons, Nights and Divisions, and Fixtures
+         * @description Checks the workbook again and saves every row of every sheet in one transaction. If any row has an error, nothing is saved and the answer is 400 with the rows and their errors.
          */
-        post: operations["clubs_imports_fixtures_commit_create"];
+        post: operations["clubs_imports_league_commit_create"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/clubs/{club_id}/imports/fixtures/preview/": {
+    "/api/v1/clubs/{club_id}/imports/league/preview/": {
         parameters: {
             query?: never;
             header?: never;
@@ -773,17 +807,17 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Preview an import of a Season's Fixtures
-         * @description Checks every row and says what the import would do. Writes nothing.
+         * Preview a league import
+         * @description Checks every row of every sheet and says what the import would do. Saves nothing.
          */
-        post: operations["clubs_imports_fixtures_preview_create"];
+        post: operations["clubs_imports_league_preview_create"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/clubs/{club_id}/imports/fixtures/template/": {
+    "/api/v1/clubs/{club_id}/imports/league/template/": {
         parameters: {
             query?: never;
             header?: never;
@@ -791,74 +825,12 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Download the Fixtures import template
+         * Download the league import template
          * @description For views under /clubs/{club_id}/: only that Club's Admins, only its records.
          *
          *     `club_field` is the lookup from the model to its Club.
          */
-        get: operations["clubs_imports_fixtures_template_retrieve"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/clubs/{club_id}/imports/nights-divisions/commit/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Import Nights and Divisions
-         * @description Checks the file again and saves every row in one transaction. If any row has an error, nothing is saved and the answer is 400 with the rows and their errors.
-         */
-        post: operations["clubs_imports_nights_divisions_commit_create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/clubs/{club_id}/imports/nights-divisions/preview/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Preview an import of Nights and Divisions
-         * @description Checks every row and says what the import would do. Writes nothing.
-         */
-        post: operations["clubs_imports_nights_divisions_preview_create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/clubs/{club_id}/imports/nights-divisions/template/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Download the Nights and Divisions import template
-         * @description For views under /clubs/{club_id}/: only that Club's Admins, only its records.
-         *
-         *     `club_field` is the lookup from the model to its Club.
-         */
-        get: operations["clubs_imports_nights_divisions_template_retrieve"];
+        get: operations["clubs_imports_league_template_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3057,6 +3029,32 @@ export interface components {
             readonly friendly: components["schemas"]["IncomeLine"];
             readonly division: components["schemas"]["Named"];
         };
+        /** @description A row of the Nights and Divisions sheet. */
+        DivisionImportRow: {
+            /** @description The spreadsheet's row number; the header is 1. */
+            row: number;
+            night: (components["schemas"]["WeekdayEnum"] | components["schemas"]["NullEnum"]) | null;
+            division: string;
+            /** @description What the Division will have after the import. */
+            min_players: number | null;
+            /**
+             * Format: decimal
+             * @description The Division's own fee after the import. Null: the club's fee applies.
+             */
+            league_fee: string | null;
+            action: components["schemas"]["ImportActionEnum"];
+            /** @description The import adds this Night to the club. */
+            new_night: boolean;
+            /** @description What an update changes. */
+            changes: components["schemas"]["DivisionImportRowChangesEnum"][];
+            errors: string[];
+        };
+        /**
+         * @description * `min_players` - min_players
+         *     * `league_fee` - league_fee
+         * @enum {string}
+         */
+        DivisionImportRowChangesEnum: "min_players" | "league_fee";
         /** @description A Division a Captain can choose for a new Team in one Season. */
         DivisionOption: {
             readonly id: number;
@@ -3187,23 +3185,11 @@ export interface components {
             /** @description How many credit entries that was. */
             readonly credits: number;
         };
-        /**
-         * @description * `create` - New Fixture
-         *     * `update` - Fixture changes
-         *     * `unchanged` - No change
-         *     * `error` - Has errors
-         * @enum {string}
-         */
-        FixtureImportActionEnum: "create" | "update" | "unchanged" | "error";
-        FixtureImportResult: {
-            /** @description True once the import has been saved. */
-            committed: boolean;
-            summary: components["schemas"]["FixtureImportSummary"];
-            rows: components["schemas"]["FixtureImportRow"][];
-        };
+        /** @description A row of the Fixtures sheet. */
         FixtureImportRow: {
             /** @description The spreadsheet's row number; the header is 1. */
             row: number;
+            season: string;
             /** Format: date-time */
             kick_off: string | null;
             night: (components["schemas"]["WeekdayEnum"] | components["schemas"]["NullEnum"]) | null;
@@ -3213,7 +3199,9 @@ export interface components {
             away: string;
             /** @description What the Fixture will have after the import. */
             friendly_eligible: boolean | null;
-            action: components["schemas"]["FixtureImportActionEnum"];
+            action: components["schemas"]["ImportActionEnum"];
+            /** @description Teams this row adds: confirmed, with no Captain until a Player joins. */
+            new_teams: string[];
             /** @description What an update changes. */
             changes: components["schemas"]["FixtureImportRowChangesEnum"][];
             errors: string[];
@@ -3223,22 +3211,6 @@ export interface components {
          * @enum {string}
          */
         FixtureImportRowChangesEnum: "friendly_eligible";
-        FixtureImportSummary: {
-            rows: number;
-            fixtures_created: number;
-            fixtures_updated: number;
-            unchanged: number;
-            errors: number;
-        };
-        FixtureImportUploadRequest: {
-            /** @description The Season every row is for. */
-            season: number;
-            /**
-             * Format: binary
-             * @description An .xlsx or .csv file, up to 5 MB and 500 rows.
-             */
-            file: Blob;
-        };
         /** @description An Admin's reschedule of the match, as the Admin sees it. */
         FixtureReschedule: {
             readonly id: number;
@@ -3417,59 +3389,13 @@ export interface components {
          */
         HealthStateEnum: "ok" | "error";
         /**
-         * @description * `create` - New Division
-         *     * `update` - Division changes
+         * @description * `create` - New
+         *     * `update` - Changes
          *     * `unchanged` - No change
          *     * `error` - Has errors
          * @enum {string}
          */
         ImportActionEnum: "create" | "update" | "unchanged" | "error";
-        ImportResult: {
-            /** @description True once the import has been saved. */
-            committed: boolean;
-            summary: components["schemas"]["ImportSummary"];
-            rows: components["schemas"]["ImportRow"][];
-        };
-        ImportRow: {
-            /** @description The spreadsheet's row number; the header is 1. */
-            row: number;
-            night: (components["schemas"]["WeekdayEnum"] | components["schemas"]["NullEnum"]) | null;
-            division: string;
-            /** @description What the Division will have after the import. */
-            min_players: number | null;
-            /**
-             * Format: decimal
-             * @description The Division's own fee after the import. Null: the club's fee applies.
-             */
-            league_fee: string | null;
-            action: components["schemas"]["ImportActionEnum"];
-            /** @description The import adds this Night to the club. */
-            new_night: boolean;
-            /** @description What an update changes. */
-            changes: components["schemas"]["ImportRowChangesEnum"][];
-            errors: string[];
-        };
-        /**
-         * @description * `min_players` - min_players
-         *     * `league_fee` - league_fee
-         * @enum {string}
-         */
-        ImportRowChangesEnum: "min_players" | "league_fee";
-        ImportSummary: {
-            rows: number;
-            nights_created: number;
-            divisions_created: number;
-            divisions_updated: number;
-            unchanged: number;
-            errors: number;
-        };
-        ImportUploadRequest: {
-            /**
-             * Format: binary
-             * @description An .xlsx or .csv file, up to 5 MB and 500 rows.
-             */
-            file: Blob;
-        };
         InboxSummary: {
             readonly unread: number;
             readonly needs_reply: number;
@@ -3541,6 +3467,37 @@ export interface components {
             readonly team_credit_held: string;
             readonly league: components["schemas"]["IncomeLine"];
             readonly friendly: components["schemas"]["IncomeLine"];
+        };
+        LeagueImportResult: {
+            /** @description True once the import has been saved. */
+            committed: boolean;
+            summary: components["schemas"]["LeagueImportSummary"];
+            /** @description Empty without a Seasons sheet. */
+            seasons: components["schemas"]["SeasonImportRow"][];
+            /** @description Empty without a Nights and Divisions sheet. */
+            divisions: components["schemas"]["DivisionImportRow"][];
+            /** @description Empty without a Fixtures sheet. */
+            fixtures: components["schemas"]["FixtureImportRow"][];
+        };
+        LeagueImportSummary: {
+            rows: number;
+            seasons_created: number;
+            seasons_updated: number;
+            nights_created: number;
+            divisions_created: number;
+            divisions_updated: number;
+            teams_created: number;
+            fixtures_created: number;
+            fixtures_updated: number;
+            unchanged: number;
+            errors: number;
+        };
+        LeagueImportUploadRequest: {
+            /**
+             * Format: binary
+             * @description An Excel workbook (.xlsx) up to 5 MB, with any of the sheets Seasons, Nights and Divisions, and Fixtures, each up to 1000 rows.
+             */
+            file: Blob;
         };
         /**
          * @description * `league` - League
@@ -3636,7 +3593,11 @@ export interface components {
             /** @description Newest first. */
             requests: components["schemas"]["CaptainRequest"][];
         };
-        /** @description The signed-in user. `player` is null when the user is not a Player. */
+        /**
+         * @description The signed-in user. `player` is null when the user is not a Player.
+         *
+         *     `is_superuser` is true for us, who run the app: we can open every Club as its Admin.
+         */
         Me: {
             readonly id: number;
             /** Format: email */
@@ -3649,6 +3610,11 @@ export interface components {
             readonly club_roles: components["schemas"]["ClubRole"][];
             /** @description Ids of the Teams this user captains, active or waiting for the Admin. */
             readonly captain_of: number[];
+            /**
+             * Superuser status
+             * @description Designates that this user has all permissions without explicitly assigning them.
+             */
+            readonly is_superuser: boolean;
         };
         /** @description A Player in a Team. */
         Member: {
@@ -3924,7 +3890,11 @@ export interface components {
         PatchedFriendlyEligibleRequest: {
             friendly_eligible?: boolean;
         };
-        /** @description The signed-in user. `player` is null when the user is not a Player. */
+        /**
+         * @description The signed-in user. `player` is null when the user is not a Player.
+         *
+         *     `is_superuser` is true for us, who run the app: we can open every Club as its Admin.
+         */
         PatchedMeRequest: {
             name?: string;
             phone?: string;
@@ -4444,6 +4414,26 @@ export interface components {
             /** Format: date */
             ends_on: string;
         };
+        /** @description A row of the Seasons sheet. */
+        SeasonImportRow: {
+            /** @description The spreadsheet's row number; the header is 1. */
+            row: number;
+            name: string;
+            /** Format: date */
+            starts_on: string | null;
+            /** Format: date */
+            ends_on: string | null;
+            action: components["schemas"]["ImportActionEnum"];
+            /** @description What an update changes. */
+            changes: components["schemas"]["SeasonImportRowChangesEnum"][];
+            errors: string[];
+        };
+        /**
+         * @description * `starts_on` - starts_on
+         *     * `ends_on` - ends_on
+         * @enum {string}
+         */
+        SeasonImportRowChangesEnum: "starts_on" | "ends_on";
         SeasonIncome: {
             readonly season: components["schemas"]["Named"];
             /**
@@ -5066,6 +5056,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CaptainRequest"];
+                };
+            };
+        };
+    };
+    clubs_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClubSummary"][];
+                };
+            };
+        };
+    };
+    clubs_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClubSummary"];
                 };
             };
         };
@@ -6034,7 +6064,7 @@ export interface operations {
             };
         };
     };
-    clubs_imports_fixtures_commit_create: {
+    clubs_imports_league_commit_create: {
         parameters: {
             query?: never;
             header?: never;
@@ -6045,7 +6075,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["FixtureImportUploadRequest"];
+                "multipart/form-data": components["schemas"]["LeagueImportUploadRequest"];
             };
         };
         responses: {
@@ -6054,7 +6084,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["FixtureImportResult"];
+                    "application/json": components["schemas"]["LeagueImportResult"];
                 };
             };
             400: {
@@ -6062,12 +6092,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["FixtureImportResult"];
+                    "application/json": components["schemas"]["LeagueImportResult"];
                 };
             };
         };
     };
-    clubs_imports_fixtures_preview_create: {
+    clubs_imports_league_preview_create: {
         parameters: {
             query?: never;
             header?: never;
@@ -6078,7 +6108,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["FixtureImportUploadRequest"];
+                "multipart/form-data": components["schemas"]["LeagueImportUploadRequest"];
             };
         };
         responses: {
@@ -6087,16 +6117,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["FixtureImportResult"];
+                    "application/json": components["schemas"]["LeagueImportResult"];
                 };
             };
         };
     };
-    clubs_imports_fixtures_template_retrieve: {
+    clubs_imports_league_template_retrieve: {
         parameters: {
-            query?: {
-                file_type?: "csv" | "xlsx";
-            };
+            query?: never;
             header?: never;
             path: {
                 club_id: number;
@@ -6111,89 +6139,6 @@ export interface operations {
                 };
                 content: {
                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": Blob;
-                    "text/csv": Blob;
-                };
-            };
-        };
-    };
-    clubs_imports_nights_divisions_commit_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                club_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["ImportUploadRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ImportResult"];
-                };
-            };
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ImportResult"];
-                };
-            };
-        };
-    };
-    clubs_imports_nights_divisions_preview_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                club_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["ImportUploadRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ImportResult"];
-                };
-            };
-        };
-    };
-    clubs_imports_nights_divisions_template_retrieve: {
-        parameters: {
-            query?: {
-                file_type?: "csv" | "xlsx";
-            };
-            header?: never;
-            path: {
-                club_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": Blob;
-                    "text/csv": Blob;
                 };
             };
         };

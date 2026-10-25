@@ -2,41 +2,30 @@
 Fields and people. Every URL names the Club, and only that Club's Admins get in.
 """
 
-from django.db import IntegrityError, transaction
+from django.db import transaction
 from django.db.models import ProtectedError
-from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils.functional import cached_property
-from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
-from rest_framework import generics, mixins, status, viewsets
-from rest_framework.exceptions import ValidationError
-from rest_framework.parsers import MultiPartParser
-from rest_framework.response import Response
+from rest_framework import generics, mixins, viewsets
 
 from accounts.models import ClubInvite, ClubRole
-from accounts.permissions import IsClubAdmin
+from accounts.permissions import IsClubAdmin, IsClubAdminOrReferee, IsSuperuser
 from accounts.serializers import ClubInviteSerializer, ClubMemberSerializer
 from core.exceptions import Conflict
-from core.tables import TableError, read_table
 
-from . import imports
 from .models import Club, ClubSettings, Division, Field, Night, Season
 from .serializers import (
     ClubNightSerializer,
     ClubSettingsSerializer,
+    ClubSummarySerializer,
     DivisionSerializer,
     FieldSerializer,
-    ImportResultSerializer,
-    ImportUploadSerializer,
     NightSerializer,
     SeasonSerializer,
 )
 
 IN_USE = "This is still in use, so it can't be deleted."
 LAST_ADMIN = "A club needs at least one Admin."
-IMPORT_HAS_ERRORS = "Nothing was imported. Fix the rows with errors and upload the file again."
-IMPORT_RACE = "The Nights or Divisions changed while importing. Upload the file again."
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
@@ -49,6 +38,25 @@ class NightListView(generics.ListAPIView):
 
     queryset = Night.objects.select_related("club")
     serializer_class = NightSerializer
+
+
+class ClubListView(generics.ListAPIView):
+    """Every Club in the app, for a superuser choosing which Club to open."""
+
+    queryset = Club.objects.all()
+    serializer_class = ClubSummarySerializer
+    permission_classes = [IsSuperuser]
+
+
+class ClubDetailView(generics.RetrieveAPIView):
+    """The Club in the URL, for the header of its screens. Its Admins and Referees only."""
+
+    serializer_class = ClubSummarySerializer
+    permission_classes = [IsClubAdminOrReferee]
+
+    def get_object(self) -> Club:
+        # The permission already checked the Club in the URL.
+        return get_object_or_404(Club, pk=self.kwargs["club_id"])
 
 
 class ClubAdminMixin:
@@ -170,79 +178,3 @@ class ClubInviteViewSet(
 
     def perform_create(self, serializer):
         serializer.save(club=self.club, invited_by=self.request.user)
-
-
-class NightDivisionImportView(ClubAdminMixin, generics.GenericAPIView):
-    """Reads the uploaded file and plans the import of its Nights and Divisions (FR-39)."""
-
-    serializer_class = ImportUploadSerializer
-    parser_classes = [MultiPartParser]
-
-    def plan(self, request) -> imports.Plan:
-        upload = self.get_serializer(data=request.data)
-        upload.is_valid(raise_exception=True)
-        try:
-            rows = read_table(upload.validated_data["file"], imports.COLUMNS, imports.REQUIRED)
-        except TableError as error:
-            raise ValidationError({"file": [str(error)]}) from error
-        return imports.plan(self.club, rows)
-
-    def answer(self, import_plan: imports.Plan, *, committed: bool, code=status.HTTP_200_OK):
-        body = {"committed": committed, "summary": import_plan.summary, "rows": import_plan.rows}
-        return Response(ImportResultSerializer(body).data, status=code)
-
-
-class NightDivisionImportPreviewView(NightDivisionImportView):
-    @extend_schema(
-        summary="Preview an import of Nights and Divisions",
-        description="Checks every row and says what the import would do. Writes nothing.",
-        responses={200: ImportResultSerializer},
-    )
-    def post(self, request, *args, **kwargs):
-        return self.answer(self.plan(request), committed=False)
-
-
-class NightDivisionImportCommitView(NightDivisionImportView):
-    @extend_schema(
-        summary="Import Nights and Divisions",
-        description=(
-            "Checks the file again and saves every row in one transaction. If any row has "
-            "an error, nothing is saved and the answer is 400 with the rows and their errors."
-        ),
-        responses={200: ImportResultSerializer, 400: ImportResultSerializer},
-    )
-    def post(self, request, *args, **kwargs):
-        try:
-            with transaction.atomic():
-                # One import per Club at a time; plan again inside, so it sees the latest.
-                Club.objects.select_for_update().get(pk=self.club.pk)
-                import_plan = self.plan(request)
-                if import_plan.has_errors:
-                    return self.answer(
-                        import_plan, committed=False, code=status.HTTP_400_BAD_REQUEST
-                    )
-                imports.apply(self.club, import_plan)
-        except IntegrityError as error:
-            raise Conflict(IMPORT_RACE) from error
-        return self.answer(import_plan, committed=True)
-
-
-class NightDivisionImportTemplateView(ClubAdminMixin, generics.GenericAPIView):
-    @extend_schema(
-        summary="Download the Nights and Divisions import template",
-        parameters=[
-            OpenApiParameter("file_type", enum=["xlsx", "csv"], default="xlsx", required=False)
-        ],
-        responses={
-            (200, XLSX): OpenApiResponse(OpenApiTypes.BINARY),
-            (200, "text/csv"): OpenApiResponse(OpenApiTypes.BINARY),
-        },
-    )
-    def get(self, request, *args, **kwargs):
-        if request.query_params.get("file_type") == "csv":
-            body, content_type, name = imports.template_csv(), "text/csv", "csv"
-        else:
-            body, content_type, name = imports.template_xlsx(), XLSX, "xlsx"
-        response = HttpResponse(body, content_type=content_type)
-        response["Content-Disposition"] = f'attachment; filename="nights-and-divisions.{name}"'
-        return response

@@ -54,8 +54,8 @@ export function NightsPage() {
   return (
     <main className="la-screen">
       <SetupHeader title="Nights and Divisions" />
-      <Link className="la-btn la-btn--secondary" to={`/clubs/${clubId}/setup/nights/import`}>
-        Import from a spreadsheet
+      <Link className="la-btn la-btn--secondary" to={`/clubs/${clubId}/setup/import`}>
+        Import from Excel
       </Link>
       <LoadState result={nights} retry={reload} what="Nights">
         {(list) => {

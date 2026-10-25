@@ -19,7 +19,6 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
-from accounts.models import ClubRole
 from accounts.permissions import IsClubAdminOrReferee
 from bookings import money as booking_money
 from clubs.models import Club
@@ -39,7 +38,7 @@ from .serializers import (
 
 
 def _is_admin(user, club_id: int) -> bool:
-    return user.club_roles.filter(club_id=club_id, role=ClubRole.Role.ADMIN).exists()
+    return user.is_club_admin(club_id)
 
 
 def _team(team_id: int) -> Team:

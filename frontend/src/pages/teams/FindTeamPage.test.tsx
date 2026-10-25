@@ -72,6 +72,27 @@ describe("FindTeamPage", () => {
     expect(calls.filter((c) => c.method === "POST").map((c) => c.path)).toEqual(["/api/v1/teams/7/join/"]);
   });
 
+  it("makes the first Player to join a Team with no Captain its Captain", async () => {
+    const empty = { ...LIONS, captain_id: null, captain_name: null, players: 0 };
+    await openAs(
+      "/teams/find",
+      routes(search([empty]), {
+        "POST /api/v1/teams/7/join/": {
+          status: 201,
+          body: joinRequest({ team: empty, status: "accepted", decided_at: "2026-10-22T10:00:00Z" }),
+        },
+      }),
+      "Find a team",
+    );
+    const user = userEvent.setup();
+
+    expect(await screen.findByText("Captain: none yet · 0 players")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Ask to join Red Lions" }));
+
+    expect(await screen.findByText("You're the Captain of Red Lions")).toBeInTheDocument();
+    expect(screen.queryByText(/Request sent/)).not.toBeInTheDocument();
+  });
+
   it("shows why the API refused a request to join", async () => {
     const found = search([LIONS]);
     await openAs(

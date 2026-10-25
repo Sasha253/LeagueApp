@@ -4,6 +4,8 @@
 - Player and Booking User are held app-wide. A Player has a PlayerProfile.
 - Admin and Referee are held per Club, as a ClubRole, never app-wide.
 - Captain is not stored here: a Player is a Captain of the Team they captain (teams app).
+- A superuser runs the app for every club: they pass every Admin and Referee check at every
+  Club without holding a ClubRole, so they get no Club's notifications (docs/DECISIONS.md).
 """
 
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
@@ -66,8 +68,19 @@ class User(AbstractBaseUser, PermissionsMixin):
         return hasattr(self, "player_profile")
 
     def club_ids_with_role(self, *roles: str) -> models.QuerySet:
-        """The ids of the Clubs where this user holds any of these roles."""
+        """The ids of the Clubs where this user holds any of these roles. A superuser: all."""
+        if self.is_superuser:
+            return Club.objects.values("pk")
         return self.club_roles.filter(role__in=roles).values("club_id")
+
+    def holds_club_role(self, club_id: int, *roles: str) -> bool:
+        """Whether this user holds any of these roles at the Club. A superuser holds all."""
+        if self.is_superuser:
+            return True
+        return self.club_roles.filter(club_id=club_id, role__in=roles).exists()
+
+    def is_club_admin(self, club_id: int) -> bool:
+        return self.holds_club_role(club_id, ClubRole.Role.ADMIN)
 
 
 class PlayerProfile(models.Model):

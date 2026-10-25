@@ -1,8 +1,8 @@
 from rest_framework import serializers
 
 from accounts.models import ClubRole, User
+from core.tables import ImportAction
 
-from .imports import Action
 from .models import Club, ClubSettings, Division, Field, Night, Season
 
 PAST_READINESS = "Must be fewer hours before kick-off than the Confirmations."
@@ -189,11 +189,9 @@ class ClubSettingsSerializer(serializers.ModelSerializer):
         return attrs
 
 
-class ImportUploadSerializer(serializers.Serializer):
-    file = serializers.FileField(help_text="An .xlsx or .csv file, up to 5 MB and 500 rows.")
+class DivisionImportRowSerializer(serializers.Serializer):
+    """A row of the Nights and Divisions sheet."""
 
-
-class ImportRowSerializer(serializers.Serializer):
     row = serializers.IntegerField(help_text="The spreadsheet's row number; the header is 1.")
     night = serializers.ChoiceField(choices=Night.Weekday.choices, allow_null=True)
     division = serializers.CharField(allow_blank=True)
@@ -206,25 +204,10 @@ class ImportRowSerializer(serializers.Serializer):
         allow_null=True,
         help_text="The Division's own fee after the import. Null: the club's fee applies.",
     )
-    action = serializers.ChoiceField(choices=Action.choices)
+    action = serializers.ChoiceField(choices=ImportAction.choices)
     new_night = serializers.BooleanField(help_text="The import adds this Night to the club.")
     changes = serializers.ListField(
         child=serializers.ChoiceField(choices=["min_players", "league_fee"]),
         help_text="What an update changes.",
     )
     errors = serializers.ListField(child=serializers.CharField())
-
-
-class ImportSummarySerializer(serializers.Serializer):
-    rows = serializers.IntegerField()
-    nights_created = serializers.IntegerField()
-    divisions_created = serializers.IntegerField()
-    divisions_updated = serializers.IntegerField()
-    unchanged = serializers.IntegerField()
-    errors = serializers.IntegerField()
-
-
-class ImportResultSerializer(serializers.Serializer):
-    committed = serializers.BooleanField(help_text="True once the import has been saved.")
-    summary = ImportSummarySerializer()
-    rows = ImportRowSerializer(many=True)

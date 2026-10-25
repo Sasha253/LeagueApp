@@ -27,6 +27,16 @@ async function openProfile(me: object = ME, nights: unknown = { status: 200, bod
 }
 
 describe("ProfilePage", () => {
+  it("opens All clubs for a superuser only", async () => {
+    await openProfile({ ...ME, is_superuser: true });
+    expect(screen.getByRole("link", { name: /All clubs/ })).toHaveAttribute("href", "/clubs");
+  });
+
+  it("has no All clubs for anyone else", async () => {
+    await openProfile();
+    expect(screen.queryByRole("link", { name: /All clubs/ })).not.toBeInTheDocument();
+  });
+
   it("opens the Inbox, with how many are unread", async () => {
     await openProfile();
 

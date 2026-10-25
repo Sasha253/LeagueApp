@@ -284,3 +284,32 @@ def test_no_joining_a_team_once_its_season_has_ended(player, make_team, season):
     assert sipho.post(request_url(join_request, "accept")).status_code == 409
     assert player("thabo").post(team_url(team, "join")).status_code == 409
     assert not team.current_memberships().filter(player=naledi.user).exists()
+
+
+# A Team with no Captain (one the league import added)
+
+
+@pytest.mark.django_db
+def test_the_first_player_to_join_a_team_with_no_captain_is_its_captain(
+    player, make_team, season, division, make_user
+):
+    from teams import rules
+
+    team = rules.add_team(season, division, "New Stars", make_user("admin@example.com"))
+    first, second = player("sipho"), player("thabo")
+    elsewhere = make_team("Red Lions", player("lerato").user)
+    earlier = asks(first, elsewhere)
+
+    joined = asks(first, team)
+
+    assert joined.status == JoinRequest.Status.ACCEPTED
+    assert joined.decided_by == first.user
+    team.refresh_from_db()
+    assert team.captain == first.user
+    assert list(team.current_memberships().values_list("player", flat=True)) == [first.user.pk]
+    earlier.refresh_from_db()
+    assert earlier.status == JoinRequest.Status.WITHDRAWN
+    # Now it has a Captain, the next Player waits for them.
+    assert asks(second, team).status == JoinRequest.Status.PENDING
+    team.refresh_from_db()
+    assert team.captain == first.user

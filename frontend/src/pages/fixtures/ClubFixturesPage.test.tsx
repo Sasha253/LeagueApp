@@ -48,7 +48,7 @@ describe("ClubFixturesPage", () => {
     expect(rows[1]).toHaveTextContent("Status: Confirming");
     const thursday = screen.getByRole("region", { name: "Thu 29 Oct" });
     expect(within(thursday).getByRole("link")).toHaveTextContent("City Rovers vs Hat Trick FC");
-    expect(screen.getByRole("link", { name: "Import fixtures" })).toHaveAttribute("href", "/clubs/1/fixtures/import");
+    expect(screen.getByRole("link", { name: "Import fixtures" })).toHaveAttribute("href", "/clubs/1/setup/import");
   });
 
   it("asks the API for one Night's or one Season's fixtures", async () => {

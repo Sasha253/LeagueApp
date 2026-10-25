@@ -4,7 +4,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from barcodes.urls import club_urlpatterns as club_barcode_urls
 from bookings.urls import club_urlpatterns as club_booking_urls
-from clubs.views import NightListView
+from clubs.views import ClubListView, NightListView
 from core.views import HealthView, PrivacyPolicyView, privacy_page
 from finance.urls import club_urlpatterns as club_finance_urls
 from fixtures.urls import club_urlpatterns as club_fixture_urls
@@ -16,6 +16,7 @@ api_v1 = [
     path("legal/privacy/", PrivacyPolicyView.as_view(), name="privacy-policy"),
     path("auth/", include("accounts.urls")),
     path("nights/", NightListView.as_view(), name="nights"),
+    path("clubs/", ClubListView.as_view(), name="clubs"),
     path("clubs/<int:club_id>/", include("clubs.urls")),
     path("clubs/<int:club_id>/", include(club_team_urls)),
     path("clubs/<int:club_id>/", include(club_fixture_urls)),

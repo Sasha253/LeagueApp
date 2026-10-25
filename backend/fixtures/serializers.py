@@ -3,15 +3,15 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from accounts.models import PlayerProfile
-from clubs.models import Field, Night, Season
-from clubs.serializers import ClubSummarySerializer
+from clubs.models import Field, Night
+from clubs.serializers import ClubSummarySerializer, DivisionImportRowSerializer
+from core.tables import ImportAction
 from ledger.serializers import MONEY
 from ledger.services import fixture_credit_returned
 from notifications.models import Answer
 from teams.serializers import NamedSerializer
 
 from . import borrowing, fallbacks
-from .imports import Action
 from .models import (
     CaptainRequest,
     ConfirmationAnswer,
@@ -399,22 +399,33 @@ class FriendlyEligibleSerializer(serializers.Serializer):
     friendly_eligible = serializers.BooleanField()
 
 
-class FixtureImportUploadSerializer(serializers.Serializer):
-    season = serializers.PrimaryKeyRelatedField(
-        queryset=Season.objects.all(), help_text="The Season every row is for."
+class LeagueImportUploadSerializer(serializers.Serializer):
+    file = serializers.FileField(
+        help_text="An Excel workbook (.xlsx) up to 5 MB, with any of the sheets Seasons, "
+        "Nights and Divisions, and Fixtures, each up to 1000 rows."
     )
-    file = serializers.FileField(help_text="An .xlsx or .csv file, up to 5 MB and 500 rows.")
 
-    def validate_season(self, season: Season) -> Season:
-        if season.club_id != self.context["club"].pk:
-            raise serializers.ValidationError("This Season belongs to another club.")
-        if season.ends_on < timezone.localdate():
-            raise serializers.ValidationError("This Season has ended.")
-        return season
+
+class SeasonImportRowSerializer(serializers.Serializer):
+    """A row of the Seasons sheet."""
+
+    row = serializers.IntegerField(help_text="The spreadsheet's row number; the header is 1.")
+    name = serializers.CharField(allow_blank=True)
+    starts_on = serializers.DateField(allow_null=True)
+    ends_on = serializers.DateField(allow_null=True)
+    action = serializers.ChoiceField(choices=ImportAction.choices)
+    changes = serializers.ListField(
+        child=serializers.ChoiceField(choices=["starts_on", "ends_on"]),
+        help_text="What an update changes.",
+    )
+    errors = serializers.ListField(child=serializers.CharField())
 
 
 class FixtureImportRowSerializer(serializers.Serializer):
+    """A row of the Fixtures sheet."""
+
     row = serializers.IntegerField(help_text="The spreadsheet's row number; the header is 1.")
+    season = serializers.CharField(allow_blank=True)
     kick_off = serializers.DateTimeField(allow_null=True)
     night = serializers.ChoiceField(choices=Night.Weekday.choices, allow_null=True)
     division = serializers.CharField(allow_blank=True)
@@ -424,7 +435,11 @@ class FixtureImportRowSerializer(serializers.Serializer):
     friendly_eligible = serializers.BooleanField(
         allow_null=True, help_text="What the Fixture will have after the import."
     )
-    action = serializers.ChoiceField(choices=Action.choices)
+    action = serializers.ChoiceField(choices=ImportAction.choices)
+    new_teams = serializers.ListField(
+        child=serializers.CharField(),
+        help_text="Teams this row adds: confirmed, with no Captain until a Player joins.",
+    )
     changes = serializers.ListField(
         child=serializers.ChoiceField(choices=["friendly_eligible"]),
         help_text="What an update changes.",
@@ -432,18 +447,28 @@ class FixtureImportRowSerializer(serializers.Serializer):
     errors = serializers.ListField(child=serializers.CharField())
 
 
-class FixtureImportSummarySerializer(serializers.Serializer):
+class LeagueImportSummarySerializer(serializers.Serializer):
     rows = serializers.IntegerField()
+    seasons_created = serializers.IntegerField()
+    seasons_updated = serializers.IntegerField()
+    nights_created = serializers.IntegerField()
+    divisions_created = serializers.IntegerField()
+    divisions_updated = serializers.IntegerField()
+    teams_created = serializers.IntegerField()
     fixtures_created = serializers.IntegerField()
     fixtures_updated = serializers.IntegerField()
     unchanged = serializers.IntegerField()
     errors = serializers.IntegerField()
 
 
-class FixtureImportResultSerializer(serializers.Serializer):
+class LeagueImportResultSerializer(serializers.Serializer):
     committed = serializers.BooleanField(help_text="True once the import has been saved.")
-    summary = FixtureImportSummarySerializer()
-    rows = FixtureImportRowSerializer(many=True)
+    summary = LeagueImportSummarySerializer()
+    seasons = SeasonImportRowSerializer(many=True, help_text="Empty without a Seasons sheet.")
+    divisions = DivisionImportRowSerializer(
+        many=True, help_text="Empty without a Nights and Divisions sheet."
+    )
+    fixtures = FixtureImportRowSerializer(many=True, help_text="Empty without a Fixtures sheet.")
 
 
 class FixtureAnswerSerializer(serializers.Serializer):

@@ -40,7 +40,9 @@ export function FindTeamPage() {
   const [mine, reloadMine] = useLoad(() => api.GET("/api/v1/me/teams/"), "my-teams");
   const [requests, reloadRequests] = useLoad(() => api.GET("/api/v1/me/join-requests/"), "my-join-requests");
   const [divisions, setDivisions] = useState<Named[]>([]);
-  const [sent, setSent] = useState<Team | null>(null);
+  // The Team asked, and whether it took the Player at once as its Captain (a Team the Admin
+  // added has no Captain until its first Player joins).
+  const [sent, setSent] = useState<{ team: Team; captain: boolean } | null>(null);
   const [error, setError] = useState<string | null>(null);
   // The Team being asked: its button is off until the API answers, so a double tap doesn't
   // send the request twice.
@@ -64,11 +66,16 @@ export function FindTeamPage() {
   async function join(team: Team) {
     setSent(null);
     setAsking(team.id);
-    const failed = await send(() => api.POST("/api/v1/teams/{id}/join/", { params: { path: { id: team.id } } }));
+    let captain = false;
+    const failed = await send(async () => {
+      const answer = await api.POST("/api/v1/teams/{id}/join/", { params: { path: { id: team.id } } });
+      captain = answer.data?.status === "accepted";
+      return answer;
+    });
     setAsking(null);
     setError(failed?.general ?? null);
     if (!failed) {
-      setSent(team);
+      setSent({ team, captain });
       reloadRequests();
       reloadMine();
     }
@@ -137,9 +144,14 @@ export function FindTeamPage() {
         </button>
       </form>
 
-      {sent && (
-        <Banner status="pending" title={`Request sent to ${sent.name}`}>
-          You'll join when {sent.captain_name ?? "the Captain"} accepts. We'll show it in Teams.
+      {sent?.captain && (
+        <Banner status="confirmed" title={`You're the Captain of ${sent.team.name}`}>
+          You're its first Player. Players who ask to join next wait for you to accept them in Teams.
+        </Banner>
+      )}
+      {sent && !sent.captain && (
+        <Banner status="pending" title={`Request sent to ${sent.team.name}`}>
+          You'll join when {sent.team.captain_name ?? "the Captain"} accepts. We'll show it in Teams.
         </Banner>
       )}
       {error && <Banner status="cancelled" title={error} />}

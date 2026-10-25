@@ -1,5 +1,5 @@
 // Club setup (design/src/ds/Screens.md, Admin 8, FR-42): where a Club's Admin reaches its
-// settings, Seasons, Nights and Divisions, Fields and people.
+// settings, Seasons, Nights and Divisions, Fields and people, and the Excel import.
 
 import { Link } from "react-router";
 import { api } from "../../api/client";
@@ -13,6 +13,7 @@ const SECTIONS = [
   { path: "nights", title: "Nights and Divisions", detail: "Minimum players and Division fees" },
   { path: "fields", title: "Fields", detail: "Pitches and their Referees" },
   { path: "people", title: "People", detail: "Admins and Referees" },
+  { path: "import", title: "Import from Excel", detail: "Seasons, Nights and Divisions, and Fixtures" },
 ];
 
 export function ClubSetupPage() {

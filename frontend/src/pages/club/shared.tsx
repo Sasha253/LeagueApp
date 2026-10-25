@@ -3,19 +3,40 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router";
+import { api } from "../../api/client";
 import { formErrors, unreachable, type FormErrors } from "../../api/errors";
 import { useAuth } from "../../auth/AuthProvider";
 import { Banner } from "../../components/Banner";
 
 export const NO_ERRORS: FormErrors = { fields: {}, general: null };
 
-/** The Club in the URL, and its name from the signed-in user's roles. */
+/** The Club in the URL, and its name from the signed-in user's roles. A superuser holds
+ *  no role at most Clubs, so their name comes from the API. */
 export function useClub(): { clubId: number; clubName: string } {
   const { clubId } = useParams();
   const { state } = useAuth();
   const id = Number(clubId);
-  const role = state.status === "signedIn" ? state.me.club_roles.find((r) => r.club_id === id) : null;
-  return { clubId: id, clubName: role?.club_name ?? "Club" };
+  const me = state.status === "signedIn" ? state.me : null;
+  const role = me?.club_roles.find((r) => r.club_id === id);
+  const askApi = !role && !!me?.is_superuser;
+  const [fetched, setFetched] = useState<{ id: number; name: string } | null>(null);
+
+  useEffect(() => {
+    if (!askApi) return;
+    let cancelled = false;
+    api
+      .GET("/api/v1/clubs/{club_id}/", { params: { path: { club_id: id } } })
+      .then(({ data }) => {
+        if (!cancelled && data) setFetched(data);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [askApi, id]);
+
+  const name = role?.club_name ?? (fetched?.id === id ? fetched.name : null);
+  return { clubId: id, clubName: name ?? "Club" };
 }
 
 export type Loaded<T> =

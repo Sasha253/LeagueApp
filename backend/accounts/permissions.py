@@ -11,6 +11,8 @@ A view with no Club in its URL only lets in users who hold the role at some Club
 queryset must then be limited with ClubScopedQuerysetMixin, so a list never shows another
 Club's records.
 
+A superuser passes every Admin and Referee check at every Club.
+
 Captain is not a stored role: IsTeamCaptain checks the Team's `captain` on the record, a
 Team or anything with a `team`.
 """
@@ -42,6 +44,8 @@ class ClubRolePermission(BasePermission):
         user = request.user
         if not (user and user.is_authenticated):
             return False
+        if user.is_superuser:
+            return True
         club_ids = user.club_roles.filter(role__in=self.roles)
         club_id = _club_id_of_view(view)
         if club_id is not None:
@@ -49,9 +53,7 @@ class ClubRolePermission(BasePermission):
         return club_ids.exists()
 
     def has_object_permission(self, request, view, obj) -> bool:
-        return request.user.club_roles.filter(
-            role__in=self.roles, club_id=_club_id_of_object(obj)
-        ).exists()
+        return request.user.holds_club_role(_club_id_of_object(obj), *self.roles)
 
 
 class IsClubAdmin(ClubRolePermission):
@@ -66,6 +68,14 @@ class IsClubAdminOrReferee(ClubRolePermission):
     """For what both may do, such as scanning a Payment Barcode at the gate."""
 
     roles = (ClubRole.Role.ADMIN, ClubRole.Role.REFEREE)
+
+
+class IsSuperuser(BasePermission):
+    """For what only we, who run the app for every club, may do."""
+
+    def has_permission(self, request, view) -> bool:
+        user = request.user
+        return bool(user and user.is_authenticated and user.is_superuser)
 
 
 class IsPlayer(BasePermission):

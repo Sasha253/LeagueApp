@@ -2,6 +2,59 @@
 
 Newest first. Each entry: the date, what was decided, and why.
 
+## 2026-10-25: One league import from Excel
+
+Decided by @Sasha: an Admin imports their Seasons, Nights and Divisions, and Fixtures from
+one Excel workbook. This replaces the separate Nights and Divisions import (chunk 4) and
+Fixtures import (chunk 7); their row rules still apply, except where this entry says
+otherwise.
+
+- **One workbook, a sheet each:** sheets named Seasons, Nights and Divisions, and Fixtures,
+  found by name without regard to case, spaces or punctuation. Any sheet may be left out,
+  and other sheets are ignored. Excel (.xlsx) only, since a CSV holds one sheet; the CSV
+  template and upload are gone. Limits: 5 MB a file and 1000 rows a sheet (was 500 a file).
+- **API:** `POST /api/v1/clubs/{club_id}/imports/league/preview/` and `.../commit/`, and
+  `GET .../template/` (Excel, with example rows that import as they are given a league fee
+  and a pitch named Pitch 3). The `imports/nights-divisions/` and `imports/fixtures/`
+  endpoints and their screens are removed. The screen is Club setup, Import from Excel
+  (`/clubs/:clubId/setup/import`); Nights and Divisions and Fixtures link to it.
+- **Sheets are read in order** (Seasons, then Nights and Divisions, then Fixtures), each
+  checked against what the sheets before it add, so a new Season or Division can have its
+  Fixtures in the same file. The import writes as it goes inside one transaction and rolls
+  it back for a preview, or for a commit with any error, so all or nothing still holds.
+- **Seasons sheet:** Season, Starts on, Ends on, all required. A Season is matched on its
+  name, ignoring case and outer spaces. An existing Season takes the file's dates unless
+  one of its Fixtures would then fall outside them (an error). An import never deletes a
+  Season.
+- **Fixtures sheet:** gains a required Season column, so one file can hold several Seasons.
+  The Season is no longer picked on the screen.
+- **Teams from the Fixtures sheet:** a Home or Away name the Division doesn't have that
+  Season adds the Team: confirmed (decided by the importing Admin), with no Captain and no
+  Players. As when an Admin confirms a request, it needs a league fee (the Division's or the
+  club's), counts against the Division's `max_teams`, and is charged the league fee. A Team
+  still waiting for the Admin is an error, as before.
+- **First joiner is Captain:** a Player who asks to join a Team with no Captain and no
+  Players joins at once as its Captain; the request comes back accepted. Players after
+  them ask the Captain as usual.
+
+## 2026-10-25: Superuser sees every club
+
+A superuser (`is_superuser`, made with `createsuperuser`, never by sign-up) sees every Club
+in the app and can open each one with full Admin powers. The user decided this; it is the
+one exception to "Admins and Referees see only their Club's data".
+
+- **Full Admin, no ClubRole:** a superuser passes every Admin and Referee check at every
+  Club (`ClubRolePermission`, `User.holds_club_role`, `User.is_club_admin`,
+  `User.club_ids_with_role`). They hold no ClubRole, so they are not on any Club's People
+  list and get no Club's Admin or Referee notifications (targeting still reads ClubRoles).
+- **API:** `GET /api/v1/clubs/` lists every Club (superuser only, 403 otherwise).
+  `GET /api/v1/clubs/{club_id}/` names one Club for its Admins and Referees and for a
+  superuser, so club screens show the right club name. `/auth/me/` says `is_superuser`;
+  it is read-only there and on register.
+- **App:** Profile shows "All clubs" to a superuser. All clubs (`/clubs`) lists every Club
+  with the same shortcuts an Admin sees on Profile (Scan, Tonight, Fixtures, Team requests,
+  Bookings, Payments, Finances, Club setup), built from existing `la-` components.
+
 ## 2026-10-24: Store release (chunk 29) (provisional, unattended run)
 
 Chosen during an unattended run; see docs/OPEN_QUESTIONS.md "Chunk 29: Store release" and

@@ -1,11 +1,13 @@
-"""Importing a Season's Fixtures from the Admin's spreadsheet (FR-53), like chunk 4's import.
+"""The Fixtures sheet of the league import (FR-53; fixtures/league_import.py).
 
-One row per Fixture: Date, Time (South African, 24-hour), Night (optional), Division, Pitch,
-Home, Away and Friendly eligible (optional). The Season is chosen on the screen, not in the
-file. A row is the same Fixture as one the club has when its Division, Home, Away and
-kick-off match, so importing the same file twice creates nothing twice (docs/DECISIONS.md):
+One row per Fixture: Season, Date, Time (South African, 24-hour), Night (optional),
+Division, Pitch, Home, Away and Friendly eligible (optional). A row is the same Fixture as
+one the club has when its Division, Home, Away and kick-off match, so importing the same
+file twice creates nothing twice (docs/DECISIONS.md):
 
 - a new Fixture is created, scheduled;
+- a Team the Division doesn't have that Season is added, confirmed, with no Captain (the
+  first Player to join it is its Captain) and charged the league fee;
 - an existing Fixture takes the file's Friendly eligible, if the cell isn't blank; nothing
   else of it changes, since moving a Fixture is a reschedule (chunk 16), not an import;
 - Fixtures that aren't in the file are left alone.
@@ -13,26 +15,25 @@ kick-off match, so importing the same file twice creates nothing twice (docs/DEC
 plan() checks every row and writes nothing. apply() writes a plan with no errors.
 """
 
-import csv
 import datetime as dt
-import io
 import re
+from collections import Counter
 from dataclasses import dataclass, field
 
-from django.db import models
 from django.utils import timezone
-from openpyxl import Workbook
-from openpyxl.styles import Font
 
 from clubs.imports import parse_weekday
 from clubs.models import Club, Division, Field, Night, Season
+from core.tables import ImportAction as Action
 from core.tables import Row
+from teams import rules as team_rules
 from teams.models import Team
 
 from . import lifecycle
 from .models import Fixture, FixtureTransition
 
 COLUMNS = {
+    "season": ("Season", "Season name"),
     "date": ("Date", "Match date"),
     "time": ("Time", "Kick-off", "Kick-off time"),
     "night": ("Night", "Weekday", "Day"),
@@ -42,27 +43,24 @@ COLUMNS = {
     "away": ("Away", "Away team"),
     "friendly_eligible": ("Friendly eligible", "Friendly"),
 }
-REQUIRED = {"date", "time", "division", "pitch", "home", "away"}
+REQUIRED = {"season", "date", "time", "division", "pitch", "home", "away"}
 
-TEMPLATE_ROWS = [
-    ("2026-10-27", "19:40", "Tuesday", "Division 2", "Pitch 3", "Red Lions", "Old Boys", "yes"),
-    ("2026-10-27", "20:30", "Tuesday", "Division 2", "Pitch 3", "City Rovers", "Hat Trick FC", ""),
-]
 TEMPLATE_HELP = [
-    ("Column", "What to put in it"),
+    ("Season", "The Season's name, as on the Seasons sheet or in the app. Required."),
     ("Date", "The match date: 2026-10-27, 27/10/2026 or 27 Oct 2026. Required."),
     ("Time", "Kick-off in South African time, 24-hour: 19:40. Required."),
     ("Night", "The weekday, e.g. Tuesday. Blank: the date's weekday. Must match the date."),
     ("Division", "The Division's name, e.g. Division 2. Required."),
     ("Pitch", "The pitch's name as in Club setup, e.g. Pitch 3. Required."),
-    ("Home", "A confirmed Team of that Division this Season. Required."),
-    ("Away", "Another confirmed Team of that Division this Season. Required."),
+    ("Home", "A Team of that Division this Season. A new name adds the Team. Required."),
+    ("Away", "The other Team, the same way. Required."),
     ("Friendly eligible", "yes or no: may it become a friendly if it can't go ahead. Blank: no."),
-    ("", "Every row is for the Season chosen in the app."),
-    ("", "Re-importing the same file creates nothing twice."),
+    ("", "A Team the import adds has no Captain: the first Player to join it is Captain."),
     ("", "A row is the same Fixture when Division, Home, Away, date and time match."),
-    ("", "Fixtures missing from the file are left as they are. The import never moves one."),
+    ("", "The import never moves a Fixture: reschedule it in the app instead."),
 ]
+
+TEAM_NAME_MAX = Team._meta.get_field("name").max_length
 
 MONTHS = {
     name: number
@@ -82,16 +80,10 @@ NO = {"no", "n", "false", "0"}
 DATE_HELP = "like 2026-10-27, 27/10/2026 or 27 Oct 2026"
 
 
-class Action(models.TextChoices):
-    CREATE = "create", "New Fixture"
-    UPDATE = "update", "Fixture changes"
-    UNCHANGED = "unchanged", "No change"
-    ERROR = "error", "Has errors"
-
-
 @dataclass
 class PlannedRow:
     row: int
+    season: str = ""
     kick_off: dt.datetime | None = None  # Aware.
     night: int | None = None
     division: str = ""
@@ -100,9 +92,11 @@ class PlannedRow:
     away: str = ""
     friendly_eligible: bool | None = None  # What the Fixture will have, after the import.
     action: str = Action.ERROR
+    new_teams: list[str] = field(default_factory=list)  # Teams this row adds.
     changes: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     existing: Fixture | None = None
+    season_obj: Season | None = None
     division_obj: Division | None = None
     pitch_obj: Field | None = None
     home_obj: Team | None = None
@@ -122,8 +116,14 @@ class Plan:
         def count(action):
             return sum(1 for row in self.rows if row.action == action)
 
+        new_teams = {
+            (row.season, row.division, name.casefold())
+            for row in self.rows
+            for name in row.new_teams
+        }
         return {
             "rows": len(self.rows),
+            "teams_created": len(new_teams),
             "fixtures_created": count(Action.CREATE),
             "fixtures_updated": count(Action.UPDATE),
             "unchanged": count(Action.UNCHANGED),
@@ -222,30 +222,47 @@ def _weekday_name(weekday: int) -> str:
     return Night.Weekday(weekday).label
 
 
-def plan(club: Club, season: Season, rows: list[Row]) -> Plan:
+def _ident(team: Team):
+    """Who a Team is in this import: its id, or for one the import adds, its key."""
+    if team.pk is not None:
+        return team.pk
+    return ("new", team.season_id, team.division_id, team.name.casefold())
+
+
+def plan(club: Club, rows: list[Row]) -> Plan:
+    seasons = _by_name(club.seasons.all(), lambda s: (None, s.name.strip()))
     divisions = _by_name(
-        Division.objects.filter(night__club=club).select_related("night"),
+        Division.objects.filter(night__club=club).select_related("night__club__settings"),
         lambda d: (d.night.weekday, d.name.strip()),
     )
     pitches = _by_name(Field.objects.filter(club=club), lambda f: (None, f.name.strip()))
     # Team names are unique per Division and Season ignoring case, among Teams not declined.
     teams = {
-        (team.division_id, team.name.strip().casefold()): team
-        for team in Team.objects.filter(season=season).exclude(status=Team.Status.DECLINED)
+        (team.season_id, team.division_id, team.name.strip().casefold()): team
+        for team in Team.objects.filter(club=club).exclude(status=Team.Status.DECLINED)
     }
-    existing = list(
-        Fixture.objects.filter(season=season).select_related("pitch", "home_team", "away_team")
+    active = Counter(
+        (team.season_id, team.division_id)
+        for team in teams.values()
+        if team.status == Team.Status.ACTIVE
     )
-    by_key = {(f.division_id, f.home_team_id, f.away_team_id, f.kick_off): f for f in existing}
+    added: dict[tuple, Team] = {}  # Teams the import adds, not saved yet, by the key above.
+    now = timezone.now()
+    # Kick-offs that have passed are refused, so only Fixtures still to come can match.
+    upcoming = list(
+        Fixture.objects.filter(club=club, kick_off__gt=now).select_related(
+            "pitch", "home_team", "away_team"
+        )
+    )
+    by_key = {(f.division_id, f.home_team_id, f.away_team_id, f.kick_off): f for f in upcoming}
     # Who and what is busy at each kick-off: the club's Fixtures that aren't cancelled.
-    busy = Fixture.objects.filter(club=club).exclude(status=Fixture.Status.CANCELLED)
+    busy = [f for f in upcoming if f.status != Fixture.Status.CANCELLED]
     pitch_busy = {(f.pitch_id, f.kick_off): f for f in busy}
-    team_busy: dict[tuple[int, dt.datetime], Fixture] = {}
+    team_busy: dict[tuple, Fixture] = {}
     for fixture in busy:
         team_busy[(fixture.home_team_id, fixture.kick_off)] = fixture
         team_busy[(fixture.away_team_id, fixture.kick_off)] = fixture
 
-    now = timezone.now()
     seen_fixture: dict[tuple, int] = {}
     seen_pitch: dict[tuple, int] = {}
     seen_team: dict[tuple, int] = {}
@@ -256,6 +273,25 @@ def plan(club: Club, season: Season, rows: list[Row]) -> Plan:
         planned.append(result)
         cells = row.cells
         errors = result.errors
+
+        season = None
+        result.season = cells.get("season", "")
+        if not result.season:
+            errors.append("Season is empty.")
+        else:
+            try:
+                season = _find(*seasons, None, result.season)
+            except LookupError:
+                errors.append(
+                    f'Season "{result.season}" matches several Seasons. Write it exactly.'
+                )
+            else:
+                if season is None:
+                    errors.append(
+                        f'The club has no Season "{result.season}". Add it on the Seasons sheet.'
+                    )
+                else:
+                    result.season_obj, result.season = season, season.name
 
         date = time = flag = None
         if not cells.get("date"):
@@ -304,7 +340,7 @@ def plan(club: Club, season: Season, rows: list[Row]) -> Plan:
 
         if date is not None and time is not None:
             result.kick_off = local_kick_off(date, time)
-            if not season.starts_on <= date <= season.ends_on:
+            if season is not None and not season.starts_on <= date <= season.ends_on:
                 errors.append(
                     f"{_day(date)} is outside the {season.name} Season "
                     f"({_day(season.starts_on)} to {_day(season.ends_on)})."
@@ -338,24 +374,38 @@ def plan(club: Club, season: Season, rows: list[Row]) -> Plan:
                 else:
                     result.division = result.division_obj.name
 
-        if result.division_obj is not None:
+        if result.division_obj is not None and season is not None:
+            division = result.division_obj
             for side in ("home", "away"):
-                name = getattr(result, side)
+                name = getattr(result, side).strip()
                 if not name:
                     continue
-                team = teams.get((result.division_obj.pk, name.strip().casefold()))
+                key = (season.pk, division.pk, name.casefold())
+                team = teams.get(key) or added.get(key)
                 if team is None:
-                    errors.append(f'{result.division} has no Team "{name}" in {season.name}.')
+                    problem = _cant_add(name, division, season, active, added)
+                    if problem:
+                        errors.append(problem)
+                        continue
+                    team = added[key] = Team(
+                        club=club,
+                        season=season,
+                        division=division,
+                        name=name,
+                        status=Team.Status.ACTIVE,
+                    )
+                    result.new_teams.append(name)
                 elif team.status != Team.Status.ACTIVE:
                     errors.append(f"{team.name} is still waiting for the Admin to confirm it.")
-                else:
-                    setattr(result, f"{side}_obj", team)
-                    setattr(result, side, team.name)
+                    continue
+                setattr(result, f"{side}_obj", team)
+                setattr(result, side, team.name)
 
         if errors:
             continue
 
-        key = (result.division_obj.pk, result.home_obj.pk, result.away_obj.pk, result.kick_off)
+        home, away = _ident(result.home_obj), _ident(result.away_obj)
+        key = (result.division_obj.pk, home, away, result.kick_off)
         if key in seen_fixture:
             errors.append(f"This Fixture is already on row {seen_fixture[key]}.")
             continue
@@ -376,7 +426,7 @@ def plan(club: Club, season: Season, rows: list[Row]) -> Plan:
             )
         seen_pitch.setdefault(pitch_key, row.number)
         for team in (result.home_obj, result.away_obj):
-            team_key = (team.pk, result.kick_off)
+            team_key = (_ident(team), result.kick_off)
             clash = team_busy.get(team_key)
             if clash is not None and clash.pk != own:
                 errors.append(f"{team.name} already plays at this kick-off.")
@@ -416,16 +466,44 @@ def plan(club: Club, season: Season, rows: list[Row]) -> Plan:
     return Plan(planned)
 
 
-def apply(club: Club, season: Season, import_plan: Plan, admin) -> None:
+def _cant_add(name: str, division: Division, season: Season, active: Counter, added: dict):
+    """Why the import can't add the Team `name`, or None. As when the Admin confirms a
+    request: the Division needs a league fee and room for another Team (teams.rules)."""
+    if len(name) > TEAM_NAME_MAX:
+        return f'Team "{name[:20]}..." is longer than {TEAM_NAME_MAX} characters.'
+    if division.effective_league_fee is None:
+        return (
+            f"The club hasn't set the league fee for {division.name}, so the import can't "
+            f"add {name}."
+        )
+    if division.max_teams is not None:
+        adding = sum(1 for s, d, _ in added if (s, d) == (season.pk, division.pk))
+        if active[(season.pk, division.pk)] + adding >= division.max_teams:
+            return (
+                f"{division.name} has all the Teams it takes in {season.name}, so the import "
+                f"can't add {name}."
+            )
+    return None
+
+
+def apply(club: Club, import_plan: Plan, admin) -> None:
     """Writes a plan with no errors. Call it in a transaction."""
     if import_plan.has_errors:
         raise ValueError("A plan with errors can't be applied.")
     now = timezone.now()
+    saved: dict = {}  # The Teams the import adds, saved, by _ident() before saving.
     for row in import_plan.rows:
+        for side in ("home_obj", "away_obj"):
+            team = getattr(row, side)
+            if team.pk is None:
+                ident = _ident(team)
+                if ident not in saved:
+                    saved[ident] = team_rules.add_team(team.season, team.division, team.name, admin)
+                setattr(row, side, saved[ident])
         if row.action == Action.CREATE:
             fixture = Fixture.objects.create(
                 club=club,
-                season=season,
+                season=row.season_obj,
                 division=row.division_obj,
                 pitch=row.pitch_obj,
                 kick_off=row.kick_off,
@@ -439,36 +517,3 @@ def apply(club: Club, season: Season, import_plan: Plan, admin) -> None:
             lifecycle.log_creation(fixture, cause=FixtureTransition.Cause.IMPORT, actor=admin)
         elif row.action == Action.UPDATE:
             lifecycle.set_friendly_eligible(row.existing, row.friendly_eligible, admin)
-
-
-def template_xlsx() -> bytes:
-    workbook = Workbook()
-    sheet = workbook.active
-    sheet.title = "Fixtures"
-    sheet.append([headers[0] for headers in COLUMNS.values()])
-    for row in TEMPLATE_ROWS:
-        sheet.append(list(row))
-    for cell in sheet[1]:
-        cell.font = Font(bold=True)
-    for letter, width in zip("ABCDEFGH", (12, 8, 12, 14, 12, 18, 18, 16), strict=True):
-        sheet.column_dimensions[letter].width = width
-
-    help_sheet = workbook.create_sheet("How to fill it in")
-    for row in TEMPLATE_HELP:
-        help_sheet.append(list(row))
-    help_sheet["A1"].font = help_sheet["B1"].font = Font(bold=True)
-    help_sheet.column_dimensions["A"].width = 18
-    help_sheet.column_dimensions["B"].width = 90
-
-    out = io.BytesIO()
-    workbook.save(out)
-    return out.getvalue()
-
-
-def template_csv() -> bytes:
-    out = io.StringIO()
-    writer = csv.writer(out)
-    writer.writerow([headers[0] for headers in COLUMNS.values()])
-    for row in TEMPLATE_ROWS:
-        writer.writerow(row)
-    return out.getvalue().encode("utf-8-sig")

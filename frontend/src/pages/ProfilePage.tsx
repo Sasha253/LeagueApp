@@ -12,6 +12,7 @@ import { ChoiceChip } from "../components/ChoiceChip";
 import { StatusChip } from "../components/StatusChip";
 import { WEEKDAYS_SHORT as WEEKDAYS } from "../format";
 import { onInboxChanged } from "../push/events";
+import { ClubShortcuts } from "./club/ClubShortcuts";
 import { POSITIONS } from "./positions";
 
 const ROLE_LABELS = { admin: "Admin", referee: "Referee" } as const;
@@ -195,6 +196,19 @@ export function ProfilePage() {
         </ul>
       )}
 
+      {me.is_superuser && (
+        <ul className="la-group">
+          <li>
+            <Link className="la-item la-item--link" to="/clubs">
+              <span className="la-item__body">
+                <span className="body-strong">All clubs</span>
+                <span className="caption la-muted">Open any club as its Admin</span>
+              </span>
+            </Link>
+          </li>
+        </ul>
+      )}
+
       {me.club_roles.length > 0 && (
         <section className="la-stack-2" aria-labelledby="club-roles">
           <h2 id="club-roles" className="la-overline">
@@ -207,77 +221,7 @@ export function ProfilePage() {
                   <span className="body-strong">{ROLE_LABELS[role.role]}</span>
                   <span className="caption la-muted">{role.club_name}</span>
                 </div>
-                {role.role === "referee" && (
-                  <span className="la-confirm">
-                    <Link
-                      className="la-btn la-btn--secondary la-btn--sm"
-                      to={`/clubs/${role.club_id}/scan`}
-                      aria-label={`Scan at ${role.club_name}`}
-                    >
-                      Scan
-                    </Link>
-                  </span>
-                )}
-                {role.role === "admin" && (
-                  <span className="la-confirm">
-                    <Link
-                      className="la-btn la-btn--secondary la-btn--sm"
-                      to={`/clubs/${role.club_id}/scan`}
-                      aria-label={`Scan at ${role.club_name}`}
-                    >
-                      Scan
-                    </Link>
-                    <Link
-                      className="la-btn la-btn--secondary la-btn--sm"
-                      to={`/clubs/${role.club_id}/tonight`}
-                      aria-label={`Tonight at ${role.club_name}`}
-                    >
-                      Tonight
-                    </Link>
-                    <Link
-                      className="la-btn la-btn--secondary la-btn--sm"
-                      to={`/clubs/${role.club_id}/fixtures`}
-                      aria-label={`Fixtures for ${role.club_name}`}
-                    >
-                      Fixtures
-                    </Link>
-                    <Link
-                      className="la-btn la-btn--secondary la-btn--sm"
-                      to={`/clubs/${role.club_id}/teams`}
-                      aria-label={`Team requests for ${role.club_name}`}
-                    >
-                      Team requests
-                    </Link>
-                    <Link
-                      className="la-btn la-btn--secondary la-btn--sm"
-                      to={`/clubs/${role.club_id}/bookings`}
-                      aria-label={`Bookings at ${role.club_name}`}
-                    >
-                      Bookings
-                    </Link>
-                    <Link
-                      className="la-btn la-btn--secondary la-btn--sm"
-                      to={`/clubs/${role.club_id}/payments`}
-                      aria-label={`Payments at ${role.club_name}`}
-                    >
-                      Payments
-                    </Link>
-                    <Link
-                      className="la-btn la-btn--secondary la-btn--sm"
-                      to={`/clubs/${role.club_id}/finances`}
-                      aria-label={`Finances for ${role.club_name}`}
-                    >
-                      Finances
-                    </Link>
-                    <Link
-                      className="la-btn la-btn--secondary la-btn--sm"
-                      to={`/clubs/${role.club_id}/setup`}
-                      aria-label={`Club setup for ${role.club_name}`}
-                    >
-                      Club setup
-                    </Link>
-                  </span>
-                )}
+                <ClubShortcuts clubId={role.club_id} clubName={role.club_name} role={role.role} />
               </li>
             ))}
           </ul>

@@ -33,7 +33,7 @@ from django.dispatch import receiver
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
-from accounts.models import ClubRole, User
+from accounts.models import User
 from clubs.models import Club, ClubSettings, Field
 from core.exceptions import Conflict
 from fixtures.models import Fixture
@@ -457,7 +457,7 @@ def reschedule(
 
 
 def is_admin(user: User, club_id: int) -> bool:
-    return user.club_roles.filter(club_id=club_id, role=ClubRole.Role.ADMIN).exists()
+    return user.is_club_admin(club_id)
 
 
 @transaction.atomic

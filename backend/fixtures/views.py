@@ -24,10 +24,18 @@ from accounts.permissions import IsPlayer
 from clubs.models import Club
 from clubs.views import XLSX, ClubAdminMixin
 from core.exceptions import Conflict
-from core.tables import TableError, read_table
+from core.tables import TableError, read_workbook
 from teams.models import Team, TeamMembership
 
-from . import borrowing, confirmations, friendlies, imports, lifecycle, readiness, reschedules
+from . import (
+    borrowing,
+    confirmations,
+    friendlies,
+    league_import,
+    lifecycle,
+    readiness,
+    reschedules,
+)
 from .friendly_serializers import (
     FriendlyCashSerializer,
     FriendlySerializer,
@@ -55,9 +63,9 @@ from .serializers import (
     CaptainRequestSerializer,
     ClubCaptainRequestSerializer,
     FixtureAnswerSerializer,
-    FixtureImportResultSerializer,
-    FixtureImportUploadSerializer,
     FriendlyEligibleSerializer,
+    LeagueImportResultSerializer,
+    LeagueImportUploadSerializer,
     MatchPlayerRequestsSerializer,
     MatchRequestsSerializer,
     MyFixtureSerializer,
@@ -74,7 +82,7 @@ from .serializers import (
 )
 
 PAST_LIMIT = 50
-IMPORT_RACE = "The Fixtures changed while importing. Upload the file again."
+IMPORT_RACE = "The club's league changed while importing. Upload the file again."
 
 
 def fixtures() -> QuerySet[Fixture]:
@@ -674,81 +682,75 @@ class ClubCaptainRequestViewSet(ClubAdminMixin, mixins.ListModelMixin, viewsets.
         return self.answer(captain_request)
 
 
-class FixtureImportView(ClubAdminMixin, generics.GenericAPIView):
-    """Reads the uploaded file and plans the import of a Season's Fixtures (FR-53)."""
+class LeagueImportView(ClubAdminMixin, generics.GenericAPIView):
+    """Reads the uploaded workbook and runs the league import: Seasons, Nights and Divisions,
+    and Fixtures (FR-39, FR-53). Each sheet is checked against what the ones before it add,
+    so the import writes as it goes, in a transaction that is rolled back unless it commits."""
 
-    serializer_class = FixtureImportUploadSerializer
+    serializer_class = LeagueImportUploadSerializer
     parser_classes = [MultiPartParser]
 
-    def plan(self, request) -> tuple[imports.Plan, object]:
+    def run(self, request, *, commit: bool):
         upload = self.get_serializer(data=request.data)
         upload.is_valid(raise_exception=True)
-        season = upload.validated_data["season"]
         try:
-            rows = read_table(upload.validated_data["file"], imports.COLUMNS, imports.REQUIRED)
+            sheets = read_workbook(upload.validated_data["file"], league_import.SHEETS)
         except TableError as error:
             raise ValidationError({"file": [str(error)]}) from error
-        return imports.plan(self.club, season, rows), season
-
-    def answer(self, import_plan: imports.Plan, *, committed: bool, code=status.HTTP_200_OK):
-        body = {"committed": committed, "summary": import_plan.summary, "rows": import_plan.rows}
-        return Response(FixtureImportResultSerializer(body).data, status=code)
-
-
-class FixtureImportPreviewView(FixtureImportView):
-    @extend_schema(
-        summary="Preview an import of a Season's Fixtures",
-        description="Checks every row and says what the import would do. Writes nothing.",
-        responses={200: FixtureImportResultSerializer},
-    )
-    def post(self, request, *args, **kwargs):
-        import_plan, _season = self.plan(request)
-        return self.answer(import_plan, committed=False)
-
-
-class FixtureImportCommitView(FixtureImportView):
-    @extend_schema(
-        summary="Import a Season's Fixtures",
-        description=(
-            "Checks the file again and saves every row in one transaction. If any row has "
-            "an error, nothing is saved and the answer is 400 with the rows and their errors."
-        ),
-        responses={200: FixtureImportResultSerializer, 400: FixtureImportResultSerializer},
-    )
-    def post(self, request, *args, **kwargs):
         try:
             with transaction.atomic():
-                # One import per Club at a time; plan again inside, so it sees the latest.
+                # One import per Club at a time.
                 Club.objects.select_for_update().get(pk=self.club.pk)
-                import_plan, season = self.plan(request)
-                if import_plan.has_errors:
-                    return self.answer(
-                        import_plan, committed=False, code=status.HTTP_400_BAD_REQUEST
-                    )
-                imports.apply(self.club, season, import_plan, request.user)
+                outcome = league_import.run(self.club, sheets, request.user)
+                committed = commit and not outcome.has_errors
+                if not committed:
+                    transaction.set_rollback(True)
         except IntegrityError as error:
             raise Conflict(IMPORT_RACE) from error
-        return self.answer(import_plan, committed=True)
+        body = {
+            "committed": committed,
+            "summary": outcome.summary,
+            "seasons": outcome.seasons.rows,
+            "divisions": outcome.divisions.rows,
+            "fixtures": outcome.fixtures.rows,
+        }
+        code = status.HTTP_400_BAD_REQUEST if commit and not committed else status.HTTP_200_OK
+        return Response(LeagueImportResultSerializer(body).data, status=code)
 
 
-class FixtureImportTemplateView(ClubAdminMixin, generics.GenericAPIView):
+class LeagueImportPreviewView(LeagueImportView):
     @extend_schema(
-        summary="Download the Fixtures import template",
-        parameters=[
-            OpenApiParameter("file_type", enum=["xlsx", "csv"], default="xlsx", required=False)
-        ],
-        responses={
-            (200, XLSX): OpenApiResponse(OpenApiTypes.BINARY),
-            (200, "text/csv"): OpenApiResponse(OpenApiTypes.BINARY),
-        },
+        summary="Preview a league import",
+        description="Checks every row of every sheet and says what the import would do. "
+        "Saves nothing.",
+        responses={200: LeagueImportResultSerializer},
+    )
+    def post(self, request, *args, **kwargs):
+        return self.run(request, commit=False)
+
+
+class LeagueImportCommitView(LeagueImportView):
+    @extend_schema(
+        summary="Import Seasons, Nights and Divisions, and Fixtures",
+        description=(
+            "Checks the workbook again and saves every row of every sheet in one transaction. "
+            "If any row has an error, nothing is saved and the answer is 400 with the rows "
+            "and their errors."
+        ),
+        responses={200: LeagueImportResultSerializer, 400: LeagueImportResultSerializer},
+    )
+    def post(self, request, *args, **kwargs):
+        return self.run(request, commit=True)
+
+
+class LeagueImportTemplateView(ClubAdminMixin, generics.GenericAPIView):
+    @extend_schema(
+        summary="Download the league import template",
+        responses={(200, XLSX): OpenApiResponse(OpenApiTypes.BINARY)},
     )
     def get(self, request, *args, **kwargs):
-        if request.query_params.get("file_type") == "csv":
-            body, content_type, name = imports.template_csv(), "text/csv", "csv"
-        else:
-            body, content_type, name = imports.template_xlsx(), XLSX, "xlsx"
-        response = HttpResponse(body, content_type=content_type)
-        response["Content-Disposition"] = f'attachment; filename="fixtures.{name}"'
+        response = HttpResponse(league_import.template_xlsx(), content_type=XLSX)
+        response["Content-Disposition"] = 'attachment; filename="league-import.xlsx"'
         return response
 
 

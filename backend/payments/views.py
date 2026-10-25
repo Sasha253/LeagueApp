@@ -20,7 +20,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from accounts.models import ClubRole, User
+from accounts.models import User
 from accounts.permissions import IsClubAdmin, IsPlayer
 from clubs.models import PaymentProvider
 from ledger import services as ledger
@@ -90,7 +90,7 @@ class TeamPaymentSummaryView(APIView):
         team = team_or_404(team_id)
         user = request.user
         is_captain = user.is_player and team.captain_id == user.pk
-        is_admin = user.club_roles.filter(club_id=team.club_id, role=ClubRole.Role.ADMIN).exists()
+        is_admin = user.is_club_admin(team.club_id)
         if not (is_captain or is_admin):
             raise NotFound()
         balance = ledger.team_balance(team)
@@ -184,9 +184,7 @@ class CashPaymentView(APIView):
     @extend_schema(request=CashPaymentSerializer, responses={201: LedgerEntrySerializer})
     def post(self, request, team_id: int):
         team = team_or_404(team_id)
-        is_admin = request.user.club_roles.filter(
-            club_id=team.club_id, role=ClubRole.Role.ADMIN
-        ).exists()
+        is_admin = request.user.is_club_admin(team.club_id)
         if not is_admin:
             raise NotFound()
         body = CashPaymentSerializer(data=request.data)

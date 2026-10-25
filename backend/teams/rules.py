@@ -131,6 +131,33 @@ def confirm_team(team: Team, admin) -> Team:
 
 
 @transaction.atomic
+def add_team(season: Season, division: Division, name: str, admin) -> Team:
+    """The Admin adds a confirmed Team with no Captain and no Players, as the league import
+    does for a Team its Fixtures name (docs/DECISIONS.md). The first Player to ask to join it
+    is its Captain. Like confirming a request, it counts against the Division's `max_teams`
+    and charges the league fee."""
+    if division.get_club_id() != season.club_id:
+        raise ValidationError({"division": [OTHER_CLUB]})
+    if division.effective_league_fee is None:
+        raise ValidationError({"division": [NO_LEAGUE_FEE]})
+    division = Division.objects.select_for_update().get(pk=division.pk)
+    if _is_full(division, season.pk):
+        raise Conflict(DIVISION_FULL)
+    now = timezone.now()
+    team = Team.objects.create(
+        club_id=season.club_id,
+        season=season,
+        division=division,
+        name=name,
+        status=Team.Status.ACTIVE,
+        decided_by=admin,
+        decided_at=now,
+    )
+    ledger.charge_league_fee(team, recorded_by=admin)
+    return team
+
+
+@transaction.atomic
 def decline_team(team: Team, admin, reason: str = "") -> Team:
     """Declines a Team request. Its Players leave it, so they can join or request another."""
     team = _lock_team(team)
@@ -163,6 +190,8 @@ def assign_captain(team: Team, player) -> Team:
 
 @transaction.atomic
 def ask_to_join(team: Team, player) -> JoinRequest:
+    """A Player asks to join a Team. A Team with no Captain and no Players (one the Admin
+    added) takes the first Player at once, as its Captain: the request comes back accepted."""
     _lock_player(player)
     team = _lock_team(team)
     if team.status != Team.Status.ACTIVE:
@@ -175,7 +204,12 @@ def ask_to_join(team: Team, player) -> JoinRequest:
         raise Conflict(ALREADY_ASKED)
     if _in_another_team(player, team.season_id, team.division_id):
         raise Conflict(ALREADY_IN_DIVISION)
-    return JoinRequest.objects.create(team=team, player=player)
+    join_request = JoinRequest.objects.create(team=team, player=player)
+    if team.captain_id is None and not team.current_memberships().exists():
+        _take_in(join_request, team, by=player)
+        team.captain = player
+        team.save(update_fields=["captain"])
+    return join_request
 
 
 def _lock_pending(join_request: JoinRequest) -> JoinRequest:
@@ -205,7 +239,13 @@ def accept_join(join_request: JoinRequest, captain) -> TeamMembership:
         raise Conflict(SEASON_ENDED)
     if _in_another_team(player, team.season_id, team.division_id, team):
         raise Conflict(PLAYER_IN_DIVISION)
-    _answer(join_request, JoinRequest.Status.ACCEPTED, captain)
+    return _take_in(join_request, team, by=captain)
+
+
+def _take_in(join_request: JoinRequest, team: Team, by) -> TeamMembership:
+    """Accepts the request and withdraws the Player's other ones in this Division."""
+    player = join_request.player
+    _answer(join_request, JoinRequest.Status.ACCEPTED, by)
     JoinRequest.objects.filter(
         player=player,
         status=JoinRequest.Status.PENDING,

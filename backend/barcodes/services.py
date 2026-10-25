@@ -37,7 +37,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.utils import timezone
 
-from accounts.models import ClubRole, User
+from accounts.models import User
 from bookings import money as booking_money
 from bookings.models import Booking
 from clubs.models import Club, PaymentMode
@@ -766,10 +766,7 @@ def scan(
     match = fixture
     if barcode is None:
         status = Status(State.NOT_FOUND, "No Barcode has this code.")
-    elif (
-        barcode.booking_id is not None
-        and not by.club_roles.filter(club=club, role=ClubRole.Role.ADMIN).exists()
-    ):
+    elif barcode.booking_id is not None and not by.is_club_admin(club.pk):
         status = Status(State.ADMINS_ONLY, "Only an Admin checks a booking's Barcode.")
     else:
         status = status_of(barcode)

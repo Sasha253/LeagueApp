@@ -29,19 +29,19 @@ club_router.register(
 
 club_urlpatterns = [
     path(
-        "imports/fixtures/preview/",
-        views.FixtureImportPreviewView.as_view(),
-        name="club-import-fixtures-preview",
+        "imports/league/preview/",
+        views.LeagueImportPreviewView.as_view(),
+        name="club-import-league-preview",
     ),
     path(
-        "imports/fixtures/commit/",
-        views.FixtureImportCommitView.as_view(),
-        name="club-import-fixtures-commit",
+        "imports/league/commit/",
+        views.LeagueImportCommitView.as_view(),
+        name="club-import-league-commit",
     ),
     path(
-        "imports/fixtures/template/",
-        views.FixtureImportTemplateView.as_view(),
-        name="club-import-fixtures-template",
+        "imports/league/template/",
+        views.LeagueImportTemplateView.as_view(),
+        name="club-import-league-template",
     ),
     path("tonight/", views.TonightView.as_view(), name="club-tonight"),
     path(

@@ -33,7 +33,10 @@ class ClubRoleSerializer(serializers.ModelSerializer):
 
 
 class MeSerializer(serializers.ModelSerializer):
-    """The signed-in user. `player` is null when the user is not a Player."""
+    """The signed-in user. `player` is null when the user is not a Player.
+
+    `is_superuser` is true for us, who run the app: we can open every Club as its Admin.
+    """
 
     player = PlayerProfileSerializer(source="player_profile", allow_null=True, required=False)
     club_roles = ClubRoleSerializer(many=True, read_only=True)
@@ -52,8 +55,9 @@ class MeSerializer(serializers.ModelSerializer):
             "player",
             "club_roles",
             "captain_of",
+            "is_superuser",
         ]
-        read_only_fields = ["id", "email"]
+        read_only_fields = ["id", "email", "is_superuser"]
 
     def get_captain_of(self, user: User) -> list[int]:
         if user.pk is None:
@@ -112,7 +116,7 @@ class RegisterSerializer(MeSerializer):
 
     class Meta(MeSerializer.Meta):
         fields = [*MeSerializer.Meta.fields, "password"]
-        read_only_fields = ["id"]
+        read_only_fields = ["id", "is_superuser"]
         extra_kwargs = {"email": {"validators": []}}
 
     def validate_email(self, value: str) -> str:

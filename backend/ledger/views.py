@@ -14,7 +14,6 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from accounts.models import ClubRole
 from accounts.permissions import IsPlayer
 from clubs.models import Club
 from teams.models import Team
@@ -85,7 +84,7 @@ class TeamBalanceView(APIView):
         team = team_or_404(team_id)
         user = request.user
         is_captain = user.is_player and team.captain_id == user.pk
-        is_admin = user.club_roles.filter(club_id=team.club_id, role=ClubRole.Role.ADMIN).exists()
+        is_admin = user.is_club_admin(team.club_id)
         if not (is_captain or is_admin):
             raise NotFound()
         balance = services.team_balance(team)
