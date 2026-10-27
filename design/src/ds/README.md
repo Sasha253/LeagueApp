@@ -45,7 +45,7 @@ League App is the mobile app for social football leagues: Players confirm they a
 
 - No brand icon set exists yet. Use **Lucide** outline icons, 24px (`icon-md`), 2px stroke, round caps, coloured with the text token beside them. Flagged substitution: replace if a brand set is made.
 - Core icons: check (confirmed), clock (pending), x (cancelled), calendar-clock (rescheduled), users (team), shirt (player), hand (goalkeeper request), credit-card (pay), scan-line (scan), ticket (barcode), map-pin (pitch), bell (notifications).
-- No logo yet: set "League App" in `title-2` and note the gap; never draw a club crest.
+- Logo, "Kick-off stripes": two forward-leaning bars (lead bar `accent-ink`, second bar `ink`) and "LEAGUE APP" in `font-display` 700 italic capitals, `ink`. The mark is as tall as the wordmark's line, a `space-3` gap between. App icon: the bars alone, `accent` then `ink`, on the Night `ground`; the bars in `on-accent` on an `accent` tile is the alternate. Never draw a club crest.
 
 ## States and motion
 

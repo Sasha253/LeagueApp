@@ -25,7 +25,7 @@ export function canvas() {
         'ListGroup and ListRow (lead disc or avatar, title, caption, trailing chip or control)', 'Avatar (initials)', 'IconButton (48 × 48, always labelled)', 'Banner (strong colour on its -soft tint)',
         'ChoiceChip (filters, Nights, time slots, dropdown filters)', 'SegmentedControl', 'Radio and Checkbox marks', 'Stepper (people, hours)', 'TextField and code field',
         'BottomSheet with scrim', 'Status hero (large disc and title for result states)', 'Scan result panel (Paid / Not paid)', 'DayStrip date picker and slot grid',
-        'Scanner viewfinder (frame, sweep line, torch)', 'EmptyState recipe', 'Lock screen and push notification (mock OS surface; also needs an app icon, no logo exists yet)',
+        'Scanner viewfinder (frame, sweep line, torch)', 'EmptyState recipe', 'Lock screen and push notification (mock OS surface; app icon is the Kick-off stripes mark)',
       ], false)),
     ],
     rows: [

@@ -173,3 +173,9 @@
    links, underlined so it never relies on colour alone. */
 .la-link { color: var(--accent-ink); text-decoration: underline; text-underline-offset: 2px; }
 .la-link:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+/* Logo, "Kick-off stripes" (frontend/src/components/Logo.tsx): the two-bar mark as tall as
+   the wordmark's line, then the wordmark in display capitals, slanted to match the bars. */
+.la-logo { display: inline-flex; align-items: center; gap: var(--space-3); color: var(--ink); }
+.la-logo__mark { height: 1em; width: auto; flex: none; }
+.la-logo__word { font-family: var(--font-display); font-weight: 700; font-style: italic; text-transform: uppercase; letter-spacing: -0.01em; }

@@ -64,7 +64,7 @@ docs/STORE_RELEASE.md.
   pitch outline in `accent` on the Night `ground`, no text and no crest, drawn from the
   tokens by `frontend/scripts/app-assets.mjs` (`npm run assets`). Splash: the same mark,
   small, on `ground` (iOS launch screen background, Android 12+ splash colour). Replace
-  the mark when a brand one is made.
+  the mark when a brand one is made. *Superseded 2026-10-27: see "Logo" below.*
 - **Version and build (provisional, unattended run):** `frontend/release.json` holds the
   version ("1.0.0") and one build number for both stores (iOS CURRENT_PROJECT_VERSION,
   Android versionCode). Profile and the privacy screen show "Version 1.0.0 (1)".
@@ -884,3 +884,16 @@ Raised by the multi-club decision (2026-10-23). Questions 3 and 4 were answered 
    (Provisionally answered in chunk 18: either works by configuration; a default account
    and optional per-club accounts, all from the environment.)
 6. Does a Player's credit (FR-52) belong to one club, or can it be spent at any club?
+
+## 2026-10-27: Logo, "Kick-off stripes"
+
+- **Logo (chosen by the owner, option 1d):** two forward-leaning bars, like kit stripes or a
+  "vs" slash, with an italic wordmark. In the app the lead bar is `accent-ink` and the second
+  `ink`, the wordmark "LEAGUE APP" in `font-display` 700 italic capitals, `ink`, so it reads
+  in Night and Day. The fonts ship no italic, so the slant is the browser's synthetic oblique.
+- **App icon and splash:** the bars alone, `accent` then `ink`, on the Night `ground`,
+  drawn by `frontend/scripts/app-assets.mjs` (`npm run assets`); they replace the pitch
+  outline. The mark fills 44% of a square icon, as in the logo's app-icon tile.
+- **Proposed component** (`frontend/src/styles/proposed.css`): Logo (`.la-logo`,
+  `frontend/src/components/Logo.tsx`), shown on Home in place of the plain "League App"
+  title. The design canvas's push-notification app icon uses the same mark.
