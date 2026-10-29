@@ -1,0 +1,124 @@
+# Deploy to VM: on every push to main (or by hand), run the backend and frontend tests,
+# then ship that commit to the VM over SSH and start it with docker compose
+# (deploy/deploy.sh). Setup, secrets and variables: docs/DEPLOY.md.
+name: Deploy to VM
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deploy at a time; a newer push waits rather than cancelling one half done.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  backend:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: leagueapp
+          POSTGRES_USER: leagueapp
+          POSTGRES_PASSWORD: leagueapp
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U leagueapp -d leagueapp"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DJANGO_SECRET_KEY: ci-only-not-secret
+      DATABASE_URL: postgres://leagueapp:leagueapp@127.0.0.1:5432/leagueapp
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements/*.txt
+      - run: pip install -r backend/requirements/dev.txt
+      - run: python -m ruff check backend
+      - run: python -m ruff format --check backend
+      - run: python -m pytest backend
+
+  frontend:
+    name: Frontend tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+  deploy:
+    name: Deploy
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://${{ vars.SITE_DOMAIN }}
+    env:
+      APP_DIR: ${{ vars.VM_APP_DIR || 'leagueapp' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up SSH
+        env:
+          SSH_KEY: ${{ secrets.VM_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.VM_SSH_KNOWN_HOSTS }}
+          HOST: ${{ secrets.VM_HOST }}
+          USER: ${{ secrets.VM_USER }}
+          PORT: ${{ vars.VM_SSH_PORT || '22' }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/vm_key
+          chmod 600 ~/.ssh/vm_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          cat > ~/.ssh/config <<CONFIG
+          Host vm
+            HostName $HOST
+            User $USER
+            Port $PORT
+            IdentityFile ~/.ssh/vm_key
+            IdentitiesOnly yes
+            StrictHostKeyChecking yes
+          CONFIG
+
+      # Unpack this commit as the new release beside the VM's .env, then build and start it.
+      # The running containers keep serving until deploy/deploy.sh brings up the new ones.
+      - name: Ship and start
+        run: |
+          git archive --format=tar.gz -o release.tar.gz HEAD
+          ssh vm "mkdir -p '$APP_DIR'"
+          scp release.tar.gz "vm:$APP_DIR/release.tar.gz"
+          ssh vm "APP_DIR='$APP_DIR' sh -s" <<'REMOTE'
+          set -eu
+          cd "$APP_DIR"
+          test -f .env || { echo "Missing $APP_DIR/.env on the VM (docs/DEPLOY.md)"; exit 1; }
+          rm -rf src.new && mkdir src.new
+          tar -xzf release.tar.gz -C src.new
+          rm release.tar.gz
+          ln -s ../.env src.new/.env
+          rm -rf src.old
+          if [ -d src ]; then mv src src.old; fi
+          mv src.new src
+          sh src/deploy/deploy.sh
+          REMOTE
+
+      - name: Check health
+        run: >-
+          curl --fail --silent --show-error --retry 12 --retry-delay 5 --retry-all-errors
+          "https://${{ vars.SITE_DOMAIN }}/api/v1/health/"

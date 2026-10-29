@@ -17,6 +17,9 @@ export function AllClubsPage() {
         </Link>
         <h1 className="title-1">All clubs</h1>
       </div>
+      <Link className="la-btn la-btn--secondary la-btn--block" to="/clubs/new">
+        Add a club
+      </Link>
       <LoadState result={clubs} retry={retry} what="clubs" forbidden="Only a superuser can see every club.">
         {(list) =>
           list.length === 0 ? (

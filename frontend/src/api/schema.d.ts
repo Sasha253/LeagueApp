@@ -87,6 +87,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/test-users/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The test users a superuser can sign in as (superuser only). */
+        get: operations["auth_test_users_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/test-users/{id}/login/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Signs a superuser in as a test user: answers with that user's tokens. */
+        post: operations["auth_test_users_login_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/barcodes/{barcode_id}/revoke/": {
         parameters: {
             query?: never;
@@ -188,10 +222,17 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Every Club in the app, for a superuser choosing which Club to open. */
+        /**
+         * @description Every Club in the app, for a superuser choosing which Club to open. A superuser also
+         *     adds Clubs here, each with its first Admin (docs/DECISIONS.md).
+         */
         get: operations["clubs_list"];
         put?: never;
-        post?: never;
+        /**
+         * @description Every Club in the app, for a superuser choosing which Club to open. A superuser also
+         *     adds Clubs here, each with its first Admin (docs/DECISIONS.md).
+         */
+        post: operations["clubs_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -662,10 +703,14 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description The club's Fixtures, by kick-off. The Admin can mark one friendly-eligible. */
+        /** @description The club's Fixtures, by kick-off. The Admin adds one, or marks one friendly-eligible. */
         get: operations["clubs_fixtures_list"];
         put?: never;
-        post?: never;
+        /**
+         * Add a Fixture
+         * @description Scheduled, between two active Teams of the Division this Season, checked as a row of the league import: on the Division's Night, inside the Season, still to come, and its pitch and both Teams free at that kick-off (400 otherwise, the reasons in `non_field_errors`). The timed checkpoints pick it up like any Fixture.
+         */
+        post: operations["clubs_fixtures_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -679,7 +724,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description The club's Fixtures, by kick-off. The Admin can mark one friendly-eligible. */
+        /** @description The club's Fixtures, by kick-off. The Admin adds one, or marks one friendly-eligible. */
         get: operations["clubs_fixtures_retrieve"];
         put?: never;
         post?: never;
@@ -1060,6 +1105,44 @@ export interface paths {
         patch: operations["clubs_settings_partial_update"];
         trace?: never;
     };
+    "/api/v1/clubs/{club_id}/team-invites/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Invites by email to play in one of the club's Teams. Lists and cancels open ones. */
+        get: operations["clubs_team_invites_list"];
+        put?: never;
+        /**
+         * Invite someone to play in a Team
+         * @description A Player with this email joins at once (`accepted` true) and gets an Update if they opted into the Night; 400 if they're in another Team of the Division this Season. Anyone else gets an email and joins when they sign up, or start playing, with it. 409 when the Team isn't active or its Season has ended.
+         */
+        post: operations["clubs_team_invites_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{club_id}/team-invites/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** @description Invites by email to play in one of the club's Teams. Lists and cancels open ones. */
+        delete: operations["clubs_team_invites_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clubs/{club_id}/team-payments/": {
         parameters: {
             query?: never;
@@ -1084,10 +1167,17 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description The club's Teams and Team requests. Confirm or decline a request, assign a Captain. */
+        /**
+         * @description The club's Teams and Team requests. Add a Team, confirm or decline a request, assign a
+         *     Captain.
+         */
         get: operations["clubs_teams_list"];
         put?: never;
-        post?: never;
+        /**
+         * Add a Team
+         * @description Confirmed at once, with its Captain in it: a Player in League App with `captain_email` (400 if there is none, or they're in another Team of the Division this Season). Needs the Division's league fee and charges it; 409 when the Division already has `max_teams` active Teams this Season. The Captain gets an Update if they opted into the Night.
+         */
+        post: operations["clubs_teams_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1101,7 +1191,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description The club's Teams and Team requests. Confirm or decline a request, assign a Captain. */
+        /**
+         * @description The club's Teams and Team requests. Add a Team, confirm or decline a request, assign a
+         *     Captain.
+         */
         get: operations["clubs_teams_retrieve"];
         put?: never;
         post?: never;
@@ -2214,6 +2307,32 @@ export interface components {
              *     * `open` - Open
              */
             readonly action: components["schemas"]["NotificationActionEnum"];
+        };
+        /** @description One Fixture the Admin adds (fixtures/adding.py). */
+        AddFixtureRequest: {
+            season: number;
+            division: number;
+            pitch: number;
+            home_team: number;
+            away_team: number;
+            /**
+             * Format: date-time
+             * @description The kick-off, with its offset (South African time is +02:00).
+             */
+            kick_off: string;
+            /** @default false */
+            friendly_eligible: boolean;
+        };
+        /** @description A Team the Admin adds, confirmed, with its Captain. */
+        AddTeamRequest: {
+            season: number;
+            division: number;
+            name: string;
+            /**
+             * Format: email
+             * @description The Captain: a Player in League App with this email. Required.
+             */
+            captain_email: string;
         };
         /** @description A Team's Barcode as an Admin of its Club sees it: whether it is valid, and why not. */
         AdminBarcode: {
@@ -3615,6 +3734,8 @@ export interface components {
              * @description Designates that this user has all permissions without explicitly assigning them.
              */
             readonly is_superuser: boolean;
+            /** @description No password: only a superuser can sign in as this user. */
+            readonly is_test_account: boolean;
         };
         /** @description A Player in a Team. */
         Member: {
@@ -3698,6 +3819,20 @@ export interface components {
         Named: {
             readonly id: number;
             readonly name: string;
+        };
+        /** @description A new Club, made by a superuser, and the email of its first Admin. */
+        NewClub: {
+            readonly id: number;
+            name: string;
+        };
+        /** @description A new Club, made by a superuser, and the email of its first Admin. */
+        NewClubRequest: {
+            name: string;
+            /**
+             * Format: email
+             * @description Gets the Admin role at once if they have an account, else when they sign up.
+             */
+            admin_email: string;
         };
         Night: {
             readonly id: number;
@@ -4603,6 +4738,29 @@ export interface components {
             readonly entries: components["schemas"]["LedgerEntry"][];
             readonly team: components["schemas"]["Named"];
         };
+        /**
+         * @description The Admin's invite to play in a Team. `accepted` is true once they are in it: at once
+         *     for someone who already plays, otherwise when they sign up or start playing.
+         */
+        TeamInvite: {
+            readonly id: number;
+            team: number;
+            readonly team_name: string;
+            /** Format: email */
+            email: string;
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly accepted: boolean;
+        };
+        /**
+         * @description The Admin's invite to play in a Team. `accepted` is true once they are in it: at once
+         *     for someone who already plays, otherwise when they sign up or start playing.
+         */
+        TeamInviteRequest: {
+            team: number;
+            /** Format: email */
+            email: string;
+        };
         TeamLedger: {
             readonly team: components["schemas"]["Named"];
             readonly season: components["schemas"]["Named"];
@@ -4722,6 +4880,15 @@ export interface components {
          * @enum {string}
          */
         TeamStatusEnum: "requested" | "active" | "declined";
+        /** @description A test user, for the superuser's Log in as list. */
+        Tester: {
+            readonly id: number;
+            name: string;
+            /** Format: email */
+            email: string;
+            /** @description What the user is, e.g. Admin at a Club. */
+            readonly roles: string[];
+        };
         TokenBlacklistRequest: {
             refresh: string;
         };
@@ -4946,6 +5113,46 @@ export interface operations {
             };
         };
     };
+    auth_test_users_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Tester"][];
+                };
+            };
+        };
+    };
+    auth_test_users_login_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Registered"];
+                };
+            };
+        };
+    };
     barcodes_revoke_create: {
         parameters: {
             query?: never;
@@ -5075,6 +5282,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClubSummary"][];
+                };
+            };
+        };
+    };
+    clubs_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewClubRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["NewClubRequest"];
+                "multipart/form-data": components["schemas"]["NewClubRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NewClub"];
                 };
             };
         };
@@ -5831,6 +6063,39 @@ export interface operations {
             };
         };
     };
+    clubs_fixtures_create: {
+        parameters: {
+            query?: {
+                division?: number;
+                night?: number;
+                /** @description Without it, Seasons that haven't ended. */
+                season?: number;
+                status?: "both_teams_out" | "cancelled" | "confirming" | "friendly" | "one_team_out" | "played" | "ready" | "replacement_offered" | "scheduled";
+            };
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddFixtureRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["AddFixtureRequest"];
+                "multipart/form-data": components["schemas"]["AddFixtureRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminFixtureDetail"];
+                };
+            };
+        };
+    };
     clubs_fixtures_retrieve: {
         parameters: {
             query?: {
@@ -6574,6 +6839,76 @@ export interface operations {
             };
         };
     };
+    clubs_team_invites_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamInvite"][];
+                };
+            };
+        };
+    };
+    clubs_team_invites_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeamInviteRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["TeamInviteRequest"];
+                "multipart/form-data": components["schemas"]["TeamInviteRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamInvite"];
+                };
+            };
+        };
+    };
+    clubs_team_invites_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                club_id: number;
+                /** @description A unique integer value identifying this team invite. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     clubs_team_payments_list: {
         parameters: {
             query?: {
@@ -6619,6 +6954,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AdminTeam"][];
+                };
+            };
+        };
+    };
+    clubs_teams_create: {
+        parameters: {
+            query?: {
+                division?: number;
+                season?: number;
+                status?: "active" | "declined" | "requested";
+            };
+            header?: never;
+            path: {
+                club_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddTeamRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["AddTeamRequest"];
+                "multipart/form-data": components["schemas"]["AddTeamRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminTeam"];
                 };
             };
         };

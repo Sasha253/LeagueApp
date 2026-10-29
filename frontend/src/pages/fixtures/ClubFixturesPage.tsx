@@ -49,7 +49,7 @@ export function ClubFixturesPage() {
 
   return (
     <main className="la-screen">
-      <ScreenHeader title="Fixtures" back={{ label: "Profile", to: "/profile" }} caption={clubName} />
+      <ScreenHeader title="Fixtures" back={{ label: "Club home", to: `/clubs/${clubId}` }} caption={clubName} />
       <div className="la-actions">
         <Link className="la-btn la-btn--secondary" to={`/clubs/${clubId}/setup/import`}>
           Import fixtures

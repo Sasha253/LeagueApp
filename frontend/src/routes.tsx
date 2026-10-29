@@ -4,8 +4,11 @@ import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { SignUpPage } from "./pages/SignUpPage";
+import { TestUsersPage } from "./pages/TestUsersPage";
 import { PrivacyPage } from "./pages/legal/PrivacyPage";
+import { AddClubPage } from "./pages/club/AddClubPage";
 import { AllClubsPage } from "./pages/club/AllClubsPage";
+import { ClubHomePage } from "./pages/club/ClubHomePage";
 import { ClubSettingsPage } from "./pages/club/ClubSettingsPage";
 import { ClubSetupPage } from "./pages/club/ClubSetupPage";
 import { FieldsPage } from "./pages/club/FieldsPage";
@@ -13,6 +16,7 @@ import { ImportLeaguePage } from "./pages/club/ImportLeaguePage";
 import { NightsPage } from "./pages/club/NightsPage";
 import { PeoplePage } from "./pages/club/PeoplePage";
 import { SeasonsPage } from "./pages/club/SeasonsPage";
+import { AddFixturePage } from "./pages/fixtures/AddFixturePage";
 import { ClubFixturePage } from "./pages/fixtures/ClubFixturePage";
 import { ClubFixturesPage } from "./pages/fixtures/ClubFixturesPage";
 import { ClubRequestsPage } from "./pages/fixtures/ClubRequestsPage";
@@ -21,6 +25,8 @@ import { FixtureRequestPage } from "./pages/fixtures/FixtureRequestPage";
 import { MyFixturesPage } from "./pages/fixtures/MyFixturesPage";
 import { RequestPlayerPage } from "./pages/fixtures/RequestPlayerPage";
 import { TonightPage } from "./pages/fixtures/TonightPage";
+import { AddTeamPage } from "./pages/teams/AddTeamPage";
+import { InvitePlayerPage } from "./pages/teams/InvitePlayerPage";
 import { ClubTeamPage } from "./pages/teams/ClubTeamPage";
 import { ClubTeamsPage } from "./pages/teams/ClubTeamsPage";
 import { FindTeamPage } from "./pages/teams/FindTeamPage";
@@ -67,6 +73,9 @@ const screens: RouteObject[] = [
     children: [
       { path: "/profile", element: <ProfilePage /> },
       { path: "/clubs", element: <AllClubsPage /> },
+      { path: "/clubs/new", element: <AddClubPage /> },
+      { path: "/clubs/:clubId", element: <ClubHomePage /> },
+      { path: "/test-users", element: <TestUsersPage /> },
       { path: "/clubs/:clubId/setup", element: <ClubSetupPage /> },
       { path: "/clubs/:clubId/setup/settings", element: <ClubSettingsPage /> },
       { path: "/clubs/:clubId/setup/seasons", element: <SeasonsPage /> },
@@ -75,9 +84,12 @@ const screens: RouteObject[] = [
       { path: "/clubs/:clubId/setup/fields", element: <FieldsPage /> },
       { path: "/clubs/:clubId/setup/people", element: <PeoplePage /> },
       { path: "/clubs/:clubId/teams", element: <ClubTeamsPage /> },
+      { path: "/clubs/:clubId/teams/new", element: <AddTeamPage /> },
+      { path: "/clubs/:clubId/players/invite", element: <InvitePlayerPage /> },
       { path: "/clubs/:clubId/teams/:teamId", element: <ClubTeamPage /> },
       { path: "/clubs/:clubId/tonight", element: <TonightPage /> },
       { path: "/clubs/:clubId/fixtures", element: <ClubFixturesPage /> },
+      { path: "/clubs/:clubId/fixtures/new", element: <AddFixturePage /> },
       { path: "/clubs/:clubId/fixtures/:fixtureId", element: <ClubFixturePage /> },
       { path: "/clubs/:clubId/requests", element: <ClubRequestsPage /> },
       { path: "/clubs/:clubId/payments", element: <ClubPaymentsPage /> },

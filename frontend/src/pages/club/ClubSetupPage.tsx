@@ -25,7 +25,7 @@ export function ClubSetupPage() {
 
   return (
     <main className="la-screen">
-      <SetupHeader title="Club setup" back="profile" />
+      <SetupHeader title="Club setup" back="home" />
       <LoadState result={settings} retry={retry} what="club setup">
         {({ missing }) => (
           <>

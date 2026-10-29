@@ -2,6 +2,76 @@
 
 Newest first. Each entry: the date, what was decided, and why.
 
+## 2026-10-29: Club home, and adding Clubs, Teams, Players and Fixtures in the app
+
+Decided by @Sasha: an Admin adds everything their club needs from one screen, the same one
+where they see the club's money. Before this, Teams came only from Captain requests or the
+Excel import, Fixtures only from the import, and Clubs only from Django admin.
+
+- **Club home (`/clubs/:clubId`):** the design's Admin "More". At the top, the current
+  Season's FinanceSummary and income lines (the Finances page's own components, every amount
+  the API's), with All finances and Export. Then **Add**: Team, Player, Fixture, Season,
+  Night or Division, Field, Admin or Referee, Import from Excel (and Club, for a superuser).
+  Then **Run the club**: every other Admin screen. Profile and All clubs show "Open club"
+  (and Scan) for each club in place of the eight shortcut buttons; the Admin-only screens'
+  back link goes to Club home. Built from existing `la-` components; no new component.
+- **Clubs:** `POST /api/v1/clubs/` `{name, admin_email}`, superuser only. Names are unique
+  ignoring case. The first Admin is a ClubInvite: Admin at once if the account exists, else
+  when they sign up (as for People). Screen: All clubs, Add a club (`/clubs/new`).
+- **Teams:** `POST /api/v1/clubs/{club_id}/teams/` `{season, division, name,
+  captain_email}`. A Captain is required: a Player in League App with that email, not in
+  another Team of the Division that Season. Otherwise as a Team the import adds
+  (`teams.rules.add_team`): active at once, counts against `max_teams`, charged the league
+  fee. The Captain's pending join requests in the Division are withdrawn. Screen: Add a Team
+  (`/clubs/:clubId/teams/new`).
+- **Players (Team invites):** a Player is a person's own account, so the Admin invites an
+  email to a Team: `GET/POST /api/v1/clubs/{club_id}/team-invites/`, `DELETE .../{id}/`.
+  A Player with that email joins at once. Anyone else gets an email (the first email League
+  App sends; `EMAIL_URL`, `DEFAULT_FROM_EMAIL`, `APP_SIGNUP_URL`, printed to the console
+  locally) and joins when they sign up as a Player or turn on "I play" with that email. An
+  invite that can't be met then (the Team isn't active, its Season ended, or they're in
+  another Team of the Division) stays open for the Admin to cancel. As with a request to
+  join, the first Player of a Team with no one in it is its Captain. Screen: Invite a Player
+  (`/clubs/:clubId/players/invite`, optional `?team=`), with the open invites.
+- **Being added is an Update** to that Player, only if they opted into the Team's Night
+  (`targeting.added_to_team_recipients`), for Teams and invites alike.
+- **Fixtures:** `POST /api/v1/clubs/{club_id}/fixtures/` `{season, division, pitch,
+  home_team, away_team, kick_off, friendly_eligible}`, `kick_off` with its offset as for a
+  reschedule. Checked as one row of the import's Fixtures sheet (`fixtures/adding.py` runs
+  `imports.plan`): on the Division's Night, inside the Season, still to come, pitch and both
+  Teams free. Unlike the import it adds no Teams (both must be active Teams of the Division
+  that Season) and refuses a Fixture the club already has. Logged with cause Admin. Screen:
+  Add a Fixture (`/clubs/:clubId/fixtures/new`).
+- **Club-scoped choices:** each create refuses another club's Season, Division, pitch or
+  Team as if it didn't exist (400), so a club's data stays its own.
+
+## 2026-10-29: Test users a superuser signs in as
+
+Decided by @Sasha: each club can have test users, one per role, that only a superuser can
+sign in as, to see the app as that role sees it on live data without anyone's password.
+
+- **Who:** an Admin, a Referee, an outfield Player, a Goalkeeper and a Booking User per
+  Club, emailed `<role>.club<id>@test.invalid` (a reserved domain, never delivered) and
+  named "Test Admin (Club name)". The Players opt into the Club's Nights, so they get its
+  Player and Goalkeeper Requests. No test Captain: that needs a Team, which would play in
+  the Club's league; the test Player can request one, and it waits for the Admin.
+- **No password:** `User.is_test_account`, with an unusable password, so the login form
+  refuses them. Never a superuser: the API won't sign in as one, even if it is marked.
+- **Made by** `manage.py make_test_users "Club name" ...` (existing clubs, live or local;
+  running it again opts the Players into new Nights), and by `seed_demo` for each club it
+  seeds, after its replay.
+- **API:** `GET /api/v1/auth/test-users/` lists them with their roles in words, and
+  `POST /api/v1/auth/test-users/{id}/login/` answers with that user's tokens and `/me/`
+  (both superuser only; 404 for anyone not an active test user). Each sign-in is logged
+  with the superuser's email. `/auth/me/` says `is_test_account`.
+- **App:** Profile, Log in as (`/test-users`) lists them. Signing in as one keeps the
+  superuser's tokens aside (`leagueapp.adminTokens`). A bar over every screen says "Signed
+  in as ..." with Back to superuser, which logs the test user out and restores the
+  superuser. Log out as a test user logs both out. The phone's push registration follows
+  whoever is signed in.
+- **Proposed component:** the test user bar (`.la-test-user`), an info Banner in the
+  screen's column, built from tokens.
+
 ## 2026-10-25: One league import from Excel
 
 Decided by @Sasha: an Admin imports their Seasons, Nights and Divisions, and Fixtures from
@@ -897,3 +967,14 @@ Raised by the multi-club decision (2026-10-23). Questions 3 and 4 were answered 
 - **Proposed component** (`frontend/src/styles/proposed.css`): Logo (`.la-logo`,
   `frontend/src/components/Logo.tsx`), shown on Home in place of the plain "League App"
   title. The design canvas's push-notification app icon uses the same mark.
+
+## 2026-10-29: Deploy to VM
+
+- **Runtime (chosen by the owner):** one VM running docker compose
+  (`docker-compose.prod.yml`): PostgreSQL, Redis, gunicorn (`web`), the Celery worker, one
+  Beat, and Caddy for HTTPS, serving the built web app and passing `/api`, `/admin`,
+  `/static` and `/privacy/` to Django. Setup in docs/DEPLOY.md.
+- **Trigger (chosen by the owner):** automatic. Every push to main runs the backend and
+  frontend tests and deploys if they pass (`.github/workflows/deploy.yml`); it can also be
+  run by hand. The workflow copies the commit to the VM over SSH, so the VM needs no access
+  to GitHub.

@@ -3,7 +3,8 @@
 import pytest
 from rest_framework.test import APIClient
 
-from accounts.models import ClubRole
+from accounts.models import ClubInvite, ClubRole
+from clubs.models import Club
 from notifications.targeting import club_admins
 
 CLUBS = "/api/v1/clubs/"
@@ -127,3 +128,45 @@ def test_signing_up_never_makes_a_superuser(api):
     )
     assert response.status_code == 201
     assert response.json()["user"]["is_superuser"] is False
+
+
+@pytest.mark.django_db
+class TestAddClub:
+    def test_a_superuser_adds_a_club_and_invites_its_first_admin(self, root):
+        response = root.post(
+            CLUBS, {"name": "  Floodlight Park ", "admin_email": "Boss@Example.com"}, format="json"
+        )
+
+        assert response.status_code == 201
+        club = Club.objects.get(pk=response.json()["id"])
+        assert club.name == "Floodlight Park"
+        assert club.settings is not None  # From the defaults, as for any new Club.
+        invite = ClubInvite.objects.get(club=club)
+        assert (invite.email, invite.role, invite.invited_by) == (
+            "boss@example.com",
+            "admin",
+            root.user,
+        )
+        assert invite.accepted_at is None
+
+    def test_an_existing_account_is_admin_at_once(self, root, make_user):
+        boss = make_user("boss@example.com", booking=True)
+
+        response = root.post(CLUBS, {"name": "Floodlight Park", "admin_email": boss.email})
+
+        assert response.status_code == 201
+        assert ClubRole.objects.filter(
+            user=boss, club_id=response.json()["id"], role="admin"
+        ).exists()
+
+    def test_names_are_unique_ignoring_case(self, root, club_a):
+        response = root.post(CLUBS, {"name": "club a", "admin_email": "boss@example.com"})
+
+        assert response.status_code == 400
+        assert "already exists" in response.json()["name"][0]
+
+    def test_an_admin_cannot_add_a_club(self, admin_of, club_a):
+        response = admin_of(club_a).post(CLUBS, {"name": "Mine", "admin_email": "boss@example.com"})
+
+        assert response.status_code == 403
+        assert not Club.objects.filter(name="Mine").exists()

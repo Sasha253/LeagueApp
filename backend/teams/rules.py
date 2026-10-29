@@ -5,16 +5,26 @@ up in two Teams of one Division and Season, and the Division, so it can't take m
 than its `max_teams`. Views call these; nothing else changes Teams.
 """
 
+import logging
+
+from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.mail import send_mail
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
+from accounts.models import normalize_email
 from clubs.models import Division, Season
 from core.exceptions import Conflict
 from ledger import services as ledger
+from notifications import services as notifications
+from notifications import targeting
+from notifications.models import Kind
 
-from .models import JoinRequest, Team, TeamMembership
+from .models import JoinRequest, Team, TeamInvite, TeamMembership
+
+logger = logging.getLogger(__name__)
 
 User = get_user_model()
 
@@ -35,6 +45,12 @@ NOT_A_MEMBER = "Only a Player in this Team can be its Captain."
 NOT_IN_TEAM = "You're not in this Team."
 CAPTAIN_CANT_LEAVE = "A Captain can't leave their Team. Ask the Admin to assign another Captain."
 ALREADY_CAPTAIN = "This Player is already the Captain."
+NO_SUCH_PLAYER = (
+    "No Player in League App has this email. Ask them to sign up as a Player first, or add "
+    "the Team with another Captain and invite them to it."
+)
+ALREADY_PLAYS_HERE = "This Player is already in this Team."
+ALREADY_INVITED = "This email is already invited to this Team."
 
 
 def _lock_player(player) -> None:
@@ -155,6 +171,147 @@ def add_team(season: Season, division: Division, name: str, admin) -> Team:
     )
     ledger.charge_league_fee(team, recorded_by=admin)
     return team
+
+
+@transaction.atomic
+def add_team_with_captain(
+    season: Season, division: Division, name: str, captain_email: str, admin
+) -> Team:
+    """The Admin adds a confirmed Team with its Captain, a Player found by email, in it
+    (docs/DECISIONS.md). As add_team: it counts against `max_teams` and charges the league fee."""
+    if season.ends_on < timezone.localdate():
+        raise ValidationError({"season": [SEASON_ENDED]})
+    captain = _player_by_email(captain_email)
+    if captain is None:
+        raise ValidationError({"captain_email": [NO_SUCH_PLAYER]})
+    _lock_player(captain)
+    if _in_another_team(captain, season.pk, division.pk):
+        raise ValidationError({"captain_email": [PLAYER_IN_DIVISION]})
+    taken = Team.objects.exclude(status=Team.Status.DECLINED).filter(
+        season=season, division=division, name__iexact=name
+    )
+    if taken.exists():
+        raise ValidationError({"name": [NAME_TAKEN]})
+    try:
+        with transaction.atomic():
+            team = add_team(season, division, name, admin)
+    except IntegrityError as error:
+        raise ValidationError({"name": [NAME_TAKEN]}) from error
+    team.captain = captain
+    team.save(update_fields=["captain"])
+    _join(team, captain, team.decided_at)
+    _withdraw_other_requests(captain, team, team.decided_at)
+    _tell_added(team, captain)
+    return team
+
+
+def _player_by_email(email: str):
+    return User.objects.filter(
+        email=normalize_email(email), is_active=True, player_profile__isnull=False
+    ).first()
+
+
+def _withdraw_other_requests(player, team: Team, when) -> None:
+    JoinRequest.objects.filter(
+        player=player,
+        status=JoinRequest.Status.PENDING,
+        team__season_id=team.season_id,
+        team__division_id=team.division_id,
+    ).update(status=JoinRequest.Status.WITHDRAWN, decided_at=when)
+
+
+def _tell_added(team: Team, player) -> None:
+    """An Update to the Player, only if they opted into the Team's Night (targeting)."""
+    role = "Captain of" if team.captain_id == player.pk else "a Player in"
+    notifications.notify(
+        Kind.UPDATE,
+        targeting.added_to_team_recipients(team, player),
+        club=team.club,
+        title=f"You're {role} {team.name}",
+        body=(
+            f"{team.club.name} added you to {team.name}, {team.division.name}, {team.season.name}."
+        ),
+    )
+
+
+@transaction.atomic
+def invite_player(team: Team, email: str, admin) -> TeamInvite:
+    """The Admin invites an email to play in the Team. A Player with that email joins at
+    once (the invite comes back accepted). Anyone else gets an email, and joins when they
+    sign up or start playing with that email (accept_team_invites)."""
+    team = _lock_team(team)
+    if team.status != Team.Status.ACTIVE:
+        raise Conflict(NOT_ACTIVE)
+    if _season_ended(team):
+        raise Conflict(SEASON_ENDED)
+    email = normalize_email(email)
+    if team.current_memberships().filter(player__email=email).exists():
+        raise ValidationError({"email": [ALREADY_PLAYS_HERE]})
+    if team.invites.filter(email=email, accepted_at__isnull=True).exists():
+        raise ValidationError({"email": [ALREADY_INVITED]})
+    player = _player_by_email(email)
+    if player is not None:
+        _lock_player(player)
+        if _in_another_team(player, team.season_id, team.division_id):
+            raise ValidationError({"email": [PLAYER_IN_DIVISION]})
+    invite = TeamInvite.objects.create(team=team, email=email, invited_by=admin)
+    if player is not None:
+        _accept(invite, team, player)
+    else:
+        transaction.on_commit(lambda: _email_invite(invite), robust=True)
+    return invite
+
+
+def _accept(invite: TeamInvite, team: Team, player) -> None:
+    now = timezone.now()
+    first = team.captain_id is None and not team.current_memberships().exists()
+    _join(team, player, now)
+    _withdraw_other_requests(player, team, now)
+    if first:  # As ask_to_join: a Team with no one in it takes its first Player as Captain.
+        team.captain = player
+        team.save(update_fields=["captain"])
+    invite.accepted_at = now
+    invite.save(update_fields=["accepted_at"])
+    _tell_added(team, player)
+
+
+def _email_invite(invite: TeamInvite) -> None:
+    team = invite.team
+    lines = [
+        f"{team.club.name} has added you to {team.name} ({team.division.name}, "
+        f"{team.season.name}) in League App.",
+        "",
+        "Sign up as a Player with this email address and you'll be in the Team.",
+    ]
+    if settings.APP_SIGNUP_URL:
+        lines += ["", settings.APP_SIGNUP_URL]
+    send_mail(
+        f"Join {team.name} in League App",
+        "\n".join(lines),
+        None,  # DEFAULT_FROM_EMAIL
+        [invite.email],
+    )
+
+
+def accept_team_invites(user) -> None:
+    """Puts a new Player in the Teams they were invited to. Call it when an account is made,
+    or starts playing. An invite that can no longer be met (the Team isn't active, its
+    Season ended, or the Player is in another Team of that Division) stays open, so the
+    Admin sees it and can cancel it."""
+    if not user.is_player:
+        return
+    invites = TeamInvite.objects.filter(email=user.email, accepted_at__isnull=True)
+    for invite_id in invites.order_by("created_at").values_list("pk", flat=True):
+        with transaction.atomic():
+            _lock_player(user)
+            invite = TeamInvite.objects.select_for_update().get(pk=invite_id)
+            team = _lock_team(invite.team)
+            if invite.accepted_at is not None or team.status != Team.Status.ACTIVE:
+                continue
+            if _season_ended(team) or _in_another_team(user, team.season_id, team.division_id):
+                logger.info("Team invite %s left open: it can't be met now.", invite.pk)
+                continue
+            _accept(invite, team, user)
 
 
 @transaction.atomic

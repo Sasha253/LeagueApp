@@ -20,6 +20,7 @@ from .serializers import (
     ClubSummarySerializer,
     DivisionSerializer,
     FieldSerializer,
+    NewClubSerializer,
     NightSerializer,
     SeasonSerializer,
 )
@@ -40,12 +41,15 @@ class NightListView(generics.ListAPIView):
     serializer_class = NightSerializer
 
 
-class ClubListView(generics.ListAPIView):
-    """Every Club in the app, for a superuser choosing which Club to open."""
+class ClubListView(generics.ListCreateAPIView):
+    """Every Club in the app, for a superuser choosing which Club to open. A superuser also
+    adds Clubs here, each with its first Admin (docs/DECISIONS.md)."""
 
     queryset = Club.objects.all()
-    serializer_class = ClubSummarySerializer
     permission_classes = [IsSuperuser]
+
+    def get_serializer_class(self):
+        return NewClubSerializer if self.request.method == "POST" else ClubSummarySerializer
 
 
 class ClubDetailView(generics.RetrieveAPIView):

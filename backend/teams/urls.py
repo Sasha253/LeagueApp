@@ -23,5 +23,6 @@ urlpatterns = [
 
 club_router = SimpleRouter()
 club_router.register("teams", views.ClubTeamViewSet, basename="club-teams")
+club_router.register("team-invites", views.ClubTeamInviteViewSet, basename="club-team-invites")
 
 club_urlpatterns = club_router.urls

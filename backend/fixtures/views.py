@@ -28,6 +28,7 @@ from core.tables import TableError, read_workbook
 from teams.models import Team, TeamMembership
 
 from . import (
+    adding,
     borrowing,
     confirmations,
     friendlies,
@@ -55,6 +56,7 @@ from .models import (
     TeamReadiness,
 )
 from .serializers import (
+    AddFixtureSerializer,
     AdminFixtureDetailSerializer,
     AdminFixtureSerializer,
     CaptainRequestAcceptSerializer,
@@ -441,12 +443,13 @@ class CaptainRequestViewSet(viewsets.GenericViewSet):
 )
 class ClubFixtureViewSet(
     ClubAdminMixin,
+    mixins.CreateModelMixin,
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
     mixins.UpdateModelMixin,
     viewsets.GenericViewSet,
 ):
-    """The club's Fixtures, by kick-off. The Admin can mark one friendly-eligible."""
+    """The club's Fixtures, by kick-off. The Admin adds one, or marks one friendly-eligible."""
 
     queryset = fixtures().select_related("friendly_eligible_changed_by")
     http_method_names = ["get", "post", "patch", "options"]
@@ -494,6 +497,25 @@ class ClubFixtureViewSet(
         if wanted:
             queryset = queryset.filter(status=wanted)
         return queryset.order_by("kick_off", "pitch__name", "pk")
+
+    @extend_schema(
+        summary="Add a Fixture",
+        description="Scheduled, between two active Teams of the Division this Season, checked "
+        "as a row of the league import: on the Division's Night, inside the Season, still to "
+        "come, and its pitch and both Teams free at that kick-off (400 otherwise, the reasons "
+        "in `non_field_errors`). The timed checkpoints pick it up like any Fixture.",
+        request=AddFixtureSerializer,
+        responses={201: AdminFixtureDetailSerializer},
+    )
+    def create(self, request, *args, **kwargs):
+        body = AddFixtureSerializer(data=request.data, context={"club": self.club})
+        body.is_valid(raise_exception=True)
+        fixture = adding.add_fixture(
+            self.club, adding.NewFixture(**body.validated_data), request.user
+        )
+        response = self.detail_of(fixture)
+        response.status_code = status.HTTP_201_CREATED
+        return response
 
     @extend_schema(
         summary="Mark a Fixture friendly-eligible, or not",

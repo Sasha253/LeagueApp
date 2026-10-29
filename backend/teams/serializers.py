@@ -4,7 +4,7 @@ from accounts.models import PlayerProfile
 from clubs.models import Division, Night, Season
 from clubs.serializers import ClubSummarySerializer
 
-from .models import JoinRequest, Team, TeamMembership
+from .models import JoinRequest, Team, TeamInvite, TeamMembership
 
 
 class NamedSerializer(serializers.Serializer):
@@ -54,6 +54,42 @@ class TeamRequestSerializer(serializers.Serializer):
         queryset=Division.objects.select_related("night__club__settings")
     )
     name = serializers.CharField(max_length=60)
+
+
+class ClubScopedSerializer(serializers.Serializer):
+    """Limits its Season, Division, pitch and Team choices to the Club in the URL, so
+    another club's id is refused like one that doesn't exist."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        club = self.context.get("club")
+        if club is None:
+            return
+        scopes = {
+            "season": "club",
+            "division": "night__club",
+            "pitch": "club",
+            "team": "club",
+            "home_team": "club",
+            "away_team": "club",
+        }
+        for name, lookup in scopes.items():
+            field = self.fields.get(name)
+            if field is not None:
+                field.queryset = field.queryset.filter(**{lookup: club})
+
+
+class AddTeamSerializer(ClubScopedSerializer):
+    """A Team the Admin adds, confirmed, with its Captain."""
+
+    season = serializers.PrimaryKeyRelatedField(queryset=Season.objects.select_related("club"))
+    division = serializers.PrimaryKeyRelatedField(
+        queryset=Division.objects.select_related("night__club__settings")
+    )
+    name = serializers.CharField(max_length=60)
+    captain_email = serializers.EmailField(
+        help_text="The Captain: a Player in League App with this email. Required."
+    )
 
 
 class MemberSerializer(serializers.ModelSerializer):
@@ -189,3 +225,24 @@ class DivisionOptionSerializer(serializers.ModelSerializer):
     def get_is_open(self, division: Division) -> bool:
         full = division.max_teams is not None and division.team_count >= division.max_teams
         return division.effective_league_fee is not None and not full
+
+
+class TeamInviteSerializer(ClubScopedSerializer, serializers.ModelSerializer):
+    """The Admin's invite to play in a Team. `accepted` is true once they are in it: at once
+    for someone who already plays, otherwise when they sign up or start playing."""
+
+    team = serializers.PrimaryKeyRelatedField(
+        queryset=Team.objects.select_related("club", "season", "division")
+    )
+    team_name = serializers.CharField(source="team.name", read_only=True)
+    accepted = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TeamInvite
+        fields = ["id", "team", "team_name", "email", "created_at", "accepted"]
+        read_only_fields = ["created_at"]
+        # The open-invite constraint is checked in teams.rules, with a clearer message.
+        validators = []
+
+    def get_accepted(self, invite: TeamInvite) -> bool:
+        return invite.accepted_at is not None

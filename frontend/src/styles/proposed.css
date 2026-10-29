@@ -179,3 +179,7 @@
 .la-logo { display: inline-flex; align-items: center; gap: var(--space-3); color: var(--ink); }
 .la-logo__mark { height: 1em; width: auto; flex: none; }
 .la-logo__word { font-family: var(--font-display); font-weight: 700; font-style: italic; text-transform: uppercase; letter-spacing: -0.01em; }
+
+/* Test user bar (RequireAuth): while a superuser is signed in as a test user, the info
+   Banner sits above every screen, in the screen's column. */
+.la-test-user { max-width: 560px; margin: 0 auto; padding: var(--space-3) var(--gutter) 0; }

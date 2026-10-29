@@ -44,7 +44,7 @@ export function FinancesPage() {
 
   return (
     <main className="la-screen">
-      <ScreenHeader title="Finances" back={{ label: "Profile", to: "/profile" }} caption={clubName} />
+      <ScreenHeader title="Finances" back={{ label: "Club home", to: `/clubs/${clubId}` }} caption={clubName} />
       <div className="la-actions">
         <Link className="la-btn la-btn--secondary" to={`/clubs/${clubId}/finances/compare`}>
           Compare Seasons
@@ -162,7 +162,7 @@ function scopeLabel(summary: SeasonSummary): string {
 }
 
 /** FinanceSummary from the design system: the scope and four totals. */
-function FinanceSummary({ summary }: { summary: SeasonSummary }) {
+export function FinanceSummary({ summary }: { summary: SeasonSummary }) {
   const scope = scopeLabel(summary);
   const { totals } = summary;
   return (
@@ -195,7 +195,7 @@ function Amount({ title, sub, amount }: { title: string; sub: string; amount: st
 }
 
 /** League, friendly and booking money as separate lines (FR-49), then credit held. */
-function IncomeLines({ summary }: { summary: SeasonSummary }) {
+export function IncomeLines({ summary }: { summary: SeasonSummary }) {
   const { totals, booking, credit_held: credit } = summary;
   return (
     <section className="la-stack-2" aria-labelledby="income">

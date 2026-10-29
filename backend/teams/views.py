@@ -19,8 +19,9 @@ from clubs.models import Division, Season
 from clubs.views import ClubAdminMixin
 
 from . import rules
-from .models import JoinRequest, Team, TeamMembership
+from .models import JoinRequest, Team, TeamInvite, TeamMembership
 from .serializers import (
+    AddTeamSerializer,
     AdminTeamSerializer,
     AssignCaptainSerializer,
     DeclineTeamSerializer,
@@ -29,6 +30,7 @@ from .serializers import (
     MemberSerializer,
     MyTeamSerializer,
     SeasonOptionSerializer,
+    TeamInviteSerializer,
     TeamRequestSerializer,
     TeamSerializer,
 )
@@ -326,8 +328,9 @@ class MyJoinRequestListView(generics.ListAPIView):
         OpenApiParameter("division", int),
     ]
 )
-class ClubTeamViewSet(ClubAdminMixin, viewsets.ReadOnlyModelViewSet):
-    """The club's Teams and Team requests. Confirm or decline a request, assign a Captain."""
+class ClubTeamViewSet(ClubAdminMixin, mixins.CreateModelMixin, viewsets.ReadOnlyModelViewSet):
+    """The club's Teams and Team requests. Add a Team, confirm or decline a request, assign a
+    Captain."""
 
     queryset = teams_with_players().select_related("requested_by", "decided_by")
     serializer_class = AdminTeamSerializer
@@ -345,8 +348,32 @@ class ClubTeamViewSet(ClubAdminMixin, viewsets.ReadOnlyModelViewSet):
             teams = teams.filter(status=wanted)
         return teams.order_by("requested_at")
 
-    def answer(self, team: Team):
-        return Response(AdminTeamSerializer(self.get_queryset().get(pk=team.pk)).data)
+    def answer(self, team: Team, status_code=status.HTTP_200_OK):
+        team = self.get_queryset().get(pk=team.pk)
+        return Response(AdminTeamSerializer(team).data, status=status_code)
+
+    @extend_schema(
+        summary="Add a Team",
+        description="Confirmed at once, with its Captain in it: a Player in League App with "
+        "`captain_email` (400 if there is none, or they're in another Team of the Division "
+        "this Season). Needs the Division's league fee and charges it; 409 when the Division "
+        "already has `max_teams` active Teams this Season. The Captain gets an Update if they "
+        "opted into the Night.",
+        request=AddTeamSerializer,
+        responses={201: AdminTeamSerializer},
+    )
+    def create(self, request, *args, **kwargs):
+        body = AddTeamSerializer(data=request.data, context=self.get_serializer_context())
+        body.is_valid(raise_exception=True)
+        data = body.validated_data
+        team = rules.add_team_with_captain(
+            data["season"],
+            data["division"],
+            data["name"].strip(),
+            data["captain_email"],
+            request.user,
+        )
+        return self.answer(team, status.HTTP_201_CREATED)
 
     @extend_schema(
         summary="Confirm a Team request",
@@ -388,3 +415,32 @@ class ClubTeamViewSet(ClubAdminMixin, viewsets.ReadOnlyModelViewSet):
         if membership is None:
             raise ValidationError({"player": [rules.NOT_A_MEMBER]})
         return self.answer(rules.assign_captain(team, membership.player))
+
+
+class ClubTeamInviteViewSet(
+    ClubAdminMixin,
+    mixins.ListModelMixin,
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
+    """Invites by email to play in one of the club's Teams. Lists and cancels open ones."""
+
+    queryset = TeamInvite.objects.filter(accepted_at__isnull=True).select_related("team")
+    serializer_class = TeamInviteSerializer
+    club_field = "team__club"
+
+    @extend_schema(
+        summary="Invite someone to play in a Team",
+        description="A Player with this email joins at once (`accepted` true) and gets an "
+        "Update if they opted into the Night; 400 if they're in another Team of the Division "
+        "this Season. Anyone else gets an email and joins when they sign up, or start "
+        "playing, with it. 409 when the Team isn't active or its Season has ended.",
+    )
+    def create(self, request, *args, **kwargs):
+        body = self.get_serializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        invite = rules.invite_player(
+            body.validated_data["team"], body.validated_data["email"], request.user
+        )
+        return Response(self.get_serializer(invite).data, status=status.HTTP_201_CREATED)

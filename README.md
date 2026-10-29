@@ -40,6 +40,32 @@ make worker                   # runs the jobs
 make beat                     # starts them every minute (run only one Beat)
 ```
 
+### Demo data
+
+```sh
+backend/.venv/Scripts/python backend/manage.py seed_demo "First club" "Second club"
+```
+
+Fills the named clubs (created if missing; local only, DEBUG on) with two Seasons, Teams,
+played and coming Fixtures, payments, Bookings and a match day: seed on the day you demo,
+before about 19:00, and tonight's matches kick off four to five hours later, one ready, one
+a friendly, one with an open slot for another Team and one waiting for the Admin. It prints
+a login for each role to demo with (`admin.club1@example.com`, `captain.club1@...`,
+`super@example.com`, ...), all with the password `league-demo-2026`. To start over, drop
+the database (`make down`, `docker volume rm leagueapp_postgres-data`, `make up`,
+`make migrate`) and seed again. Run `make worker` and `make beat` during the demo so the
+offered slot lapses into a friendly and tomorrow's Confirmations move on by themselves.
+
+### Test users
+
+```sh
+backend/.venv/Scripts/python backend/manage.py make_test_users "First club" "Second club"
+```
+
+Adds a test Admin, Referee, Player, Goalkeeper and Booking User to each named (existing)
+club, live or local; `seed_demo` adds them too. They have no password: only a superuser can
+sign in as them, from Profile, Log in as, and goes back with Back to superuser.
+
 - API docs: http://127.0.0.1:8000/api/v1/docs/
 - Health check: http://localhost:5173/api/v1/health/
 

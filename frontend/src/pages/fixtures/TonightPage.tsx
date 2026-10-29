@@ -148,7 +148,7 @@ export function TonightPage() {
 
   return (
     <main className="la-screen">
-      <ScreenHeader title="Tonight" back={{ label: "Profile", to: "/profile" }} caption={`${today()} · ${clubName}`} />
+      <ScreenHeader title="Tonight" back={{ label: "Club home", to: `/clubs/${clubId}` }} caption={`${today()} · ${clubName}`} />
       {error && <Banner status="cancelled" title={error} />}
       <LoadState result={tonight} retry={reload} what="tonight's matches" forbidden={NOT_AN_ADMIN}>
         {(matches) => {

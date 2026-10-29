@@ -5,6 +5,8 @@
 - A Player asks to join an active Team; its Captain accepts or declines.
 - Membership keeps its history: leaving closes a membership, and rejoining opens a new one.
 - A Player is in at most one Team per Division and Season (docs/DECISIONS.md).
+- The Admin can invite someone to a Team by email: a Player joins at once, anyone else when
+  they sign up or start playing with that email (docs/DECISIONS.md).
 """
 
 from django.conf import settings
@@ -138,3 +140,39 @@ class JoinRequest(models.Model):
 
 
 JOIN_REQUEST_STATUSES = JoinRequest.Status
+
+
+class TeamInvite(models.Model):
+    """An Admin's invitation, by email, to play in a Team (teams.rules.invite_player).
+
+    Open until the person with that email is a Player: then they join the Team and the
+    invite is accepted. The Admin can cancel an open invite.
+    """
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="invites")
+    email = models.EmailField(max_length=254)
+    invited_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    accepted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["team", "email"],
+                condition=models.Q(accepted_at__isnull=True),
+                name="one_open_invite_per_team",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.email} invited to {self.team}"
+
+    def get_club_id(self) -> int:
+        return self.team.club_id

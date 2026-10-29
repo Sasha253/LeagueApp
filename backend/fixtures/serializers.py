@@ -3,13 +3,14 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from accounts.models import PlayerProfile
-from clubs.models import Field, Night
+from clubs.models import Division, Field, Night, Season
 from clubs.serializers import ClubSummarySerializer, DivisionImportRowSerializer
 from core.tables import ImportAction
 from ledger.serializers import MONEY
 from ledger.services import fixture_credit_returned
 from notifications.models import Answer
-from teams.serializers import NamedSerializer
+from teams.models import Team
+from teams.serializers import ClubScopedSerializer, NamedSerializer
 
 from . import borrowing, fallbacks
 from .models import (
@@ -316,6 +317,20 @@ class RescheduleSerializer(serializers.Serializer):
         if pitch is not None and pitch.club_id != self.context["club"].pk:
             raise serializers.ValidationError("The club has no such pitch.")
         return pitch
+
+
+class AddFixtureSerializer(ClubScopedSerializer):
+    """One Fixture the Admin adds (fixtures/adding.py)."""
+
+    season = serializers.PrimaryKeyRelatedField(queryset=Season.objects.all())
+    division = serializers.PrimaryKeyRelatedField(queryset=Division.objects.select_related("night"))
+    pitch = serializers.PrimaryKeyRelatedField(queryset=Field.objects.all())
+    home_team = serializers.PrimaryKeyRelatedField(queryset=Team.objects.all())
+    away_team = serializers.PrimaryKeyRelatedField(queryset=Team.objects.all())
+    kick_off = serializers.DateTimeField(
+        help_text="The kick-off, with its offset (South African time is +02:00)."
+    )
+    friendly_eligible = serializers.BooleanField(default=False)
 
 
 class CaptainRequestAcceptSerializer(RescheduleSerializer):

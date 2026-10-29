@@ -28,7 +28,7 @@ export function ClubTeamsPage() {
 
   return (
     <main className="la-screen">
-      <ScreenHeader title="Team requests" back={{ label: "Profile", to: "/profile" }} caption={clubName} />
+      <ScreenHeader title="Team requests" back={{ label: "Club home", to: `/clubs/${clubId}` }} caption={clubName} />
       <LoadState result={requested} retry={reloadRequested} what="Team requests" forbidden={NOT_AN_ADMIN}>
         {(list) =>
           list.length === 0 ? (

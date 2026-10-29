@@ -206,6 +206,14 @@ export function ProfilePage() {
               </span>
             </Link>
           </li>
+          <li>
+            <Link className="la-item la-item--link" to="/test-users">
+              <span className="la-item__body">
+                <span className="body-strong">Log in as</span>
+                <span className="caption la-muted">See the app as a test Admin, Referee or Player</span>
+              </span>
+            </Link>
+          </li>
         </ul>
       )}
 

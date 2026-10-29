@@ -60,6 +60,7 @@ export const ME = {
   club_roles: [] as { club_id: number; club_name: string; role: "admin" | "referee" }[],
   captain_of: [] as number[],
   is_superuser: false,
+  is_test_account: false,
 };
 
 export const TOKENS = { access: "access-1", refresh: "refresh-1" };

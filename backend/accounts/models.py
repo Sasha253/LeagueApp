@@ -6,6 +6,8 @@
 - Captain is not stored here: a Player is a Captain of the Team they captain (teams app).
 - A superuser runs the app for every club: they pass every Admin and Referee check at every
   Club without holding a ClubRole, so they get no Club's notifications (docs/DECISIONS.md).
+- A test account has no usable password: only a superuser can sign in as it, to see the app
+  as that role (accounts/testers.py).
 """
 
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
@@ -48,6 +50,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     )
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False, help_text="Can log in to the Django admin.")
+    is_test_account = models.BooleanField(
+        default=False, help_text="No password: only a superuser can sign in as this user."
+    )
     date_joined = models.DateTimeField(auto_now_add=True)
 
     objects = UserManager()

@@ -99,7 +99,7 @@ describe("ProfilePage", () => {
     expect(within(roles).getByText("Club A")).toBeInTheDocument();
   });
 
-  it("links an Admin to club setup, and a Referee not", async () => {
+  it("opens Club home for an Admin, and not for a Referee", async () => {
     const { router } = await openProfile({
       ...ME,
       club_roles: [
@@ -108,30 +108,10 @@ describe("ProfilePage", () => {
       ],
     });
 
-    expect(screen.queryByRole("link", { name: "Club setup for Club B" })).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("link", { name: "Club setup for Club A" }));
+    expect(screen.queryByRole("link", { name: "Open Club B" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("link", { name: "Open Club A" }));
 
-    expect(router.state.location.pathname).toBe("/clubs/1/setup");
-  });
-
-  it("links an Admin to the club's Team requests", async () => {
-    await openProfile({ ...ME, club_roles: [{ club_id: 1, club_name: "Club A", role: "admin" }] });
-
-    expect(screen.getByRole("link", { name: "Team requests for Club A" })).toHaveAttribute("href", "/clubs/1/teams");
-  });
-
-  it("links an Admin to the club's Payments", async () => {
-    await openProfile({ ...ME, club_roles: [{ club_id: 1, club_name: "Club A", role: "admin" }] });
-
-    expect(screen.getByRole("link", { name: "Payments at Club A" })).toHaveAttribute("href", "/clubs/1/payments");
-    expect(screen.getByRole("link", { name: "Finances for Club A" })).toHaveAttribute("href", "/clubs/1/finances");
-  });
-
-  it("links an Admin to the club's Fixtures", async () => {
-    await openProfile({ ...ME, club_roles: [{ club_id: 1, club_name: "Club A", role: "admin" }] });
-
-    expect(screen.getByRole("link", { name: "Tonight at Club A" })).toHaveAttribute("href", "/clubs/1/tonight");
-    expect(screen.getByRole("link", { name: "Fixtures for Club A" })).toHaveAttribute("href", "/clubs/1/fixtures");
+    expect(router.state.location.pathname).toBe("/clubs/1");
   });
 
   it("links Admins and Referees to the club's gate scanner, and nobody else", async () => {

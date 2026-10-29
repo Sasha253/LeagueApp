@@ -254,3 +254,24 @@ BARCODE_SIGNING_KEY = env("BARCODE_SIGNING_KEY", default="")
 # so production sets both. No club's name: the operator runs the app for every club.
 PRIVACY_OPERATOR_NAME = env("PRIVACY_OPERATOR_NAME", default="")
 PRIVACY_CONTACT_EMAIL = env("PRIVACY_CONTACT_EMAIL", default="")
+
+# Email (teams.rules: an invite to join a Team, for someone not in League App yet). Locally
+# printed to the console; production sets EMAIL_URL, e.g. smtp+tls://user:password@host:587.
+_email = env.email_url("EMAIL_URL", default="consolemail://")
+_smtp_options = {
+    "host": _email.get("EMAIL_HOST"),
+    "port": _email.get("EMAIL_PORT"),
+    "username": _email.get("EMAIL_HOST_USER"),
+    "password": _email.get("EMAIL_HOST_PASSWORD"),
+    "use_tls": _email.get("EMAIL_USE_TLS", False),
+    "use_ssl": _email.get("EMAIL_USE_SSL", False),
+}
+MAILERS = {
+    "default": {
+        "BACKEND": _email["EMAIL_BACKEND"],
+        "OPTIONS": _smtp_options if _email["EMAIL_BACKEND"].endswith("smtp.EmailBackend") else {},
+    }
+}
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="League App <no-reply@localhost>")
+# Where an invite email sends someone to sign up: the app's /signup screen.
+APP_SIGNUP_URL = env("APP_SIGNUP_URL", default="")

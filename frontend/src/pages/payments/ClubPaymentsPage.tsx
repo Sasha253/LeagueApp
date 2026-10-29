@@ -17,7 +17,7 @@ export function ClubPaymentsPage() {
   );
   return (
     <main className="la-screen">
-      <ScreenHeader title="Payments" back={{ label: "Profile", to: "/profile" }} caption={clubName} />
+      <ScreenHeader title="Payments" back={{ label: "Club home", to: `/clubs/${clubId}` }} caption={clubName} />
       <LoadState result={teams} retry={reload} what="payments" forbidden={NOT_AN_ADMIN}>
         {(list) =>
           list.length === 0 ? (

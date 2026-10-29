@@ -70,7 +70,7 @@ export function ClubBookingsPage() {
 
   return (
     <main className="la-screen">
-      <ScreenHeader title="Bookings" back={{ label: "Profile", to: "/profile" }} caption={clubName} />
+      <ScreenHeader title="Bookings" back={{ label: "Club home", to: `/clubs/${clubId}` }} caption={clubName} />
       <div className="la-choices">
         <ChoiceChip pressed={filter === "pending"} onToggle={() => setFilter("pending")}>
           Waiting

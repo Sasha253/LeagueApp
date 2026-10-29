@@ -4,7 +4,7 @@ import { useAuth } from "./AuthProvider";
 
 /** Shows its routes only to a signed-in user; everyone else goes to Log in. */
 export function RequireAuth() {
-  const { state, retry } = useAuth();
+  const { state, retry, backToAdmin } = useAuth();
 
   if (state.status === "loading") return <p className="sr-only" role="status">Loading</p>;
   if (state.status === "signedOut") return <Navigate to="/login" replace />;
@@ -20,5 +20,20 @@ export function RequireAuth() {
       </main>
     );
   }
-  return <Outlet />;
+  return (
+    <>
+      {state.me.is_test_account && (
+        // Over every screen, so a superuser always knows they're a test user.
+        <div className="la-test-user">
+          <Banner status="info" title={`Signed in as ${state.me.name}`}>
+            A test user, from your superuser account.
+            <button type="button" className="la-btn la-btn--quiet la-btn--sm" onClick={backToAdmin}>
+              Back to superuser
+            </button>
+          </Banner>
+        </div>
+      )}
+      <Outlet />
+    </>
+  );
 }

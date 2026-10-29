@@ -7,6 +7,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from clubs.models import Night
 
 from .models import ClubInvite, ClubRole, PlayerProfile, User, normalize_email
+from .testers import roles_of
 
 NO_ROLE = "Choose at least one: Player or Booking User."
 
@@ -56,8 +57,9 @@ class MeSerializer(serializers.ModelSerializer):
             "club_roles",
             "captain_of",
             "is_superuser",
+            "is_test_account",
         ]
-        read_only_fields = ["id", "email", "is_superuser"]
+        read_only_fields = ["id", "email", "is_superuser", "is_test_account"]
 
     def get_captain_of(self, user: User) -> list[int]:
         if user.pk is None:
@@ -86,7 +88,15 @@ class MeSerializer(serializers.ModelSerializer):
         instance = super().update(instance, validated_data)
         if has_player:
             save_player_profile(instance, player)
+            accept_team_invites(instance)
         return instance
+
+
+def accept_team_invites(user: User) -> None:
+    # Imported here: teams builds on accounts, so accounts can't import it at load time.
+    from teams.rules import accept_team_invites as accept
+
+    accept(user)
 
 
 def save_player_profile(user: User, data: dict | None) -> None:
@@ -116,7 +126,7 @@ class RegisterSerializer(MeSerializer):
 
     class Meta(MeSerializer.Meta):
         fields = [*MeSerializer.Meta.fields, "password"]
-        read_only_fields = ["id", "is_superuser"]
+        read_only_fields = ["id", "is_superuser", "is_test_account"]
         extra_kwargs = {"email": {"validators": []}}
 
     def validate_email(self, value: str) -> str:
@@ -141,6 +151,7 @@ class RegisterSerializer(MeSerializer):
         user = User.objects.create_user(password=password, **validated_data)
         save_player_profile(user, player)
         ClubInvite.accept_open_invites(user)
+        accept_team_invites(user)
         return user
 
 
@@ -194,6 +205,19 @@ class ClubInviteSerializer(serializers.ModelSerializer):
         if user is not None:
             invite.accept(user)
         return invite
+
+
+class TesterSerializer(serializers.ModelSerializer):
+    """A test user, for the superuser's Log in as list."""
+
+    roles = serializers.SerializerMethodField(help_text="What the user is, e.g. Admin at a Club.")
+
+    class Meta:
+        model = User
+        fields = ["id", "name", "email", "roles"]
+
+    def get_roles(self, user: User) -> list[str]:
+        return roles_of(user)
 
 
 class TokenPairSerializer(serializers.Serializer):

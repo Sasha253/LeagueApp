@@ -21,22 +21,16 @@ async function open(path: string, routes: Routes, heading: string, me: object = 
 }
 
 describe("AllClubsPage", () => {
-  it("lists every club, each opening its Admin screens", async () => {
+  it("lists every club, each opening its Club home", async () => {
     const { router } = await open("/clubs", { "GET /api/v1/clubs/": { status: 200, body: CLUBS } }, "All clubs");
 
     const clubB = (await screen.findByText("Club B")).closest("li")!;
     expect(screen.getByText("Club A")).toBeInTheDocument();
-    expect(within(clubB).getByRole("link", { name: "Fixtures for Club B" })).toHaveAttribute(
-      "href",
-      "/clubs/2/fixtures",
-    );
-    expect(within(clubB).getByRole("link", { name: "Finances for Club B" })).toHaveAttribute(
-      "href",
-      "/clubs/2/finances",
-    );
+    expect(within(clubB).getByRole("link", { name: "Scan at Club B" })).toHaveAttribute("href", "/clubs/2/scan");
+    expect(screen.getByRole("link", { name: "Add a club" })).toHaveAttribute("href", "/clubs/new");
 
-    await userEvent.click(within(clubB).getByRole("link", { name: "Club setup for Club B" }));
-    expect(router.state.location.pathname).toBe("/clubs/2/setup");
+    await userEvent.click(within(clubB).getByRole("link", { name: "Open Club B" }));
+    expect(router.state.location.pathname).toBe("/clubs/2");
   });
 
   it("says so when there are no clubs yet", async () => {

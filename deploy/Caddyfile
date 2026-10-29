@@ -1,0 +1,17 @@
+# The VM's front door. Caddy gets and renews the HTTPS certificate for SITE_DOMAIN itself.
+{$SITE_DOMAIN} {
+	encode zstd gzip
+
+	# /privacy/ (with the slash) is Django's public page for the store listings;
+	# the web app's own /privacy route stays with the app.
+	@django path /api/* /admin/* /static/* /privacy/
+	handle @django {
+		reverse_proxy web:8000
+	}
+
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

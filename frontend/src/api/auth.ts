@@ -11,6 +11,7 @@ import { storage } from "../native/storage";
 export type Tokens = { access: string; refresh: string };
 
 const STORAGE_KEY = "leagueapp.tokens";
+const ADMIN_STORAGE_KEY = "leagueapp.adminTokens";
 const REFRESH_PATH = "/api/v1/auth/refresh/";
 
 let tokens: Tokens | null = null;
@@ -37,6 +38,22 @@ export async function setTokens(next: Tokens | null): Promise<void> {
   tokens = next;
   if (next) await storage.set(STORAGE_KEY, JSON.stringify(next));
   else await storage.remove(STORAGE_KEY);
+}
+
+/** A superuser's own tokens, kept while they're signed in as a test user. */
+export async function loadAdminTokens(): Promise<Tokens | null> {
+  const saved = await storage.get(ADMIN_STORAGE_KEY);
+  try {
+    return saved ? (JSON.parse(saved) as Tokens) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Keeps a superuser's tokens to come back to, or forgets them with null. */
+export async function setAdminTokens(next: Tokens | null): Promise<void> {
+  if (next) await storage.set(ADMIN_STORAGE_KEY, JSON.stringify(next));
+  else await storage.remove(ADMIN_STORAGE_KEY);
 }
 
 export function onSessionEnded(listener: () => void): () => void {

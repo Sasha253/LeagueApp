@@ -9,6 +9,7 @@ Every later chunk picks recipients here, so the rules live in one place:
   (a Player who plays both gets both), and never to Players of either opposing Team.
 - A payment Remind from the Outstanding list (FR-48) goes only to the named Players of the
   Team who opted into its Night.
+- A Player the Admin adds to a Team is told only if they opted into its Night.
 - On a reschedule, only that Night's Admins and the affected pitch's Referee are told,
   besides the Players of both Teams (FR-7, FR-8).
 
@@ -154,6 +155,11 @@ def reschedule_players(fixture) -> QuerySet[User]:
 def booking_recipients(club: Club) -> QuerySet[User]:
     """FR-29: the Club's Admins."""
     return club_admins(club)
+
+
+def added_to_team_recipients(team, player) -> QuerySet[User]:
+    """The Player the Admin just added to `team`, if they opted into its Night."""
+    return _users(Q(pk=player.pk) & _in_team([team]) & opted_in(team.division.night))
 
 
 def payment_reminder_recipients(team, players: Iterable) -> QuerySet[User]:

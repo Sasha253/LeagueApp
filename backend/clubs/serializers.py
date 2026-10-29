@@ -1,6 +1,8 @@
+from django.db import transaction
 from rest_framework import serializers
 
 from accounts.models import ClubRole, User
+from accounts.serializers import ClubInviteSerializer
 from core.tables import ImportAction
 
 from .models import Club, ClubSettings, Division, Field, Night, Season
@@ -15,6 +17,36 @@ class ClubSummarySerializer(serializers.ModelSerializer):
     class Meta:
         model = Club
         fields = ["id", "name"]
+
+
+class NewClubSerializer(serializers.ModelSerializer):
+    """A new Club, made by a superuser, and the email of its first Admin."""
+
+    admin_email = serializers.EmailField(
+        write_only=True,
+        help_text="Gets the Admin role at once if they have an account, else when they sign up.",
+    )
+
+    class Meta:
+        model = Club
+        fields = ["id", "name", "admin_email"]
+
+    def validate_name(self, value: str) -> str:
+        name = value.strip()
+        if Club.objects.filter(name__iexact=name).exists():
+            raise serializers.ValidationError("A club with this name already exists.")
+        return name
+
+    @transaction.atomic
+    def create(self, validated_data):
+        email = validated_data.pop("admin_email")
+        club = super().create(validated_data)
+        invite = ClubInviteSerializer(
+            data={"email": email, "role": "admin"}, context={"club": club}
+        )
+        invite.is_valid(raise_exception=True)
+        invite.save(club=club, invited_by=self.context["request"].user)
+        return club
 
 
 class NightSerializer(serializers.ModelSerializer):
